@@ -1,0 +1,24 @@
+video.muted {
+    outline: 2px solid red;
+}
+
+video {
+    outline: 2px solid green;
+}
+
+#remoteVideos video{
+    object-fit:cover;
+    width:320px;
+    height:240px
+}
+
+#localVideo {
+    object-fit:cover;
+    width:320px;
+    height:240px
+}
+
+div.videos {
+    display:inline-block;
+    float:left;
+}
