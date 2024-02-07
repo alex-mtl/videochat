@@ -3,11 +3,22 @@ const constraints = {video: true, audio: true};
 
 const localVideo = document.getElementById('localVideo');
 const remoteVideosContainer = document.getElementById('remoteVideos');
-let sessionID = null;
+var sessionID = null;
+var roomEnv = null;
 let roomId = 'test-room';
 let localStream;
 const peerConnections = {};
+var ws = null;// = new WebSocket('wss://video.ttl10.net:3000');
 
+function escapeHtml(unsafe)
+{
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
 navigator.mediaDevices.getUserMedia(constraints)
     .then(stream => {
         localStream = stream;
@@ -105,6 +116,13 @@ function createRoom() {
 
 }
 
+function sendMessage(elem) {
+    let message = document.getElementById('chat-input').value;
+
+    ws.send(JSON.stringify({type: 'send-chat-message', 'from': sessionID, to: 'all', message: message}));
+
+}
+
 function removePeerConnection(id) {
     delete peerConnections[id];
     document.getElementById('video-'+id).outerHTML = "";
@@ -114,7 +132,7 @@ function removePeerConnection(id) {
 }
 
 function startSignaling() {
-    const ws = new WebSocket('wss://video.ttl10.net:3000'); // Replace with your WebSocket server
+    ws = new WebSocket('wss://video.ttl10.net:3000'); // Replace with your WebSocket server
 
     ws.onopen = () => {
         ws.send(JSON.stringify({type: 'join', roomId: roomId}));
@@ -126,6 +144,7 @@ function startSignaling() {
             // Assign the unique ID received from the server
             const clientId = data.id;
             sessionID = clientId;
+            roomEnv = data.room;
 
             console.log('You are joined as:', clientId);
 
@@ -167,6 +186,7 @@ function startSignaling() {
         } else if (data.type === 'participant-left') {
             // Handle participant left
             console.log('Participant left:', data.id);
+            roomEnv = data.room;
             removePeerConnection(data.id);
         } else if (data.type === 'offer') {
             console.log('Offer:', data.id, data.description);
@@ -183,6 +203,8 @@ function startSignaling() {
             handleIceCandidate(data);
         } else if (data.type === 'room-list') {
             handleRoomList(data);
+        } else if (data.type === 'chat-message') {
+            handleChatMessage(data);
         }
     };
 
@@ -223,6 +245,26 @@ function startSignaling() {
 
     }
 
+    function handleChatMessage(data) {
+        table = document.getElementById('chat-messages');
+
+        var row = document.createElement('tr');
+
+        row.innerHTML = `<td class="chat-time">`+data.time+`</td>`;
+        row.innerHTML += `<td class="chat-from">`+data.from+`</td>`;
+        row.innerHTML += `<td class="chat-to">`+''+`</td>`;
+        row.innerHTML += `<td class="chat-message">`+escapeHtml(data.message)+`</td>`;
+
+        if (data.from === sessionID) {
+            row.classList.add('self-message');
+        } else if (data.from === roomEnv.host.uid) {
+            row.classList.add('host-message');
+        }
+
+        table.appendChild(row);
+
+    }
+
     function handleIceCandidate(candidate) {
         const peerConnection = peerConnections[candidate.from];
         peerConnection.addIceCandidate(new RTCIceCandidate(candidate.candidate));
@@ -240,10 +282,6 @@ function startSignaling() {
                 sendIceCandidate(from, to, event.candidate);
             }
         };
-        // ws.send({
-        //     type: 'offer',
-        //     data: offer
-        // });
         console.log('Peer connection created:', from, to, peerConnection, offer);
         console.log('sessionID :', sessionID);
         ws.send(JSON.stringify({type: 'offer', from, to, offer}));

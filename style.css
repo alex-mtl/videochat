@@ -22,3 +22,45 @@ div.videos {
     display:inline-block;
     float:left;
 }
+
+#chat {
+    display:block;
+    float:left;
+    clear:both;
+}
+
+#chat-messages {
+    width: 700px;
+}
+
+#chat-messages th.chat-time, th.chat-from, th.chat-to {
+    width: 68px;
+    text-align: left;
+    border: grey 1px solid;
+}
+#chat-messages  th.chat-message{
+    width: 500px;
+    text-align: center;
+    border: grey 1px solid;
+}
+
+#chat-messages td.chat-time, td.chat-from, td.chat-to {
+    width: 68px;
+    text-align: left;
+    vertical-align: text-top;
+    border-bottom: grey 1px solid;
+}
+#chat-messages  td.chat-message {
+    width: 500px;
+    text-align: left;
+    vertical-align: text-top;
+    border-bottom: grey 1px solid;
+}
+
+#chat-messages  td.chat-from.self-message, td.chat-message.self-message {
+    color: darkgray;
+}
+
+#chat-messages  td.chat-from.host-message, td.chat-message.host-message {
+    color: darkblue;
+}

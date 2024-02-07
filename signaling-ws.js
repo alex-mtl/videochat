@@ -62,6 +62,9 @@ wss.on('connection', ws => {
             case 'create-room':
                 handleCreateRoom(ws, data);
                 break;
+            case 'send-chat-message':
+                handleSendChatMessage(ws, data);
+                break;
             default:
                 console.error('Unknown message type:', data.type);
         }
@@ -102,14 +105,6 @@ function handleJoin(ws, data) {
         broadcast(JSON.stringify({ type: 'participant-joined', id: clientId }));
     });
 
-
-    // Send offers to existing clients
-    // Object.keys(clients).forEach(id => {
-    //     if (id !== clientId) {
-    //
-    //         sendOffer(ws, id, offerDescription);
-    //     }
-    // });
 }
 
 function handleOffer(sender, data) {
@@ -119,17 +114,19 @@ function handleOffer(sender, data) {
         recipient.send(JSON.stringify({ type: 'participant-offer', from: data.from, description: data.offer }));
     }
 
-
-
-    // if (recipient) {
-    //     recipient.send(JSON.stringify({ type: 'offer', from: sender.id, description: data.description }));
-    // }
 }
 
 function handleCreateRoom(sender, data) {
     rooms.push({ name: data.name, host: data.host})
 
     broadcast(JSON.stringify({ type: 'room-list', roomList: rooms }));
+
+}
+
+function handleSendChatMessage(sender, data) {
+    ts = new Date();
+    time = ts.toLocaleTimeString('it-IT');
+    broadcast(JSON.stringify({ type: 'chat-message', time: time, from: data.from, message: data.message }));
 
 }
 
