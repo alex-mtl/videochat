@@ -7,7 +7,7 @@ html(lang="en")
     script(src="/static/js/rooms.js", defer)
     link(href="/static/css/rooms.css", rel="stylesheet")
   body
-    script let chatSessionID = "#{sessionID}"; ; var websocketUrl = "#{wssURL}";
+    script let chatSessionID = "#{sessionID}"; var websocketUrl = "#{wssURL}";
     #create-room
       if error
         p #{error}
