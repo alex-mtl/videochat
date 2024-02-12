@@ -50,11 +50,14 @@ function createPeerConnection(peerId) {
             remoteVideoFrame.style="display:inline-block;float:left;";
             // remoteVideo.style = "";
             remoteVideoFrame.appendChild(remoteVideo);
+            remoteVideoFrame.classList.add("videobox");
             muteAudio = document.createElement('button');
-            muteAudio.textContent = '🔇Mute' ;
+            muteAudio.textContent = 'volume_off' ;
+            muteAudio.classList.add("material-symbols-outlined");
+            muteAudio.style="margin-left:40px;"
             muteAudio.onclick = function () {
                 this.parentElement.querySelector('video').muted = !this.parentElement.querySelector('video').muted;
-                this.textContent = this.parentElement.querySelector('video').muted ? '🔈Unmute' : '🔇Mute' ;
+                this.textContent = this.parentElement.querySelector('video').muted ? 'volume_up' : 'volume_off' ;
                 txt = this.parentElement.querySelector('video').muted ? 'Unmute' : 'Mute' ;
                 this.setAttribute('alt', txt);
                 this.setAttribute('tooltip', txt);
@@ -63,11 +66,12 @@ function createPeerConnection(peerId) {
             remoteVideoFrame.appendChild(muteAudio);
 
             muteVideo = document.createElement('button');
-            muteVideo.textContent = 'Stop' ;
+            muteVideo.textContent = 'videocam_off' ;
+            muteVideo.classList.add("material-symbols-outlined");
             muteVideo.onclick = function () {
                 video = this.parentElement.querySelector('video');
                 if (video.classList.contains('play')) {
-                    txt = 'Play'; // : 'Stop' ;
+                    txt = 'videocam';
                     stream = video.srcObject;
                     tracks = stream.getTracks();
 
@@ -75,7 +79,7 @@ function createPeerConnection(peerId) {
                         if (track.kind === 'video') track.enabled = false; //stop();
                     });
                 } else {
-                    txt = 'Stop' ;
+                    txt = 'videocam_off' ;
                     stream = video.srcObject;
                     tracks = stream.getTracks();
 
