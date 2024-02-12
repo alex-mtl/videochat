@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Chat</title>
+    <script src="public/js/rooms.js" defer></script>
+    <link href="public/css/rooms.css" rel="stylesheet">
+</head>
+<body>
+
+<div id="create-room">
+    <label for="userName">Username</label><input id="userName" type="text" size="32" placeholder="Username">
+    <label for="roomName">Room name</label><input id="roomName" type="text" size="32" placeholder="MyRoom-Name-NoSpaces">
+    <label for="roomPassword">Room password <br>(public by default)</label><input id="roomPassword" type="text" size="32" placeholder="No password">
+    <label for="valid">Host validation</label><input type="checkbox" id="valid" value="Off">
+    <label for="mute">Mute users when they join</label><input type="checkbox" id="mute" value="On">
+    <label for="chat">Chat</label><input type="checkbox" id="chat" value="On">
+    <label for="stream">Stream mode</label><input type="checkbox" id="stream" value="Off">
+    <div class="break">
+        <button id="createRoom" onclick="createRoom(this)">Create Room</button>
+        <button id="joinRoom" onclick="joinRoom(this)">Join Room</button>
+    </div>
+</div>
+
+</body>
+</html>

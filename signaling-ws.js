@@ -2,7 +2,12 @@ const WebSocket = require('ws');
 const express = require('express');
 const https = require('https');
 const fs = require('fs');
+const XRegExp = require('xregexp');
 const sqlite3 = require('sqlite3').verbose();
+const cookieParser = require('cookie-parser');
+const session = require('express-session');
+
+
 let db = new sqlite3.Database('video.db');
 
 db.serialize(() => {
@@ -29,6 +34,12 @@ db.serialize(() => {
 
 
 const app = express();
+app.use(cookieParser());
+app.use(session({
+    secret: 'mGpFoUnYpRylxBNziSzK2tVx',
+    resave: false,
+    saveUninitialized: true
+}));
 
 // Load SSL certificate and private key
 const privateKey = fs.readFileSync('video-key.pem', 'utf8');
@@ -41,6 +52,14 @@ const wss = new WebSocket.Server({ server });
 const clients = {};
 const clientOffers = {};
 const rooms = {};
+
+function validateString(str) {
+    const re = XRegExp("^[\\pL\\-_0-9]+$");
+    if(!re.test(str)) {
+        return false;
+    }
+    return str;
+}
 
 wss.on('connection', ws => {
     ws.on('message', message => {
@@ -117,9 +136,73 @@ function handleOffer(sender, data) {
 }
 
 function handleCreateRoom(sender, data) {
-    rooms.push({ name: data.name, host: data.host})
+    //rooms.push({ name: data.name, host: data.host})
+    room = data.room;
+    valid = false;
+    if (
+        room.name !== ''
+        && room.host != ''
+        && validateString(room.name)
+        && validateString(room.host)
+    ) {
+        valid = true;
+    } else {
+        sender.send(JSON.stringify({ type: 'error', message: "Validation failed for '"+room.name+"' or "+ +room.host + '1:'+(room.name)+'2:'+(room.host !== '')}));
+        return;
+    }
+    roomFile = 'rooms/'+room.name+'.json';
+    if (fs.existsSync(roomFile)) {
+        sender.send(JSON.stringify({ type: 'error', message: "Room '"+room.name+"' already exists" }));// ...
+    } else {
+        //const clientId = generateClientId();
+        sender.uid = room.host;
+        sender.chatSessionID = room.chatSessionID;
+        userFile = 'users/'+room.host+'.json';
+        fs.writeFileSync(roomFile, JSON.stringify(room) , 'utf-8');
+        sessionFile = 'sessions/'+room.chatSessionID.toString('base64')+'.json';
+        sess = {
+            chatSessionID: room.chatSessionID,
+            uid: generateClientId(),
+            userName: room.host
+        };
+        fs.writeFileSync(sessionFile, JSON.stringify(sess) , 'utf-8');
 
-    broadcast(JSON.stringify({ type: 'room-list', roomList: rooms }));
+        fs.writeFileSync(roomFile, JSON.stringify(room) , 'utf-8');
+                console.log('Room file written ',roomFile);
+        // console.log('Session ID ', req.sessionID);
+        sender.send(JSON.stringify({ type: 'room-ready', room: room, info: '1:'+(room.name !== '')+'2:'+(room.host !== '') }));
+
+        // if (fs.existsSync(userFile)) {
+        //     uid =
+        // }
+    }
+    // fs.readFile(roomFile, 'utf8', function (err, data) {
+    //     if (err) {
+    //         obj['host'] = { uid: clientId };
+    //         obj['size'] = 1;
+    //     } else {
+    //         obj = JSON.parse(data);
+    //         obj['u'+obj.size] = { uid: clientId };
+    //         obj.size = obj.size + 1;
+    //
+    //     }
+    //
+    //     clients[clientId] = ws;
+    //     ws.uid = clientId;
+    //
+    //     // Send the new client their ID
+    //     ws.send(JSON.stringify({ type: 'id', id: clientId, room: obj, test: "test : " }));
+    //     console.log('wsid: ',ws.uid,clientId, 'obj :',  JSON.stringify(obj));
+    //
+    //     fs.writeFileSync(roomFile, JSON.stringify(obj) , 'utf-8');
+    //
+    //
+    //     // Notify other clients about the new participant
+    //     broadcast(JSON.stringify({ type: 'participant-joined', id: clientId }));
+    // });
+    //
+    //
+    // broadcast(JSON.stringify({ type: 'room-list', roomList: rooms }));
 
 }
 

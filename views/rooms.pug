@@ -1,0 +1,31 @@
+doctype html
+html(lang="en")
+  head
+    meta(charset="UTF-8")
+    meta(name="viewport", content="width=device-width, initial-scale=1.0")
+    title Video Chat
+    script(src="/static/js/rooms.js", defer)
+    link(href="/static/css/rooms.css", rel="stylesheet")
+  body
+    script let chatSessionID = "#{sessionID}"; ; var websocketUrl = "#{wssURL}";
+    #create-room
+      if error
+        p #{error}
+      label(for="userName") Username
+      input#userName(type="text", size="32", placeholder="Username")
+      label(for="roomName") Room name
+      input#roomName(type="text", size="32", placeholder="MyRoom-Name-NoSpaces")
+      label(for="roomPassword") Room password
+      br
+      input#roomPassword(type="text", size="32", placeholder="No password")
+      label(for="valid") Host validation
+      input#valid(type="checkbox", value="Off")
+      label(for="mute") Mute users when they join
+      input#mute(type="checkbox", value="On")
+      label(for="chat") Chat
+      input#chat(type="checkbox", value="On")
+      label(for="stream") Stream mode
+      input#stream(type="checkbox", value="Off")
+      .break
+        button#createRoom(onclick="createRoom(this)") Create Room
+        button#joinRoom(onclick="joinRoom(this)") Join Room

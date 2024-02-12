@@ -1,0 +1,22 @@
+label {
+    clear:both;
+    float:left;
+    min-width: 150px;
+}
+
+input {
+    float:left;
+}
+ button {
+     float:left;
+ }
+
+ div.break {
+     clear:both;
+     float:left;
+ }
+
+ button {
+     padding: 2px;
+     margin: 1px;
+ }

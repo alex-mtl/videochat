@@ -1,0 +1,23 @@
+doctype html
+html(lang="en")
+  head
+    meta(charset="UTF-8")
+    meta(name="viewport", content="width=device-width, initial-scale=1.0")
+    title Video Chat
+    script(src="/static/js/client.js", defer)
+    link(href="/static/css/style.css", rel="stylesheet")
+  body
+    script let chatSessionID = "#{sessionID}"; var websocketUrl = "#{wssURL}";
+    .videos
+      video#localVideo(autoplay, muted)
+    #remoteVideos.videos
+    #chat
+      div
+        input#chat-input(type="text")
+        button#sendMessage(onclick="sendMessage(this)") Send
+      table#chat-messages
+        tr
+          th.chat-time time
+          th.chat-from from
+          th.chat-to to
+          th.chat-message message

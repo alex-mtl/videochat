@@ -5,10 +5,18 @@ const localVideo = document.getElementById('localVideo');
 const remoteVideosContainer = document.getElementById('remoteVideos');
 var sessionID = null;
 var roomEnv = null;
-let roomId = 'test-room';
 let localStream;
 const peerConnections = {};
 var ws = null;// = new WebSocket('wss://video.ttl10.net:3000');
+
+fetch('/static/data/app-config.json')
+    .then(response => response.json())
+    .then(config => {
+        websocketUrl = config.wss;
+    })
+    .catch(error => {
+        console.error('Error fetching configuration:', error);
+    });
 
 function escapeHtml(unsafe)
 {
@@ -82,14 +90,6 @@ function createPeerConnection(peerId) {
                     tracks.forEach((track) => {
                         if (track.kind === 'video') track.enabled = true; //stop();
                     });
-                    //this.stream.removeTrack(this.stream.getVideoTracks()[0])
-                    // video.srcObject.getTracks().forEach(track => {
-                    //     if (track.kind === 'video') {
-                    //         video.stream.addTrack(track);
-                    //     }
-                    // });
-
-
                 }
                 this.textContent = txt;
                 this.setAttribute('alt', txt);
@@ -108,13 +108,6 @@ function createPeerConnection(peerId) {
     return peerConnection;
 }
 
-function createRoom() {
-    const ws = new WebSocket('wss://video.ttl10.net:3000'); // Replace with your WebSocket server
-    let roomName = document.getElementById('roomName').value;
-
-    ws.send(JSON.stringify({type: 'create-room', 'name': roomName, host: sessionID}));
-
-}
 
 function sendMessage(elem) {
     let message = document.getElementById('chat-input').value;
@@ -126,14 +119,11 @@ function sendMessage(elem) {
 function removePeerConnection(id) {
     delete peerConnections[id];
     document.getElementById('video-'+id).outerHTML = "";
-    // document.createElement('video')
-    //document.getElementById('remoteVideos').innerHTML = '';
-
 }
 
 function startSignaling() {
-    ws = new WebSocket('wss://video.ttl10.net:3000'); // Replace with your WebSocket server
-
+            // Create WebSocket connection using the retrieved URL
+    ws = new WebSocket(websocketUrl);
     ws.onopen = () => {
         ws.send(JSON.stringify({type: 'join', roomId: roomId}));
     };
@@ -207,6 +197,7 @@ function startSignaling() {
             handleChatMessage(data);
         }
     };
+
 
     function handleOffer(offer) {
         const peerConnection = peerConnections[offer.from];
