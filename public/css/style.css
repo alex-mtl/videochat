@@ -1,9 +1,21 @@
 video.muted {
-    outline: 2px solid red;
+    border: 5px solid #e15754;
 }
 
 video {
-    outline: 2px solid green;
+    border: 5px solid #72d972;
+    box-shadow: 3px 3px rgb(231, 226, 226);
+    border-radius: 10%;
+    margin: 10px;
+}
+
+div .videobox{
+    position: relative;
+}
+div .videobox button{
+    position: absolute;
+    top: 10%;
+    left: 10%;
 }
 
 #remoteVideos video{
