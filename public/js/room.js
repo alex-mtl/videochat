@@ -2,10 +2,13 @@ const configuration = {iceServers: [{urls: 'stun:stun.l.google.com:19302'}]};
 const constraints = {video: true, audio: true};
 
 const localVideo = document.getElementById('localVideo');
+const localScreen = document.getElementById('localScreen');
+
 const remoteVideosContainer = document.getElementById('remoteVideos');
 var sessionID = null;
 var roomEnv = null;
 let localStream;
+let mediaStream = null;
 const peerConnections = {};
 var ws = null;// = new WebSocket('wss://video.ttl10.net:3000');
 
@@ -36,6 +39,22 @@ navigator.mediaDevices.getUserMedia(constraints)
     .catch(error => {
         console.error('Error accessing media devices:', error);
     });
+
+function shareScreen() {
+    navigator.mediaDevices.getDisplayMedia({
+        video: {
+            cursor: "always"
+        },
+        audio: false
+    })
+        .then(stream => {
+            mediaStream = stream;
+            localScreen.srcObject = stream;
+        })
+        .catch(error => {
+            console.error('Error accessing media devices:', error);
+        });
+}
 
 function createPeerConnection(peerId) {
     const peerConnection = new RTCPeerConnection(configuration);

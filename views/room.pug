@@ -13,6 +13,7 @@ html(lang="en")
     script let chatSessionID = "#{chatSessionID}"; let roomId = "#{roomID}"; var websocketUrl = "#{wssURL}";
     .videos.d-flex.flex-row.bd-highlight.mb-3
       video.videobox#localVideo(autoplay, muted)
+      video.videobox#localScreen(autoplay, muted)
       #remoteVideos.videos
     #chat
       div

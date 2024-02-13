@@ -30,6 +30,13 @@ div .videobox button{
     height:240px
 }
 
+#localScreen {
+    object-fit:cover;
+    width:320px;
+    height:240px
+}
+
+
 div.videos {
     display:inline-block;
     float:left;
