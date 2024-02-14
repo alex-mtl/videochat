@@ -7,6 +7,7 @@ const sqlite3 = require('sqlite3').verbose();
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
 
+const chatHost = "https://video.ttl10.net/";
 
 let db = new sqlite3.Database('video.db');
 
@@ -50,7 +51,7 @@ const server = https.createServer(credentials, app);
 const wss = new WebSocket.Server({ server });
 
 const clients = {};
-const clientOffers = {};
+const sessions = {};
 const rooms = {};
 
 function validateString(str) {
@@ -68,6 +69,9 @@ wss.on('connection', ws => {
         switch (data.type) {
             case 'join':
                 handleJoin(ws, data);
+                break;
+            case 'share-screen':
+                handleShareScreen(ws, data);
                 break;
             case 'offer':
                 handleOffer(ws, data);
@@ -95,26 +99,43 @@ wss.on('connection', ws => {
 });
 
 function handleJoin(ws, data) {
-    const clientId = generateClientId();
-    roomId = data.roomId;
-    var roomFile = 'rooms/'+roomId+'.json';
+    let clientId = generateClientId();
+    const roomID = data.roomId;
+    const sessionID = data.sessionID;
+    var roomFile = 'rooms/'+roomID+'.json';
+    let sess;
+    (async () => {
+        sess = await getSession(sessionID, clientId, clientId, roomID);
+        console.log('Session:', sess);
+    })();
+
+    console.log('107 : ',sess);
     var obj = {};
-    fs.readFile(roomFile, 'utf8', function (err, data) {
+    fs.readFile(roomFile, 'utf8', function (err, roomData) {
         if (err) {
             obj['host'] = { uid: clientId };
             obj['size'] = 1;
         } else {
-            obj = JSON.parse(data);
-            obj['u'+obj.size] = { uid: clientId };
-            obj.size = obj.size + 1;
+            obj = JSON.parse(roomData);
+            console.log('114 : ',sess, data.roomId);
+            if (sess.hasOwnProperty('newRoom')  && (sess.newRoom === data.roomId)) {
+                clientId = sess.uid;
+                obj['size'] = 1;
+                delete sess['newRoom'];
+                updateSession(sessionID, sess);
+            } else {
 
+                obj['u'+obj.size] = { uid: clientId };
+                obj.size = obj.size + 1;
+            }
         }
 
         clients[clientId] = ws;
         ws.uid = clientId;
+        ws.roomID = roomID;
 
         // Send the new client their ID
-        ws.send(JSON.stringify({ type: 'id', id: clientId, room: obj, test: "test : " }));
+        ws.send(JSON.stringify({ type: 'id', id: clientId, room: obj }));
         console.log('wsid: ',ws.uid,clientId, 'obj :',  JSON.stringify(obj));
 
         fs.writeFileSync(roomFile, JSON.stringify(obj) , 'utf-8');
@@ -122,6 +143,59 @@ function handleJoin(ws, data) {
 
         // Notify other clients about the new participant
         broadcast(JSON.stringify({ type: 'participant-joined', id: clientId }));
+    });
+
+}
+
+function handleShareScreen(ws, data) {
+    const screenID = generateClientId();
+    roomId = data.roomId;
+    var roomFile = 'rooms/'+roomId+'.json';
+    var obj = {};
+    fs.readFile(roomFile, 'utf8', function (err, data) {
+        room = JSON.parse(data);
+        if (room.host.uid === ws.uid) {
+            room.host.screenID = screenID;
+        } else {
+            for (let i= 1; i <= 10; i++) {
+                if (room.hasOwnProperty('u'+i)) {
+
+                    if (room['u'+i].uid ===  ws.uid) {
+                        room['u'+i].screenID = screenID;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Send the new client their ID
+        ws.send(JSON.stringify({ type: 'screen-id', screenID: screenID, room: room }));
+        console.log('wsid: ',ws.uid, 'screen-id', screenID, 'obj :',  JSON.stringify(room));
+
+        fs.writeFileSync(roomFile, JSON.stringify(room) , 'utf-8');
+
+        if (room.host.uid !== ws.uid) {
+            hostConn = clients[room.host.uid];
+            if (hostConn !== undefined) {
+                hostConn.send(JSON.stringify({ type: 'screen-shared', screenID: screenID, uid: ws.uid }));
+            } else {
+                console.log("Can't connect to ", room.host.uid)
+            }
+
+        }
+        for (let i= 1; i <= 10; i++) {
+            if (room.hasOwnProperty('u'+i)) {
+                if (room['u'+i].uid !==  ws.uid) {
+                    userConn = clients[room['u'+i].uid ];
+                    if (userConn !== undefined) {
+                        userConn.send(JSON.stringify({ type: 'screen-shared', screenID: screenID, uid: ws.uid }));
+                    } else {
+                        console.log("Can't connect to ",room['u'+i].uid)
+                    }
+                }
+            }
+        }
+
     });
 
 }
@@ -154,56 +228,65 @@ function handleCreateRoom(sender, data) {
     if (fs.existsSync(roomFile)) {
         sender.send(JSON.stringify({ type: 'error', message: "Room '"+room.name+"' already exists" }));// ...
     } else {
-        //const clientId = generateClientId();
-        sender.uid = room.host;
+        const clientId = generateClientId();
+        sender.uid = clientId;
+        sender.userName = room.host;
+        console.log("Session to create ", room.chatSessionID, typeof room.chatSessionID);
+        createSession( room.chatSessionID, clientId, room.host, room.name);
+        room.host = { uid: clientId, userName: room.host, sessionID: room.chatSessionID };
+        room.link = chatHost+'p/'+room.name;
+        delete room['chatSessionID'];
         sender.chatSessionID = room.chatSessionID;
-        userFile = 'users/'+room.host+'.json';
-        fs.writeFileSync(roomFile, JSON.stringify(room) , 'utf-8');
-        sessionFile = 'sessions/'+room.chatSessionID.toString('base64')+'.json';
-        sess = {
-            chatSessionID: room.chatSessionID,
-            uid: generateClientId(),
-            userName: room.host
-        };
-        fs.writeFileSync(sessionFile, JSON.stringify(sess) , 'utf-8');
+        sender.newRoom = room.name;
 
         fs.writeFileSync(roomFile, JSON.stringify(room) , 'utf-8');
                 console.log('Room file written ',roomFile);
         // console.log('Session ID ', req.sessionID);
         sender.send(JSON.stringify({ type: 'room-ready', room: room, info: '1:'+(room.name !== '')+'2:'+(room.host !== '') }));
 
-        // if (fs.existsSync(userFile)) {
-        //     uid =
-        // }
     }
-    // fs.readFile(roomFile, 'utf8', function (err, data) {
-    //     if (err) {
-    //         obj['host'] = { uid: clientId };
-    //         obj['size'] = 1;
-    //     } else {
-    //         obj = JSON.parse(data);
-    //         obj['u'+obj.size] = { uid: clientId };
-    //         obj.size = obj.size + 1;
-    //
-    //     }
-    //
-    //     clients[clientId] = ws;
-    //     ws.uid = clientId;
-    //
-    //     // Send the new client their ID
-    //     ws.send(JSON.stringify({ type: 'id', id: clientId, room: obj, test: "test : " }));
-    //     console.log('wsid: ',ws.uid,clientId, 'obj :',  JSON.stringify(obj));
-    //
-    //     fs.writeFileSync(roomFile, JSON.stringify(obj) , 'utf-8');
-    //
-    //
-    //     // Notify other clients about the new participant
-    //     broadcast(JSON.stringify({ type: 'participant-joined', id: clientId }));
-    // });
-    //
-    //
-    // broadcast(JSON.stringify({ type: 'room-list', roomList: rooms }));
 
+}
+
+function createSession(sessionID, clientID = null, userName = null, roomID = null) {
+    sessionFile = 'sessions/'+sessionID.toString('base64')+'.json';
+    sess = {
+        chatSessionID: sessionID,
+        uid: clientID,
+        userName: userName,
+        newRoom: roomID
+    };
+    sessions[sessionID] = sess;
+    fs.writeFileSync(sessionFile, JSON.stringify(sess) , 'utf-8');
+    return sess;
+}
+
+function getSession(sessionID, clientID = null, userName = null, roomID = null) {
+    //const sessionFile = 'sessions/' + Buffer.from(sessionID).toString('base64') + '.json';
+    //console.log(sessionFile);
+    let sess = sessions[sessionID];
+
+
+    if (sess === undefined) {
+        // try {
+        //     const data = fs.promises.readFile(sessionFile, 'utf8');
+        //     sess = JSON.parse(data);
+        //     console.log('Session found', sess);
+        // } catch (err) {
+            console.log('Session not found', sessionID);
+            sess = createSession(sessionID, clientID, userName);
+            console.log('New session created', sess);
+        //}
+    }
+
+    return sess;
+}
+
+function updateSession(sessionID, sess) {
+    //sessionFile = 'sessions/'+sessionID.toString('base64')+'.json';
+    sessions[sessionID] = sess;
+    //fs.writeFileSync(sessionFile, JSON.stringify(sess) , 'utf-8');
+    return sess;
 }
 
 function handleSendChatMessage(sender, data) {
@@ -249,45 +332,51 @@ function broadcast(message) {
 
 function removeClient(ws) {
     const clientId = ws.uid;
-    var roomFile = 'rooms/'+'test-room'+'.json';
-    fs.readFile(roomFile, 'utf8', function (err, data) {
-        obj = JSON.parse(data);
-        if (clientId) {
-            delete clients[clientId];
-            removeId = 0;
-            if (obj.host.uid === clientId) {
-                if (obj.hasOwnProperty('u1')) {
-                    obj.host = obj.u1;
-                    removeId = 1;
-                    obj.size = obj.size - 1;
-                    console.log('183 size:', obj.size);
-                }
-            } else {
-                for (let i= 1; i <= 10; i++) {
-                    if (obj.hasOwnProperty('u'+i)) {
-                        if (obj['u'+i].uid === clientId) {
-                            delete obj['u'+i];
-                            removeId = i;
-                            obj.size = obj.size - 1;
-                            console.log('192 size:', obj.size);
-                            break;
+    const roomID = ws.roomID;
+    var roomFile = 'rooms/'+roomID+'.json';
+    if (!fs.existsSync(roomFile)) {
+        console.log('Room ', roomFile, ' does not exist!');
+    } else {
+        fs.readFile(roomFile, 'utf8', function (err, data) {
+
+            obj = JSON.parse(data);
+            if (clientId) {
+                delete clients[clientId];
+                removeId = 0;
+                if (obj.host.uid === clientId) {
+                    if (obj.hasOwnProperty('u1')) {
+                        obj.host = obj.u1;
+                        removeId = 1;
+                        obj.size = obj.size - 1;
+                        console.log('183 size:', obj.size);
+                    }
+                } else {
+                    for (let i = 1; i <= 10; i++) {
+                        if (obj.hasOwnProperty('u' + i)) {
+                            if (obj['u' + i].uid === clientId) {
+                                delete obj['u' + i];
+                                removeId = i;
+                                obj.size = obj.size - 1;
+                                console.log('192 size:', obj.size);
+                                break;
+                            }
                         }
                     }
                 }
-            }
-            for (let i= removeId; i <= 10; i++) {
-                if (obj.hasOwnProperty('u'+(i+1))) {
-                    obj['u'+i] = obj['u'+(i+1)];
-                    delete obj['u'+(i+1)];
-                    console.log('202 size:', obj.size, 'remove id: ', removeId);
-                    //obj.size = obj.size - 1;
+                for (let i = removeId; i <= 10; i++) {
+                    if (obj.hasOwnProperty('u' + (i + 1))) {
+                        obj['u' + i] = obj['u' + (i + 1)];
+                        delete obj['u' + (i + 1)];
+                        console.log('202 size:', obj.size, 'remove id: ', removeId);
+                        //obj.size = obj.size - 1;
+                    }
                 }
+                fs.writeFileSync(roomFile, JSON.stringify(obj), 'utf-8');
+                // Notify other clients about the departure
+                broadcast(JSON.stringify({type: 'participant-left', id: clientId, room: obj}));
             }
-            fs.writeFileSync(roomFile, JSON.stringify(obj) , 'utf-8');
-            // Notify other clients about the departure
-            broadcast(JSON.stringify({ type: 'participant-left', id: clientId, room: obj }));
-        }
-    });
+        });
+    }
 
 }
 

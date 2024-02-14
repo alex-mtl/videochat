@@ -8,7 +8,7 @@ var roomEnv = null;
 let roomId = 'test-room';
 let localStream;
 const peerConnections = {};
-var ws = null;// = new WebSocket('wss://video.ttl10.net:3000');
+var ws = null;
 
 function escapeHtml(unsafe)
 {

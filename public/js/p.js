@@ -1,25 +1,12 @@
 const configuration = {iceServers: [{urls: 'stun:stun.l.google.com:19302'}]};
 const constraints = {video: true, audio: true};
-
 const localVideo = document.getElementById('localVideo');
-const localScreen = document.getElementById('localScreen');
-
 const remoteVideosContainer = document.getElementById('remoteVideos');
 var sessionID = null;
 var roomEnv = null;
 let localStream;
-let mediaStream = null;
 const peerConnections = {};
 var ws = null;
-
-fetch('/static/data/app-config.json')
-    .then(response => response.json())
-    .then(config => {
-        websocketUrl = config.wss;
-    })
-    .catch(error => {
-        console.error('Error fetching configuration:', error);
-    });
 
 function escapeHtml(unsafe)
 {
@@ -40,44 +27,16 @@ navigator.mediaDevices.getUserMedia(constraints)
         console.error('Error accessing media devices:', error);
     });
 
-function shareScreen() {
-    navigator.mediaDevices.getDisplayMedia({
-        video: {
-            cursor: "always"
-        },
-        audio: false
-    })
-        .then(stream => {
-            mediaStream = stream;
-            localScreen.srcObject = stream;
-            ws.send(JSON.stringify({type: 'share-screen', roomId: roomId, userID: sessionID}));
-        })
-        .catch(error => {
-            console.error('Error accessing media devices:', error);
-        });
-}
-
-function createPeerConnection(peerId, mode = null) {
+function createPeerConnection(peerId) {
     const peerConnection = new RTCPeerConnection(configuration);
 
-    if (mode === null) {
-        localStream.getTracks().forEach(track => {
-            console.log('peerId', peerId, 'track', track);
-            peerConnection.addTrack(track, localStream);
-        });
-    } else if (mode === "screen") {
-        mediaStream.getTracks().forEach(track => {
-            console.log('peerId', peerId+mode, 'track', track);
-            peerConnection.addTrack(track, mediaStream);
-        });
-    }
+    localStream.getTracks().forEach(track => {
+        console.log('peerId', peerId, 'track', track);
+        peerConnection.addTrack(track, localStream);
+    });
 
     peerConnection.ontrack = event => {
-        if (
-            (document.getElementById('video-' + peerId) === null)
-            &&
-            (mode === null)
-        ) {
+        if (document.getElementById('video-' + peerId) === null) {
             const remoteVideoFrame = document.createElement('div');
             const remoteVideo = document.createElement('video');
             remoteVideo.srcObject = event.streams[0];
@@ -89,20 +48,17 @@ function createPeerConnection(peerId, mode = null) {
             remoteVideoFrame.style="display:inline-block;float:left;";
             // remoteVideo.style = "";
             remoteVideoFrame.appendChild(remoteVideo);
-
-            if (parentID === null) {
-                muteAudio = document.createElement('button');
-                muteAudio.textContent = '🔇Mute' ;
-                muteAudio.onclick = function () {
-                    this.parentElement.querySelector('video').muted = !this.parentElement.querySelector('video').muted;
-                    this.textContent = this.parentElement.querySelector('video').muted ? '🔈Unmute' : '🔇Mute' ;
-                    txt = this.parentElement.querySelector('video').muted ? 'Unmute' : 'Mute' ;
-                    this.setAttribute('alt', txt);
-                    this.setAttribute('tooltip', txt);
-                    this.parentElement.querySelector('video').classList.toggle('muted')
-                };
-                remoteVideoFrame.appendChild(muteAudio);
-            }
+            muteAudio = document.createElement('button');
+            muteAudio.textContent = '🔇Mute' ;
+            muteAudio.onclick = function () {
+                this.parentElement.querySelector('video').muted = !this.parentElement.querySelector('video').muted;
+                this.textContent = this.parentElement.querySelector('video').muted ? '🔈Unmute' : '🔇Mute' ;
+                txt = this.parentElement.querySelector('video').muted ? 'Unmute' : 'Mute' ;
+                this.setAttribute('alt', txt);
+                this.setAttribute('tooltip', txt);
+                this.parentElement.querySelector('video').classList.toggle('muted')
+            };
+            remoteVideoFrame.appendChild(muteAudio);
 
             muteVideo = document.createElement('button');
             muteVideo.textContent = 'Stop' ;
@@ -133,11 +89,12 @@ function createPeerConnection(peerId, mode = null) {
             };
             remoteVideoFrame.appendChild(muteVideo);
 
+
             remoteVideosContainer.appendChild(remoteVideoFrame);
         }
     };
 
-    peerConnections[peerId+mode] = peerConnection;
+    peerConnections[peerId] = peerConnection;
     return peerConnection;
 }
 
@@ -151,11 +108,11 @@ function sendMessage(elem) {
 
 function removePeerConnection(id) {
     delete peerConnections[id];
-    video = document.getElementById('video-'+id);
-    if (video !== null) {
-        video.remove();
-    }
+    document.getElementById('video-'+id).outerHTML = "";
 }
+
+// ws = new WebSocket('wss://video.ttl10.net:3000'); // Replace with your WebSocket server
+
 
 function startSignaling() {
             // Create WebSocket connection using the retrieved URL
@@ -174,7 +131,7 @@ function startSignaling() {
 
             console.log('You are joined as:', clientId);
 
-            if(sessionID !== (data.room.host.uid ?? false)) {
+            if(sessionID !== data.room.host.uid) {
                 peerConnection = createPeerConnection(data.room.host.uid);
                 peerConnection.onicecandidate = event => {
                     if (event.candidate) {
@@ -207,46 +164,6 @@ function startSignaling() {
                     }
                 };
                 console.log('Participant joined:', clientId);
-            }
-        } else if (data.type === 'screen-id') {
-            screenID = data.screenID;
-            roomEnv = data.room;
-
-            console.log('Your screen shared as:', screenID);
-
-            if(data.room.host.uid !== data.userID) {
-                peerConnection = createPeerConnection(data.room.host.uid, "screen");
-                peerConnection.onicecandidate = event => {
-                    if (event.candidate) {
-                        sendIceCandidate(sessionID, data.room.host.uid, event.candidate);
-                    }
-                };
-            }
-            sendOffer(ws, clientId, data.room.host.uid, peerConnection);
-            for (i = 2; i <= data.room.size; i++) {
-                user = data.room['u' + (i - 1)];
-                if (user.uid !== sessionID) {
-                    peerConnection = createPeerConnection(user.uid);
-                    peerConnection.onicecandidate = event => {
-                        if (event.candidate) {
-                            sendIceCandidate(sessionID, user.uid, event.candidate);
-                        }
-                    };
-                    sendOffer(ws, clientId, user.uid, peerConnection);
-                }
-            }
-
-        } else if (data.type === 'screen-shared') {
-            // Handle new participant joined
-            const clientId = data.screenID;
-            if (sessionID != data.uid) {
-                peerConnection = createPeerConnection(clientId, data.uid);
-                peerConnection.onicecandidate = event => {
-                    if (event.candidate) {
-                        sendIceCandidate(sessionID, clientId, event.candidate);
-                    }
-                };
-                console.log('Screen joined:', clientId);
             }
 
         } else if (data.type === 'participant-left') {
@@ -334,12 +251,7 @@ function startSignaling() {
 
     function handleIceCandidate(candidate) {
         const peerConnection = peerConnections[candidate.from];
-        if (peerConnection !== undefined) {
-            peerConnection.addIceCandidate(new RTCIceCandidate(candidate.candidate));
-        } else {
-            console.log('Peer connection not found: ', candidate.from);
-        }
-
+        peerConnection.addIceCandidate(new RTCIceCandidate(candidate.candidate));
     }
 
     async function sendOffer(ws, from, to, peerConnection) {

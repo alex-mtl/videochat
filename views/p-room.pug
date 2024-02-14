@@ -3,15 +3,13 @@ html(lang="en")
   head
     meta(charset="UTF-8")
     meta(name="viewport", content="width=device-width, initial-scale=1.0")
-    title Video Chat Room
-    script(src="/static/js/room.js", defer)
+    title Video Chat
+    script(src="/static/js/p.js", defer)
     link(href="/static/css/style.css", rel="stylesheet")
   body
-    script let chatSessionID = "#{chatSessionID}"; let roomId = "#{roomID}"; var websocketUrl = "#{wssURL}";
+    script let chatSessionID = "#{sessionID}"; let roomId = "#{roomID}";var websocketUrl = "#{wssURL}";
     .videos
       video#localVideo(autoplay, muted)
-      video#localScreen(autoplay, muted)
-      button#shareScreenBtn(onclick="shareScreen()") ShareScreen
     #remoteVideos.videos
     #chat
       div
