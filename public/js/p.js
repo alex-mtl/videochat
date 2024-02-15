@@ -1,4 +1,3 @@
-let roomId = 'test-room';
 
 navigator.mediaDevices.getUserMedia(constraints)
     .then(stream => {
@@ -14,7 +13,7 @@ function startSignaling() {
             // Create WebSocket connection using the retrieved URL
     ws = new WebSocket(websocketUrl);
     ws.onopen = () => {
-        ws.send(JSON.stringify({type: 'join', roomId: roomId}));
+        ws.send(JSON.stringify({type: 'join', roomId: roomId, sessionID: chatSessionID }));
     };
 
     ws.onmessage = event => {

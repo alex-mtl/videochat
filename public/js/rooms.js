@@ -5,10 +5,10 @@ const localVideo = document.getElementById('localVideo');
 const remoteVideosContainer = document.getElementById('remoteVideos');
 var sessionID = null;
 var roomEnv = null;
-let roomId = null;
+let roomID = null;
 let localStream;
 const peerConnections = {};
-var ws = null;// = new WebSocket('wss://video.ttl10.net:3000');
+var ws = null;
 function escapeHtml(unsafe)
 {
     return unsafe
@@ -31,6 +31,7 @@ function createRoom(elem) {
     room.chat = form.querySelector("input#chat").checked ? 'On' : 'Off';
     room.stream = form.querySelector("input#stream").checked ? 'On' : 'Off';
     room.chatSessionID = chatSessionID;
+    roomID = room.name;
 
     ws.send(JSON.stringify({type: 'create-room', 'room': room}));
 
@@ -50,8 +51,8 @@ function startSignaling() {
             handleConnected(data);
         } else if (data.type === 'room-list') {
             handleRoomList(data);
-        } else if (data.type === 'room-created') {
-            handleRoomCreated(data);
+        } else if (data.type === 'room-ready') {
+            handleRoomReady(data);
         }
     };
 
@@ -59,8 +60,11 @@ function startSignaling() {
         console.log('Room created:', data.room);
     }
 
-    function handleRoomCreated(data) {
-
+    function handleRoomReady(data) {
+        if (data.room.name === roomID) {
+            // window.location.replace(data.room.link);
+            window.location.href = data.room.link;
+        }
     }
     function handleRoomList(data) {
         select = document.getElementById('roomList');
