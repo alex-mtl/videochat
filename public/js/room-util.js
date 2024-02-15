@@ -91,6 +91,11 @@ function createPeerConnection(peerId) {
 
      };
      remoteVideoFrame.appendChild(muteVideo);
+
+     slider = document.createElement('template');
+     slider.innerHTML = `<input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1" onChange="adjustVolume(this.parentElement.querySelector('video'), this.value )">`;
+     remoteVideoFrame.appendChild(slider.content.cloneNode(true));
+
      return remoteVideoFrame;
  }
 
@@ -108,3 +113,8 @@ function removePeerConnection(id) {
         video.remove();
     }
 }
+
+function adjustVolume(video, volume) {
+    video.volume = volume;
+}
+

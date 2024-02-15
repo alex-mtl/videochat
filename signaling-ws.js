@@ -130,10 +130,10 @@ function handleJoin(ws, data) {
 
 }
 
-function broadcastRoom(roomID, message, ws) {
+function broadcastRoom(roomID, message, ws = null) {
     room = rooms[roomID];
     if (room !== undefined) {
-        if (room.host.uid !== ws.uid) {
+        if (ws === null || room.host.uid !== ws.uid) {
             hostConn = clients[room.host.uid];
             if (hostConn !== undefined) {
                 hostConn.send((message));
@@ -141,7 +141,7 @@ function broadcastRoom(roomID, message, ws) {
         }
         for (let i= 1; i <= 10; i++) {
             if (room.hasOwnProperty('u'+i)) {
-                if (room['u'+i].uid !==  ws.uid) {
+                if (ws === null || room['u'+i].uid !==  ws.uid) {
                     userConn = clients[room['u'+i].uid ];
                     if (userConn !== undefined) {
                         userConn.send(message);
@@ -310,7 +310,7 @@ function updateSession(sessionID, sess) {
 function handleSendChatMessage(sender, data) {
     ts = new Date();
     time = ts.toLocaleTimeString('it-IT');
-    broadcast(JSON.stringify({ type: 'chat-message', time: time, from: data.from, message: data.message }));
+    broadcastRoom(sender.roomID, JSON.stringify({ type: 'chat-message', time: time, from: data.from, message: data.message }));
 
 }
 

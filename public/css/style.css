@@ -20,7 +20,20 @@ div .videobox button{
     padding-left: 2px;
     padding-right: 2px;
 }
+
 div:hover .videobox button {
+    visibility: visible;
+}
+
+div .videobox input#volumeSlider{
+    visibility: hidden;
+    position: absolute;
+    bottom: 10%;
+    right: 10%;
+    width: 80%;
+}
+
+div:hover .videobox input#volumeSlider {
     visibility: visible;
 }
 
