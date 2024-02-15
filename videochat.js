@@ -8,6 +8,7 @@ const fs = require('fs');
 const port = 3080;
 const wssURL = "wss://video.ttl10.net:3000";
 
+process.env.APP_HOST
 
 
 const app = express();

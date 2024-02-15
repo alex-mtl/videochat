@@ -108,7 +108,10 @@ function sendMessage(elem) {
 
 function removePeerConnection(id) {
     delete peerConnections[id];
-    document.getElementById('video-'+id).outerHTML = "";
+    video = document.getElementById('video-'+id);
+    if (video !== null) {
+        video.remove();
+    }
 }
 
 // ws = new WebSocket('wss://video.ttl10.net:3000'); // Replace with your WebSocket server

@@ -99,52 +99,63 @@ wss.on('connection', ws => {
 });
 
 function handleJoin(ws, data) {
-    let clientId = generateClientId();
-    const roomID = data.roomId;
-    const sessionID = data.sessionID;
+    const clientId = generateClientId();
+    roomID = data.roomId;
     var roomFile = 'rooms/'+roomID+'.json';
-    let sess;
-    (async () => {
-        sess = await getSession(sessionID, clientId, clientId, roomID);
-        console.log('Session:', sess);
-    })();
-
-    console.log('107 : ',sess);
     var obj = {};
-    fs.readFile(roomFile, 'utf8', function (err, roomData) {
+    fs.readFile(roomFile, 'utf8', function (err, data) {
         if (err) {
             obj['host'] = { uid: clientId };
             obj['size'] = 1;
         } else {
-            obj = JSON.parse(roomData);
-            console.log('114 : ',sess, data.roomId);
-            if (sess.hasOwnProperty('newRoom')  && (sess.newRoom === data.roomId)) {
-                clientId = sess.uid;
-                obj['size'] = 1;
-                delete sess['newRoom'];
-                updateSession(sessionID, sess);
-            } else {
+            obj = JSON.parse(data);
+            obj['u'+obj.size] = { uid: clientId };
+            obj.size = obj.size + 1;
 
-                obj['u'+obj.size] = { uid: clientId };
-                obj.size = obj.size + 1;
-            }
         }
 
         clients[clientId] = ws;
         ws.uid = clientId;
         ws.roomID = roomID;
+        rooms[roomID] = obj;
 
         // Send the new client their ID
-        ws.send(JSON.stringify({ type: 'id', id: clientId, room: obj }));
+        ws.send(JSON.stringify({ type: 'id', id: clientId, room: obj, test: "test : " }));
         console.log('wsid: ',ws.uid,clientId, 'obj :',  JSON.stringify(obj));
 
         fs.writeFileSync(roomFile, JSON.stringify(obj) , 'utf-8');
 
-
-        // Notify other clients about the new participant
-        broadcast(JSON.stringify({ type: 'participant-joined', id: clientId }));
+        broadcastRoom(roomID, JSON.stringify({ type: 'participant-joined', id: clientId }), ws);
     });
 
+}
+
+function broadcastRoom(roomID, message, ws) {
+    room = rooms[roomID];
+    if (room !== undefined) {
+        if (room.host.uid !== ws.uid) {
+            hostConn = clients[room.host.uid];
+            if (hostConn !== undefined) {
+                hostConn.send((message));
+            }
+        }
+        for (let i= 1; i <= 10; i++) {
+            if (room.hasOwnProperty('u'+i)) {
+                if (room['u'+i].uid !==  ws.uid) {
+                    userConn = clients[room['u'+i].uid ];
+                    if (userConn !== undefined) {
+                        userConn.send(message);
+                    } else {
+                        console.log("Can't connect to ",room['u'+i].uid);
+                        //delete(room['u'+i]);
+                        //room.size = room.size - 1;
+
+                    }
+                }
+            }
+        }
+    }
+    //rooms[roomID] = room;
 }
 
 function handleShareScreen(ws, data) {
@@ -235,6 +246,13 @@ function handleCreateRoom(sender, data) {
         createSession( room.chatSessionID, clientId, room.host, room.name);
         room.host = { uid: clientId, userName: room.host, sessionID: room.chatSessionID };
         room.link = chatHost+'p/'+room.name;
+        room.size = 1;
+        if (room.password.trim() === '' && room.valid ==='Off') {
+            room.type = 'public';
+        } else {
+            room.type = 'private';
+        }
+
         delete room['chatSessionID'];
         sender.chatSessionID = room.chatSessionID;
         sender.newRoom = room.name;
