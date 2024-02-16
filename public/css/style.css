@@ -6,6 +6,8 @@ video {
     border: 5px solid #72d972;
     border-radius: 5%;
     margin: 5px;
+    height: 70%;
+    object-fit:cover;
 }
 
 div .videobox{
@@ -36,28 +38,9 @@ div:hover .videobox input#volumeSlider {
     visibility: visible;
 }
 
-#remoteVideos video{
-    object-fit:cover;
-    width:320px;
-    height:240px
-}
-
-#localVideo {
-    object-fit:cover;
-    width:320px;
-    height:240px
-}
-
-#localScreen {
-    object-fit:cover;
-    width:320px;
-    height:240px
-}
-
-
 div.videos {
     display:inline-block;
-    float:left;
+    /* float:left; */
 }
 
 #chat {
