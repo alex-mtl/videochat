@@ -11,7 +11,7 @@ video {
 div .videobox{
     position: relative;
 }
-div .videobox button{
+div.videobox[id^='video'] button{
     visibility: hidden;
     position: absolute;
     top: 10%;
@@ -20,7 +20,7 @@ div .videobox button{
     padding-right: 2px;
 }
 
-div:hover .videobox button {
+div.videobox[id^='video-']:hover button{
     visibility: visible;
 }
 
@@ -32,7 +32,7 @@ div .videobox input#volumeSlider{
     width: 80%;
 }
 
-div:hover .videobox input#volumeSlider {
+div.videobox[id^='video-']:hover input#volumeSlider {
     visibility: visible;
 }
 
