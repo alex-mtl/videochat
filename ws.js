@@ -3,11 +3,12 @@ const express = require('express');
 const https = require('https');
 const fs = require('fs');
 const XRegExp = require('xregexp');
+const crypto = require('crypto');
 const sqlite3 = require('sqlite3').verbose();
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
 
-const chatHost = "https://video.ttl10.net/";
+const config = require('./config');
 
 let db = new sqlite3.Database('video.db');
 
@@ -85,6 +86,9 @@ wss.on('connection', ws => {
             case 'create-room':
                 handleCreateRoom(ws, data);
                 break;
+             case 'join-room':
+                handleJoinRoom(ws, data);
+                break;
             case 'send-chat-message':
                 handleSendChatMessage(ws, data);
                 break;
@@ -107,6 +111,9 @@ function handleJoin(ws, data) {
         if (err) {
             obj['host'] = { uid: clientId };
             obj['size'] = 1;
+            obj['name'] = roomID;
+            obj['type'] = 'public';
+            obj['password'] = false;
         } else {
             obj = JSON.parse(data);
             obj['u'+obj.size] = { uid: clientId };
@@ -245,12 +252,14 @@ function handleCreateRoom(sender, data) {
         console.log("Session to create ", room.chatSessionID, typeof room.chatSessionID);
         createSession( room.chatSessionID, clientId, room.host, room.name);
         room.host = { uid: clientId, userName: room.host, sessionID: room.chatSessionID };
-        room.link = chatHost+'p/'+room.name;
+        room.link = config.chatHost+'p/'+room.name;
         room.size = 1;
+
         if (room.password.trim() === '' && room.valid ==='Off') {
             room.type = 'public';
         } else {
             room.type = 'private';
+            room.password = crypto.createHash('md5').update(room.password).digest('hex');
         }
 
         delete room['chatSessionID'];
@@ -262,6 +271,53 @@ function handleCreateRoom(sender, data) {
         // console.log('Session ID ', req.sessionID);
         sender.send(JSON.stringify({ type: 'room-ready', room: room, info: '1:'+(room.name !== '')+'2:'+(room.host !== '') }));
 
+    }
+
+}
+
+function handleJoinRoom(sender, data) {
+    roomID = data.roomID;
+    sessionID = data.chatSessionID;
+    if (data.hasOwnProperty('password')){
+        //p = data.password.toString();
+        password = crypto.createHash('md5').update(data.password.toString()).digest('hex');
+    } else {
+        password = false;
+    }
+
+    valid = false;
+    if (
+        roomID !== ''
+        && roomID != ''
+        && validateString(roomID)
+    ) {
+        valid = true;
+    } else {
+        sender.send(JSON.stringify({ type: 'error', message: "Room ID failed for "+roomID }));
+        return;
+    }
+    roomFile = 'rooms/'+roomID+'.json';
+    if (fs.existsSync(roomFile)) {
+        fs.readFile(roomFile, 'utf8', function (err, roomData) {
+            room = JSON.parse(roomData);
+            if (room.type === 'public') {
+                sender.send(JSON.stringify({type: 'room-ready', room: room }));
+            } else if (room.type === 'private') {
+                sess = getSession(sessionID);
+                if (room.password === password) {
+
+                    sess['room-'+roomID] = password;
+                    sender.send(JSON.stringify({type: 'room-ready', room: room }));
+                } else {
+                    sess['room-'+roomID] = '';
+                    sender.send(JSON.stringify({ type: 'error', message: "Password is wrong..." }));
+                }
+                updateSession(sessionID, sess);
+            }
+
+        });
+    } else {
+        sender.send(JSON.stringify({ type: 'error', message: "Room '"+room.name+"' does not exist" }));
     }
 
 }
@@ -280,8 +336,8 @@ function createSession(sessionID, clientID = null, userName = null, roomID = nul
 }
 
 function getSession(sessionID, clientID = null, userName = null, roomID = null) {
-    //const sessionFile = 'sessions/' + Buffer.from(sessionID).toString('base64') + '.json';
-    //console.log(sessionFile);
+    const sessionFile = 'sessions/' + Buffer.from(sessionID).toString('base64') + '.json';
+    console.log('329',sessionFile);
     let sess = sessions[sessionID];
 
 
@@ -301,9 +357,9 @@ function getSession(sessionID, clientID = null, userName = null, roomID = null) 
 }
 
 function updateSession(sessionID, sess) {
-    //sessionFile = 'sessions/'+sessionID.toString('base64')+'.json';
+    sessionFile = 'sessions/'+sessionID.toString('base64')+'.json';
     sessions[sessionID] = sess;
-    //fs.writeFileSync(sessionFile, JSON.stringify(sess) , 'utf-8');
+    fs.writeFileSync(sessionFile, JSON.stringify(sess) , 'utf-8');
     return sess;
 }
 
