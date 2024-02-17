@@ -1,28 +1,9 @@
-const configuration = {iceServers: [{urls: 'stun:stun.l.google.com:19302'}]};
-const constraints = {video: true, audio: true};
 
-const localVideo = document.getElementById('localVideo');
-const remoteVideosContainer = document.getElementById('remoteVideos');
-var sessionID = null;
-var roomEnv = null;
-let roomID = null;
-let localStream;
-const peerConnections = {};
-var ws = null;
-function escapeHtml(unsafe)
-{
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
 startSignaling();
 
-function createRoom(elem) {
+function createRoom() {
     room = {};
-    form = elem.parentElement.parentElement;
+    form = document.getElementById('create-room');
     room.host = form.querySelector("input#userName").value;
     room.name = form.querySelector("input#roomName").value;
     room.password = form.querySelector("input#roomPassword").value;
@@ -37,8 +18,24 @@ function createRoom(elem) {
 
 }
 
+function joinRoom(elem) {
+    room = {};
+    row = elem.parentElement.parentElement;
+    roomID = row.getAttribute('id').replace("roomID-", "");
+    passwordInput = row.querySelector("input#r-pass-"+roomID);
+    if (passwordInput !== null) {
+        roomPassword = passwordInput.value;
+    } else {
+        roomPassword = false;
+    }
+
+    ws.send(JSON.stringify({type: 'join-room', roomID: roomID, 'password': roomPassword, chatSessionID}));
+}
+
 function startSignaling() {
-    //ws = new WebSocket('wss://video.ttl10.net:3000'); // Replace with your WebSocket server
+    btn = document.getElementById('createRoom');
+    btn.onclick = createRoom;
+
     ws = new WebSocket(websocketUrl);
 
     ws.onopen = () => {

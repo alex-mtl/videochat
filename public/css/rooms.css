@@ -20,3 +20,74 @@ input {
      padding: 2px;
      margin: 1px;
  }
+
+div#room-list {
+    clear: both;
+}
+
+/* chatGPT */
+
+/* Main container */
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background-color: #f0f0f0;
+}
+
+/* Video elements */
+.video-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+}
+
+.video {
+    width: 300px;
+    height: auto;
+}
+
+/* Buttons */
+.button {
+    padding: 10px 20px;
+    margin: 10px;
+    border: none;
+    border-radius: 5px;
+    background-color: #007bff;
+    color: #fff;
+    cursor: pointer;
+}
+
+/* Input fields */
+.input-field {
+    padding: 10px;
+    margin: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    width: 300px;
+}
+
+/* Chat messages */
+.chat-messages {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.chat-message {
+    border-bottom: 1px solid #ccc;
+}
+
+/* Styling for specific elements */
+#localVideo {
+    border: 2px solid #007bff;
+}
+
+#remoteVideos {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+}

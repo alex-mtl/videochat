@@ -12,15 +12,6 @@ let mediaStream = null;
 const peerConnections = {};
 var ws = null;
 
-fetch('/static/data/app-config.json')
-    .then(response => response.json())
-    .then(config => {
-        websocketUrl = config.wss;
-    })
-    .catch(error => {
-        console.error('Error fetching configuration:', error);
-    });
-
 function escapeHtml(unsafe)
 {
     return unsafe
