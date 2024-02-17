@@ -9,6 +9,7 @@ navigator.mediaDevices.getUserMedia(constraints)
     .catch(error => {
         console.error('Error accessing media devices:', error);
     });
+
 function startSignaling() {
             // Create WebSocket connection using the retrieved URL
     ws = new WebSocket(websocketUrl);

@@ -4,7 +4,6 @@ video.muted {
 
 video {
     border: 5px solid #72d972;
-    /*box-shadow: 3px 3px rgb(231, 226, 226);*/
     border-radius: 5%;
     margin: 5px;
 }
