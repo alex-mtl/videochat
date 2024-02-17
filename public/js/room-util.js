@@ -29,9 +29,9 @@ function createPeerConnection(peerId) {
         if (document.getElementById('video-' + peerId) === null) {
             remoteVideoFrame = createRemoteVideo(peerId, event.streams[0]);
             remoteVideosContainer.appendChild(remoteVideoFrame);
+            adjustVideoSize();
         }
     };
-
     peerConnections[peerId] = peerConnection;
     return peerConnection;
 }
@@ -116,5 +116,24 @@ function removePeerConnection(id) {
 
 function adjustVolume(video, volume) {
     video.volume = volume;
+}
+
+function adjustVideoSize(){
+    // Get the container and items
+    const items = Array.prototype.slice.call(document.getElementsByTagName('video'), 0);
+    const margin = 5;
+    // Calculate the width of each item based on the number of items
+    if (items.length >= 5){
+        var itemWidth = window.innerWidth / 5 - margin*2; // subtracting margin twice (left and right)
+    } else {
+        var itemWidth = window.innerWidth / items.length - margin*2; // subtracting margin twice (left and right)
+    }
+    var itemHeight = itemWidth * 0.75;
+    // Set the width for each item
+    items.forEach(item => {
+        item.style.width = `${itemWidth}px`;
+        item.style.height = `${itemHeight}px`;
+    });
+
 }
 
