@@ -12,16 +12,20 @@ html(lang="en")
 
   body
     script let chatSessionID = "#{sessionID}"; var websocketUrl = "#{wssURL}";
-    .videos.d-flex.flex-row.bd-highlight.mb-3
-      video.videobox#localVideo(autoplay, muted)
-      #remoteVideos.videos
-    #chat
-      div
-        input#chat-input(type="text")
-        button#sendMessage(onclick="sendMessage(this)") Send
-      table#chat-messages
-        tr
-          th.chat-time time
-          th.chat-from from
-          th.chat-to to
-          th.chat-message message
+    .container-fluid
+      .row.videos.vidoes-wrapper
+        .host-panel
+          video.videobox#localVideo(autoplay, muted)
+        .remote-panel
+          #remoteVideos.videos.video-grid
+      .row.container
+        #chat
+          div
+            input#chat-input(type="text")
+            button#sendMessage(onclick="sendMessage(this)") Send
+          table#chat-messages
+            tr
+              th.chat-time time
+              th.chat-from from
+              th.chat-to to
+              th.chat-message message

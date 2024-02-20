@@ -44,7 +44,7 @@ function createPeerConnection(peerId) {
      remoteVideo.muted = false;
      remoteVideoFrame.id = 'video-' + videoID;
      remoteVideoFrame.setAttribute('alt', videoID);
-     remoteVideoFrame.style="display:inline-block;float:left;";
+     //remoteVideoFrame.style="display:inline-block;float:left;";
      // remoteVideo.style = "";
      remoteVideoFrame.appendChild(remoteVideo);
      remoteVideoFrame.classList.add("videobox");
@@ -119,21 +119,14 @@ function adjustVolume(video, volume) {
 }
 
 function adjustVideoSize(){
-    // Get the container and items
-    const items = Array.prototype.slice.call(document.getElementsByTagName('video'), 0);
-    const margin = 5;
-    // Calculate the width of each item based on the number of items
-    if (items.length >= 5){
-        var itemWidth = window.innerWidth / 5 - margin*2; // subtracting margin twice (left and right)
+
+    const itemsCount = document.querySelectorAll('div.video-grid .videobox').length;
+    const videoGrid = document.querySelector('.video-grid');
+    if (itemsCount >= 5) {
+        videoGrid.style.setProperty('--columns', 5);
     } else {
-        var itemWidth = window.innerWidth / items.length - margin*2; // subtracting margin twice (left and right)
+        videoGrid.style.setProperty('--columns', itemsCount ?? 1 );
     }
-    var itemHeight = itemWidth * 0.75;
-    // Set the width for each item
-    items.forEach(item => {
-        item.style.width = `${itemWidth}px`;
-        item.style.height = `${itemHeight}px`;
-    });
 
 }
 

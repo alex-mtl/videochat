@@ -36,8 +36,9 @@ function startSignaling() {
                 };
                 sendOffer(ws, clientId, data.room.host.uid, peerConnection);
                 for(i = 2; i <= data.room.size; i++) {
-                    user = data.room['u'+(i-1)];
-                    if (user.uid !== sessionID) {
+                    if (data.room.hasOwnProperty('u'+(i-1))) {
+                        user = data.room['u'+(i-1)];
+                        if (user.uid !== sessionID) {
                         peerConnection = createPeerConnection(user.uid);
                         peerConnection.onicecandidate = event => {
                             if (event.candidate) {
@@ -46,6 +47,8 @@ function startSignaling() {
                         };
                         sendOffer(ws, clientId, user.uid, peerConnection);
                     }
+                    }
+
                 }
             }
 
