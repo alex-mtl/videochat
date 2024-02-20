@@ -29,9 +29,9 @@ function createPeerConnection(peerId) {
         if (document.getElementById('video-' + peerId) === null) {
             remoteVideoFrame = createRemoteVideo(peerId, event.streams[0]);
             remoteVideosContainer.appendChild(remoteVideoFrame);
+            adjustVideoSize();
         }
     };
-
     peerConnections[peerId] = peerConnection;
     return peerConnection;
 }
@@ -44,7 +44,7 @@ function createPeerConnection(peerId) {
      remoteVideo.muted = false;
      remoteVideoFrame.id = 'video-' + videoID;
      remoteVideoFrame.setAttribute('alt', videoID);
-     remoteVideoFrame.style="display:inline-block;float:left;";
+     //remoteVideoFrame.style="display:inline-block;float:left;";
      // remoteVideo.style = "";
      remoteVideoFrame.appendChild(remoteVideo);
      remoteVideoFrame.classList.add("videobox");
@@ -116,5 +116,17 @@ function removePeerConnection(id) {
 
 function adjustVolume(video, volume) {
     video.volume = volume;
+}
+
+function adjustVideoSize(){
+
+    const itemsCount = document.querySelectorAll('div.video-grid .videobox').length;
+    const videoGrid = document.querySelector('.video-grid');
+    if (itemsCount >= 5) {
+        videoGrid.style.setProperty('--columns', 5);
+    } else {
+        videoGrid.style.setProperty('--columns', itemsCount ?? 1 );
+    }
+
 }
 

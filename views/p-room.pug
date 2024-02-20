@@ -12,9 +12,11 @@ html(lang="en")
 
   body
     script let chatSessionID = "#{sessionID}"; let roomId = "#{roomID}";var websocketUrl = "#{wssURL}";
-    .videos
-      video#localVideo(autoplay, muted)
-    #remoteVideos.videos
+    .videos.vidoes-wrapper
+      .host-panel
+        video.videobox#localVideo(autoplay, muted)
+      .remote-panel
+        #remoteVideos.videos.video-grid
     #chat
       div
         input#chat-input(type="text")

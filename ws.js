@@ -113,6 +113,7 @@ function handleJoin(ws, data) {
             obj['size'] = 1;
             obj['name'] = roomID;
             obj['type'] = 'public';
+            obj['link'] = config.chatHost+'p/'+roomID;
             obj['password'] = false;
         } else {
             obj = JSON.parse(data);

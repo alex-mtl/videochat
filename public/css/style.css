@@ -1,3 +1,28 @@
+
+:root {
+    --columns: 1; /* Default number of columns */
+}
+
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--columns), minmax(200px, 1fr));
+    grid-gap: 10px;
+}
+
+.vidoes-wrapper {
+    display: grid;
+    grid-template-columns: 325px 1fr 5px;
+    grid-gap: 5px;
+}
+
+.host-panel {
+    width: 300px;
+}
+
+.remote-panel {
+    /* This will take remaining space */
+}
+
 video.muted {
     border: 5px solid #e15754;
 }
@@ -6,12 +31,20 @@ video {
     border: 5px solid #72d972;
     border-radius: 5%;
     margin: 5px;
+    width: 100%;
+    aspect-ratio: 4/3;
+}
+
+#localVideo {
+    object-fit:cover;
+    width:100%;
 }
 
 div .videobox{
+    max-width: 800px;
     position: relative;
 }
-div .videobox button{
+div.videobox[id^='video'] button{
     visibility: hidden;
     position: absolute;
     top: 10%;
@@ -20,7 +53,7 @@ div .videobox button{
     padding-right: 2px;
 }
 
-div:hover .videobox button {
+div.videobox[id^='video-']:hover button{
     visibility: visible;
 }
 
@@ -32,32 +65,13 @@ div .videobox input#volumeSlider{
     width: 80%;
 }
 
-div:hover .videobox input#volumeSlider {
+div.videobox[id^='video-']:hover input#volumeSlider {
     visibility: visible;
 }
 
-#remoteVideos video{
-    object-fit:cover;
-    width:320px;
-    height:240px
-}
-
-#localVideo {
-    object-fit:cover;
-    width:320px;
-    height:240px
-}
-
-#localScreen {
-    object-fit:cover;
-    width:320px;
-    height:240px
-}
-
-
 div.videos {
-    display:inline-block;
-    float:left;
+    /*display:inline-block;*/
+    /* float:left; */
 }
 
 #chat {
@@ -100,4 +114,13 @@ div.videos {
 
 #chat-messages  td.chat-from.host-message, td.chat-message.host-message {
     color: darkblue;
+}
+
+body, html {
+    height: 100%;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
 }
