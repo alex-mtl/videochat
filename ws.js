@@ -105,6 +105,8 @@ wss.on('connection', ws => {
 function handleJoin(ws, data) {
     const clientId = generateClientId();
     roomID = data.roomId;
+    sessionID = (data.chatSessionID === undefined) ? data.sessionID : data.chatSessionID;
+    console.log('109 session ID', sessionID);
     var roomFile = 'rooms/'+roomID+'.json';
     var obj = {};
     fs.readFile(roomFile, 'utf8', function (err, data) {
@@ -117,6 +119,24 @@ function handleJoin(ws, data) {
             obj['password'] = false;
         } else {
             obj = JSON.parse(data);
+            if (obj.type === 'private') {
+                sess = getSession(sessionID);
+                pass = false;
+                if ((sess !== undefined) && (sess.hasOwnProperty('room-'+roomID))) {
+                    if (obj.password === sess['room-'+roomID].password
+                      && (sess['room-'+roomID].ttl >= new Date().getTime())
+                    ) {
+                        pass = true;
+                    } else {
+                        ws.send(JSON.stringify({ type: 'error', message: "Failed to join room: "+roomID+" Password is wrong..." }));
+                        return;
+                    }
+                }
+                if (!pass) {
+                    ws.send(JSON.stringify({ type: 'error', message: "Failed to join room: "+roomID+" Password is wrong or session expired" }));
+                    return;
+                }
+            }
             obj['u'+obj.size] = { uid: clientId };
             obj.size = obj.size + 1;
 
@@ -306,8 +326,8 @@ function handleJoinRoom(sender, data) {
             } else if (room.type === 'private') {
                 sess = getSession(sessionID);
                 if (room.password === password) {
-
-                    sess['room-'+roomID] = password;
+                    ttl = new Date().getTime() + 600000; // now  + 10 min
+                    sess['room-'+roomID] = { ttl, password };
                     sender.send(JSON.stringify({type: 'room-ready', room: room }));
                 } else {
                     sess['room-'+roomID] = '';
