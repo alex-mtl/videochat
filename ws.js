@@ -105,6 +105,8 @@ wss.on('connection', ws => {
 function handleJoin(ws, data) {
     const clientId = generateClientId();
     roomID = data.roomId;
+    sessionID = (data.chatSessionID === undefined) ? data.sessionID : data.chatSessionID;
+    console.log('109 session ID', sessionID);
     var roomFile = 'rooms/'+roomID+'.json';
     var obj = {};
     fs.readFile(roomFile, 'utf8', function (err, data) {
@@ -117,6 +119,48 @@ function handleJoin(ws, data) {
             obj['password'] = false;
         } else {
             obj = JSON.parse(data);
+            if (obj.type === 'private') {
+                sess = getSession(sessionID);
+                pass = false;
+                if ((sess !== undefined) && (sess.hasOwnProperty('room-'+roomID))) {
+                    if (obj.password === sess['room-'+roomID].password
+                      && (sess['room-'+roomID].ttl >= new Date().getTime())
+                    ) {
+                        pass = true;
+                    } else {
+                        ws.send(JSON.stringify({ type: 'error', message: "Failed to join room: "+roomID+" Password is wrong..." }));
+                        return;
+                    }
+                }
+                if (!pass) {
+                    ws.send(JSON.stringify({ type: 'error', message: "Failed to join room: "+roomID+" Password is wrong or session expired" }));
+                    return;
+                }
+            } else if (obj.type === 'master') {
+                sess = getSession(sessionID);
+                pass = false;
+                // console.log('142 ', sess.hasOwnProperty('room-'+roomID), sess);
+                if (sess.newRoom === obj.name) {
+                    pass = true;
+                    obj.host.uid = ws.uid = clientId;
+                } else if ((sess.hasOwnProperty('room-'+roomID))) {
+                    console.log('143 ', sessionID, obj.host.sessionID);
+                    if (sessionID === obj.host.sessionID) {
+                        pass = true;
+                    } else if (obj.password === sess['room-'+roomID].password
+                        && (sess['room-'+roomID].ttl >= new Date().getTime())
+                    ) {
+                        pass = true;
+                    } else {
+                        ws.send(JSON.stringify({ type: 'error', message: "Failed to join room: "+roomID+" Password is wrong..." }));
+                        return;
+                    }
+                }
+                if (!pass) {
+                    ws.send(JSON.stringify({ type: 'error', message: "Failed to join room: "+roomID+" Password is wrong or session expired" }));
+                    return;
+                }
+            }
             obj['u'+obj.size] = { uid: clientId };
             obj.size = obj.size + 1;
 
@@ -240,7 +284,7 @@ function handleCreateRoom(sender, data) {
     ) {
         valid = true;
     } else {
-        sender.send(JSON.stringify({ type: 'error', message: "Validation failed for '"+room.name+"' or "+ +room.host + '1:'+(room.name)+'2:'+(room.host !== '')}));
+        sender.send(JSON.stringify({ type: 'error', message: "Validation failed for '"+room.name+"' or '"+ room.host + "'" }));
         return;
     }
     roomFile = 'rooms/'+room.name+'.json';
@@ -255,12 +299,15 @@ function handleCreateRoom(sender, data) {
         room.host = { uid: clientId, userName: room.host, sessionID: room.chatSessionID };
         room.link = config.chatHost+'p/'+room.name;
         room.size = 1;
-
+        console.log('278',room);
         if (room.password.trim() === '' && room.valid ==='Off') {
             room.type = 'public';
-        } else {
+        } else if (room.valid !=='On') {
             room.type = 'private';
             room.password = crypto.createHash('md5').update(room.password).digest('hex');
+        } else if (room.valid ==='On') {
+            room.type = 'master';
+            room.password = crypto.createHash('md5').update('master').digest('hex');
         }
 
         delete room['chatSessionID'];
@@ -306,14 +353,29 @@ function handleJoinRoom(sender, data) {
             } else if (room.type === 'private') {
                 sess = getSession(sessionID);
                 if (room.password === password) {
-
-                    sess['room-'+roomID] = password;
+                    ttl = new Date().getTime() + 600000; // now  + 10 min
+                    sess['room-'+roomID] = { ttl, password };
                     sender.send(JSON.stringify({type: 'room-ready', room: room }));
                 } else {
                     sess['room-'+roomID] = '';
                     sender.send(JSON.stringify({ type: 'error', message: "Password is wrong..." }));
                 }
                 updateSession(sessionID, sess);
+            } else if (room.type === 'master') {
+                sess = getSession(sessionID);
+
+                hostConn = clients[room.host.uid];
+                if (hostConn !== undefined) {
+                    hostConn.send(JSON.stringify({ type: 'request-join', 'room': room.name, 'client-id': sender.uid, 'client-session': sessionID, message: data.request }));
+                    ttl = new Date().getTime() + 600000; // now  + 10 min
+                    sess['room-'+roomID] = { ttl, admit: false, uid: sender.uid };
+                    sender.send(JSON.stringify({type: 'info', message: 'Request sent to the room host. Please wait for admission.' }));
+                    updateSession(sessionID, sess);
+                } else {
+                    sender.send(JSON.stringify({ type: 'error', message: "No host detected online for this room: "+room.name }));
+                    return;
+                }
+
             }
 
         });
@@ -343,22 +405,23 @@ function getSession(sessionID, clientID = null, userName = null, roomID = null) 
 
 
     if (sess === undefined) {
-        // try {
-        //     const data = fs.promises.readFile(sessionFile, 'utf8');
-        //     sess = JSON.parse(data);
-        //     console.log('Session found', sess);
-        // } catch (err) {
-            console.log('Session not found', sessionID);
+        try {
+            const data = fs.promises.readFile(sessionFile, 'utf8');
+            sess = JSON.parse(data);
+            console.log('408 Session found in file', sess);
+        } catch (err) {
+            console.log('410 Session not found in file', sessionID);
             sess = createSession(sessionID, clientID, userName);
             console.log('New session created', sess);
-        //}
+        }
     }
 
     return sess;
 }
 
 function updateSession(sessionID, sess) {
-    sessionFile = 'sessions/'+sessionID.toString('base64')+'.json';
+    // sessionFile = 'sessions/'+sessionID.toString('base64')+'.json';
+    const sessionFile = 'sessions/' + Buffer.from(sessionID).toString('base64') + '.json';
     sessions[sessionID] = sess;
     fs.writeFileSync(sessionFile, JSON.stringify(sess) , 'utf-8');
     return sess;
@@ -408,7 +471,11 @@ function broadcast(message) {
 function removeClient(ws) {
     const clientId = ws.uid;
     const roomID = ws.roomID;
+    if (roomID === undefined) {
+        return;
+    }
     var roomFile = 'rooms/'+roomID+'.json';
+
     if (!fs.existsSync(roomFile)) {
         console.log('Room ', roomFile, ' does not exist!');
     } else {

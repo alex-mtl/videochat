@@ -67,23 +67,13 @@ function createPeerConnection(peerId) {
      muteVideo.classList.add("material-symbols-outlined");
      muteVideo.onclick = function () {
          video = this.parentElement.querySelector('video');
-         if (video.classList.contains('play')) {
-             txt = 'videocam'; // : 'Stop' ;
-             stream = video.srcObject;
-             tracks = stream.getTracks();
+         txt = video.classList.contains('play') ? 'videocam' : 'videocam_off' ;
+         stream = video.srcObject;
+         tracks = stream.getTracks();
 
-             tracks.forEach((track) => {
-                 if (track.kind === 'video') track.enabled = false; //stop();
-             });
-         } else {
-             txt = 'videocam_off' ;
-             stream = video.srcObject;
-             tracks = stream.getTracks();
-
-             tracks.forEach((track) => {
-                 if (track.kind === 'video') track.enabled = true; //stop();
-             });
-         }
+         tracks.forEach((track) => {
+             if (track.kind === 'video') track.enabled = !track.enabled; //stop();
+         });
          this.textContent = txt;
          this.setAttribute('alt', txt);
          this.setAttribute('tooltip', txt);
@@ -127,6 +117,31 @@ function adjustVideoSize(){
     } else {
         videoGrid.style.setProperty('--columns', itemsCount ?? 1 );
     }
+}
 
+function hostVideoToggle() {
+    const videoTracks = localVideo.srcObject.getVideoTracks();
+    let txt = '';
+    videoTracks.forEach(track => {
+        txt = track.enabled ? 'videocam' : 'videocam_off' ;
+        track.enabled = !track.enabled;
+    });
+    btn = document.getElementById('hostVideoToggle');
+    btn.textContent = txt;
+    btn.setAttribute('alt', txt);
+    btn.setAttribute('tooltip', txt);
+}
+
+function hostAudioToggle() {
+    const audioTracks = localVideo.srcObject.getAudioTracks();
+    let txt = '';
+    audioTracks.forEach(track => {
+        txt = track.enabled ? 'volume_up' : 'volume_off' ;
+        track.enabled = !track.enabled;
+    });
+    btn = document.getElementById('hostAudioToggle');
+    btn.textContent = txt;
+    btn.setAttribute('alt', txt);
+    btn.setAttribute('tooltip', txt);
 }
 

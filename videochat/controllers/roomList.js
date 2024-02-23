@@ -18,10 +18,10 @@ module.exports.page = (req, res) => {
                 error = req.session.error ;
                 console.log('error message', error);
                 //delete res.session.error;
-                if (error !== undefined && error !== null) {
+                //if (error !== undefined && error !== null) {
                     data['error'] = error;
                     delete req.session.error;
-                }
+                //}
             }
 
             res.render('rooms', data);
