@@ -31,22 +31,6 @@ const publicRoom = require('./videochat/controllers/publicRoom');
 app.get('/', home.homePage);
 
 app.get('/rooms', roomList.page )
-
-app.get('/r/:room', (req, res) => {
-    console.log('Room ID ', req.params.room);
-    roomFile = 'rooms/'+req.params.room+'.json';
-    if (!fs.existsSync(roomFile)) {
-        req.session.error = 'Incorrect username or password';
-        res.redirect('/rooms');
-        // res.render('rooms', {
-        //     sessionID: req.sessionID,
-        //     wssURL : config.wssURL,
-        //     error: "Room "+req.params.room+" does not exist!
-        // })
-    } else {
-        res.render('room', {chatSessionID: req.sessionID, wssURL : config.wssURL, roomID: req.params.room })
-    }
-})
 app.get('/p/:room', publicRoom.room)
 
 app.listen(config.port, () => {

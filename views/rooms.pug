@@ -50,22 +50,32 @@ html(lang="en")
           button.btn.btn-primary#createRoom(type="button") Create Room
       #room-list.container
         table.table-hover.table-light.table-striped(class="table")
-          tr
-            th Room
-            th Host
-            th Type
-            th Password
-            th
-          each r in roomList
-            tr(id=`roomID-${r.name}`)
-              td= r.name
-              td= r.host.uid
-              if r.type === 'public'
-                td Public
-                td
-              else
-                td Password:
-                td
-                  input(id=`r-pass-${r.name}`, type="text", size="32")
-              td
-                button#joinRoom(onclick="joinRoom(this)", type="button", class="btn btn-primary") Join Room
+          thead
+            tr
+              th Room
+              th Host
+              th Type
+              th Password
+              th
+          tbody
+            each r in roomList
+              tr(id=`roomID-${r.name}`)
+                td= r.name
+                td= r.host.userName
+                if r.type === 'public'
+                  td Public
+                  td
+                  td
+                    button(onclick="joinRoom(this)", type="button", class="btn btn-primary") Join Room
+                else if r.type === 'master'
+                  td Admission
+                  td
+                    input(id=`r-admit-${r.name}`, type="text", size="32" placeholder="May I join the room?")
+                  td
+                    button(onclick="requestJoinRoom(this)", type="button", class="btn btn-primary") Request Join Room
+                else
+                  td Password:
+                  td
+                    input(id=`r-pass-${r.name}`, type="text", size="32")
+                  td
+                    button(onclick="joinRoom(this)", type="button", class="btn btn-primary") Join Room

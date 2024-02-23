@@ -1,4 +1,6 @@
 
+let instaRoom = '';
+
 startSignaling();
 
 function createRoom() {
@@ -22,6 +24,7 @@ function joinRoom(elem) {
     room = {};
     row = elem.parentElement.parentElement;
     roomID = row.getAttribute('id').replace("roomID-", "");
+    instaRoom = roomID;
     passwordInput = row.querySelector("input#r-pass-"+roomID);
     if (passwordInput !== null) {
         roomPassword = passwordInput.value;
@@ -32,6 +35,20 @@ function joinRoom(elem) {
     ws.send(JSON.stringify({type: 'join-room', roomID: roomID, 'password': roomPassword, chatSessionID}));
 }
 
+function requestJoinRoom(elem) {
+    room = {};
+    row = elem.parentElement.parentElement;
+    roomID = row.getAttribute('id').replace("roomID-", "");
+    requestInput = row.querySelector("input#r-admit-"+roomID);
+    if (requestInput !== null) {
+        roomRequest = requestInput.value;
+    } else {
+        roomRequest = false;
+    }
+    instaRoom = roomID;
+
+    ws.send(JSON.stringify({type: 'join-room', roomID: roomID, 'request': roomRequest, chatSessionID}));
+}
 function startSignaling() {
     btn = document.getElementById('createRoom');
     btn.onclick = createRoom;
@@ -50,6 +67,10 @@ function startSignaling() {
             handleRoomList(data);
         } else if (data.type === 'room-ready') {
             handleRoomReady(data);
+        } else if (data.type === 'error') {
+            handleError(data, 'error');
+        } else if (data.type === 'info') {
+            handleError(data, 'info');
         }
     };
 
@@ -57,11 +78,57 @@ function startSignaling() {
         console.log('Room created:', data.room);
     }
 
+    function handleError(data, type) {
+        alertToaster(data.message, type);
+    }
+
     function handleRoomReady(data) {
-        if (data.room.name === roomID) {
-            // window.location.replace(data.room.link);
-            window.location.href = data.room.link;
+        if (instaRoom !== data.room.name) {
+            showModal(
+                "Would you like to join room "+data.room.name+'?',
+                'Now',
+                'Later',
+                () => {
+                    if (data.room.name === roomID) {
+                        // window.location.replace(data.room.link);
+                        window.location.href = data.room.link;
+                    }
+                },
+                () => {
+                    tableBody = document.getElementById('room-list').querySelector('.table tbody');
+                    var newRow = document.createElement('tr');
+                    if (data.room.type === 'public') {
+                        type = 'Public';
+                        pwd = '';
+                        btn = '<button className="btn btn-primary" onClick="joinRoom(this)" type="button">Join Room</button>';
+                    } else if (data.room.type === 'private') {
+                        type = 'Private';
+                        pwd = '<input id="r-pass-'+data.room.name+'" type="text" size="32" placeholder="$ecr3t p@ssw0rd">';
+                        btn = '<button className="btn btn-primary" onClick="joinRoom(this)" type="button">Join Room</button>';
+                    } else if (data.room.type === 'master') {
+                        type = 'Admission';
+                        pwd = '<input id="r-admit-'+data.room.name+'" type="text" size="32" placeholder="May I join the room?">';
+                        btn = '<button className="btn btn-primary" onClick="requestJoinRoom(this)" type="button">Join Room</button>';
+                    }
+
+                    newRow.id = 'roomID-'+data.room.name;
+                    newRow.innerHTML = '<td>'+data.room.name+'</td>'
+                        +'<td>'+data.room.host.userName+'</td>'
+                        +'<td>'+type+'</td>'
+                        +'<td>'+pwd+'</td>'
+                        +'<td>'+btn+'</td>'
+                    ;
+                    tableBody.prepend(newRow);
+                }
+            );
+        } else {
+            if (data.room.name === roomID) {
+                // window.location.replace(data.room.link);
+                window.location.href = data.room.link;
+            }
         }
+
+
     }
     function handleRoomList(data) {
         select = document.getElementById('roomList');
