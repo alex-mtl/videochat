@@ -71,8 +71,24 @@ function startSignaling() {
             handleError(data, 'error');
         } else if (data.type === 'info') {
             handleError(data, 'info');
+        } else if (data.type === 'access-grant') {
+            handleAccessGrant(data);
         }
     };
+
+    function handleAccessGrant(data) {
+        if (data.grantAccess){
+            console.log(data.to+" was granted permission to "+data.roomId+" room","info")
+            alertToaster(data.to+" was granted permission to "+data.roomId+" room","info");
+            var tr = document.getElementById("roomID-"+data.roomId);
+            tr.getElementsByTagName("td")[3].innerHTML = "";
+            tr.getElementsByTagName("button")[0].textContent = "Join Room";
+            // change button!
+        } else {
+            console.log(data.to+" was dened to "+data.roomId+" room","info")
+            alertToaster(data.to+" was granted permission to "+data.roomId+" room", "error");
+        }
+    }
 
     function handleConnected(data) {
         console.log('Room created:', data.room);

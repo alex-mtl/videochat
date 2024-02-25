@@ -1,6 +1,7 @@
 const WebSocket = require('ws');
 const express = require('express');
-const https = require('https');
+// const https = require('https');
+const http = require('http');
 const fs = require('fs');
 const XRegExp = require('xregexp');
 const crypto = require('crypto');
@@ -9,31 +10,6 @@ const cookieParser = require('cookie-parser');
 const session = require('express-session');
 
 const config = require('./config');
-
-let db = new sqlite3.Database('video.db');
-
-db.serialize(() => {
-    db.prepare(`CREATE TABLE IF NOT EXISTS rooms (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, room TEXT NOT NULL )`).run().finalize();
-    var n = 0;
-    db.all(`SELECT * FROM rooms`, (err, rows) => {
-
-        rows.forEach(function (row) {
-            n++;
-            console.log(row)
-        });
-        if (n===0) {
-            db.run('INSERT INTO rooms(name, room) VALUES(?, ?)', ['test-room1','{}'], (err) => {
-                if(err) {
-                    return console.log(err.message);
-                }
-                console.log("Row was added to the table: ", db.lastID);
-            })
-        }
-    })
-
-    db.close();
-});
-
 
 const app = express();
 app.use(cookieParser());
@@ -48,7 +24,8 @@ const privateKey = fs.readFileSync('video-key.pem', 'utf8');
 const certificate = fs.readFileSync('video-cert.pem', 'utf8');
 const credentials = { key: privateKey, cert: certificate };
 
-const server = https.createServer(credentials, app);
+// const server = https.createServer(credentials, app);
+const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 const clients = {};
@@ -71,6 +48,9 @@ wss.on('connection', ws => {
             case 'join':
                 handleJoin(ws, data);
                 break;
+            case 'connect':
+                handleConnect(ws, data);
+                break;
             case 'share-screen':
                 handleShareScreen(ws, data);
                 break;
@@ -91,6 +71,9 @@ wss.on('connection', ws => {
                 break;
             case 'send-chat-message':
                 handleSendChatMessage(ws, data);
+                break;
+            case 'grant-access':
+                handleGrantAccess(ws, data);
                 break;
             default:
                 console.error('Unknown message type:', data.type);
@@ -145,6 +128,7 @@ function handleJoin(ws, data) {
                     obj.host.uid = ws.uid = clientId;
                 } else if ((sess.hasOwnProperty('room-'+roomID))) {
                     console.log('143 ', sessionID, obj.host.sessionID);
+                    // TODO tut po idee mojno budet proveryat esli allowed to pass in 
                     if (sessionID === obj.host.sessionID) {
                         pass = true;
                     } else if (obj.password === sess['room-'+roomID].password
@@ -269,7 +253,29 @@ function handleOffer(sender, data) {
     if (recipient) {
         recipient.send(JSON.stringify({ type: 'participant-offer', from: data.from, description: data.offer }));
     }
+}
 
+function handleGrantAccess(sender, data) {
+    console.log("Access from "+sender.uid+" to "+data.to);
+    const recipient = clients[data.to];
+    if (recipient) {
+        recipient.send(JSON.stringify({ type: 'access-grant', from: sender.uid, to: data.to, roomId: data.roomId, grantAccess: data.access }));
+    }
+
+    var name = './rooms/'+data.roomId+'.json';
+    var m = JSON.parse(fs.readFileSync(name).toString());
+    console.log("HIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII");
+    console.log(m.allowed);
+    m.allowed.push(data.to);
+    fs.writeFileSync(name, JSON.stringify(m));
+
+}
+
+function handleConnect(sender, data) {
+    clientID = generateClientId();
+    sender.uid = clientID;
+    clients[clientID] = sender;
+    console.log('Sender : ',sender.uid, 'connected');
 }
 
 function handleCreateRoom(sender, data) {
@@ -308,6 +314,8 @@ function handleCreateRoom(sender, data) {
         } else if (room.valid ==='On') {
             room.type = 'master';
             room.password = crypto.createHash('md5').update('master').digest('hex');
+            // console.log(clientId);
+            // room.allowed = [clientId];
         }
 
         delete room['chatSessionID'];
@@ -364,9 +372,11 @@ function handleJoinRoom(sender, data) {
             } else if (room.type === 'master') {
                 sess = getSession(sessionID);
 
-                hostConn = clients[room.host.uid];
+                hostConn = clients[room.host.uid]; // dostaet polzovatlya
+                console.log("345 Sender uid", sender.uid);
                 if (hostConn !== undefined) {
-                    hostConn.send(JSON.stringify({ type: 'request-join', 'room': room.name, 'client-id': sender.uid, 'client-session': sessionID, message: data.request }));
+                    // TODO: tut poslanie ot requestor to host
+                    hostConn.send(JSON.stringify({ type: 'request-join', 'room': room.name, 'client-id': sender.uid, 'client-session': sessionID, message: data.request}));
                     ttl = new Date().getTime() + 600000; // now  + 10 min
                     sess['room-'+roomID] = { ttl, admit: false, uid: sender.uid };
                     sender.send(JSON.stringify({type: 'info', message: 'Request sent to the room host. Please wait for admission.' }));

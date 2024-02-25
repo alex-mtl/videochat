@@ -1,3 +1,4 @@
+var hostId = null;
 
 navigator.mediaDevices.getUserMedia(constraints)
     .then(stream => {
@@ -27,6 +28,7 @@ function startSignaling() {
             console.log('You are joined as:', clientId);
 
             if(sessionID !== data.room.host.uid) {
+                hostId = data.room.host.uid;
                 peerConnection = createPeerConnection(data.room.host.uid);
                 peerConnection.onicecandidate = event => {
                     if (event.candidate) {
@@ -83,6 +85,8 @@ function startSignaling() {
             handleRoomList(data);
         } else if (data.type === 'chat-message') {
             handleChatMessage(data);
+        } else if (data.type === 'request-join') {
+            handleRequestJoin(data);
         }
     };
 
@@ -122,6 +126,42 @@ function startSignaling() {
             select.appendChild(opt);
         })
 
+    }
+    
+    function handleRequestJoin(data) {
+        console.log(data);
+        table = document.getElementById('chat-messages');
+
+        var row = document.createElement('tr');
+
+        var d = new Date(); // for now
+        var now = ''+d.getHours()+'h '+d.getMinutes()+'m';
+
+        row.innerHTML = `<td class="chat-time">`+now+`</td>`;
+        row.innerHTML += `<td class="chat-from">`+data['client-id']+`</td>`;
+        row.innerHTML += `<td class="chat-to">`+''+`</td>`;
+        row.innerHTML += `<td class="chat-message">`+escapeHtml(data.message)+
+        `<button style="float:right;" class="btn btn-danger" id="deny_`+data['client-id']+`">Deny Request</button>
+        <button style="float:right;" class="btn btn-success" id="accept_`+data['client-id']+`">Accept Request</button></td>`;
+
+        if (data.from === sessionID) {
+            row.classList.add('self-message');
+        } else if (data.from === roomEnv.host.uid) {
+            row.classList.add('host-message');
+        }
+
+        table.appendChild(row);
+
+        var acceptGuest = document.getElementById("accept_"+data['client-id'])
+        acceptGuest.onclick = function () {
+            console.log(data['client-id'] + "accepted");
+            ws.send(JSON.stringify({type: 'grant-access', from: hostId, to: data['client-id'], roomId: roomId, access: true}));     
+        };
+        var denyGuest = document.getElementById("deny_"+data['client-id'])
+        denyGuest.onclick = function () {
+            console.log(data['client-id'] + "denied");
+            ws.send(JSON.stringify({type: 'grant-access', from: hostId, to: data['client-id'], roomId: roomId, access: false}));     
+        }
     }
 
     function handleChatMessage(data) {
