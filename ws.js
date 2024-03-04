@@ -129,7 +129,7 @@ function handleJoin(ws, data) {
                 } else if ((sess.hasOwnProperty('room-'+roomID))) {
                     console.log('143 ', sessionID, obj.host.sessionID);
                     // TODO tut po idee mojno budet proveryat esli allowed to pass in 
-                    if (sessionID === obj.host.sessionID) {
+                    if (sessionID === obj.host.sessionID || (obj.hasOwnProperty('allowed') && obj.allowed.includes(sessionID))) {
                         pass = true;
                     } else if (obj.password === sess['room-'+roomID].password
                         && (sess['room-'+roomID].ttl >= new Date().getTime())
@@ -264,9 +264,7 @@ function handleGrantAccess(sender, data) {
 
     var name = './rooms/'+data.roomId+'.json';
     var m = JSON.parse(fs.readFileSync(name).toString());
-    console.log("HIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII");
-    console.log(m.allowed);
-    m.allowed.push(data.to);
+    m.allowed.push(data['client-session']);
     fs.writeFileSync(name, JSON.stringify(m));
 
 }
@@ -315,7 +313,7 @@ function handleCreateRoom(sender, data) {
             room.type = 'master';
             room.password = crypto.createHash('md5').update('master').digest('hex');
             // console.log(clientId);
-            // room.allowed = [clientId];
+            room.allowed = [room.chatSessionID];
         }
 
         delete room['chatSessionID'];
@@ -373,10 +371,17 @@ function handleJoinRoom(sender, data) {
                 sess = getSession(sessionID);
 
                 hostConn = clients[room.host.uid]; // dostaet polzovatlya
-                console.log("345 Sender uid", sender.uid);
+                if (room.allowed.includes(sessionID)){
+                    sender.send(JSON.stringify({type: 'room-ready', room: room }));
+                    return
+                }
+                
+                
                 if (hostConn !== undefined) {
+                    // if (room.allowed)
                     // TODO: tut poslanie ot requestor to host
-                    hostConn.send(JSON.stringify({ type: 'request-join', 'room': room.name, 'client-id': sender.uid, 'client-session': sessionID, message: data.request}));
+                    hostConn.send(JSON.stringify({ type: 'request-join', 'room': room.name, 'client-id': sender.uid, 
+                    'client-session': sessionID, message: data.request}));
                     ttl = new Date().getTime() + 600000; // now  + 10 min
                     sess['room-'+roomID] = { ttl, admit: false, uid: sender.uid };
                     sender.send(JSON.stringify({type: 'info', message: 'Request sent to the room host. Please wait for admission.' }));

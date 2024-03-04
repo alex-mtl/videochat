@@ -82,10 +82,10 @@ function startSignaling() {
             alertToaster(data.to+" was granted permission to "+data.roomId+" room","info");
             var tr = document.getElementById("roomID-"+data.roomId);
             tr.getElementsByTagName("td")[3].innerHTML = "";
-            tr.getElementsByTagName("button")[0].textContent = "Join Room";
+            tr.getElementsByTagName("button")[0].innerHTML= "Join Room";
             // change button!
         } else {
-            console.log(data.to+" was dened to "+data.roomId+" room","info")
+            console.log(data.to+" was denied to "+data.roomId+" room","info")
             alertToaster(data.to+" was granted permission to "+data.roomId+" room", "error");
         }
     }

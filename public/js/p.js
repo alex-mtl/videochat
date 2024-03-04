@@ -155,12 +155,12 @@ function startSignaling() {
         var acceptGuest = document.getElementById("accept_"+data['client-id'])
         acceptGuest.onclick = function () {
             console.log(data['client-id'] + "accepted");
-            ws.send(JSON.stringify({type: 'grant-access', from: hostId, to: data['client-id'], roomId: roomId, access: true}));     
+            ws.send(JSON.stringify({type: 'grant-access', from: hostId, to: data['client-id'], 'client-session': data["client-session"], roomId: roomId, access: true}));     
         };
         var denyGuest = document.getElementById("deny_"+data['client-id'])
         denyGuest.onclick = function () {
             console.log(data['client-id'] + "denied");
-            ws.send(JSON.stringify({type: 'grant-access', from: hostId, to: data['client-id'], roomId: roomId, access: false}));     
+            ws.send(JSON.stringify({type: 'grant-access', from: hostId, to: data['client-id'], 'client-session': data["client-session"], roomId: roomId, access: false}));     
         }
     }
 
