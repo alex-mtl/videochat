@@ -62,7 +62,14 @@ html(lang="en")
               tr(id=`roomID-${r.name}`)
                 td= r.name
                 td= r.host.userName
-                if r.type === 'public'
+                if r.type === 'stream'
+                  td Stream
+                  td
+                  td
+                    button(onclick="joinRoom(this)", type="button", class="btn btn-primary") Join Stream
+                    if r.host.sessionID === sessionID
+                      button(onclick="startStream(this)", type="button", style="margin-left: 10px;", class="btn btn-primary") Start Stream
+                else if r.type === 'public'
                   td Public
                   td
                   td

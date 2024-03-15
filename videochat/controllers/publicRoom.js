@@ -15,3 +15,31 @@ module.exports.room = (req, res) => {
         })
     }
 };
+
+module.exports.stream = (req, res) => {
+    roomFile = 'rooms/'+req.params.room+'.json';
+    if (!fs.existsSync(roomFile)) {
+        req.session.error = "Room "+req.params.room+" does not exist!";
+        res.redirect('/rooms');
+    } else {
+        res.render('stream', {
+            sessionID: req.sessionID,
+            wssURL : config.wssURL,
+            roomID : req.params.room
+        })
+    }
+};
+
+module.exports.watch = (req, res) => {
+    roomFile = 'rooms/'+req.params.room+'.json';
+    if (!fs.existsSync(roomFile)) {
+        req.session.error = "Room "+req.params.room+" does not exist!";
+        res.redirect('/rooms');
+    } else {
+        res.render('watch', {
+            sessionID: req.sessionID,
+            wssURL : config.wssURL,
+            roomID : req.params.room
+        })
+    }
+};

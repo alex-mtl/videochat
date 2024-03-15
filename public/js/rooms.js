@@ -113,18 +113,22 @@ function startSignaling() {
                 () => {
                     tableBody = document.getElementById('room-list').querySelector('.table tbody');
                     var newRow = document.createElement('tr');
-                    if (data.room.type === 'public') {
+                    if (data.room.type === 'stream') {
+                        type = 'Stream';
+                        pwd = '';
+                        btn = '<button class="btn btn-primary" onClick="joinRoom(this)" type="button">Join Stream</button>';
+                    } else if (data.room.type === 'public') {
                         type = 'Public';
                         pwd = '';
-                        btn = '<button className="btn btn-primary" onClick="joinRoom(this)" type="button">Join Room</button>';
+                        btn = '<button class="btn btn-primary" onClick="joinRoom(this)" type="button">Join Room</button>';
                     } else if (data.room.type === 'private') {
                         type = 'Private';
                         pwd = '<input id="r-pass-'+data.room.name+'" type="text" size="32" placeholder="$ecr3t p@ssw0rd">';
-                        btn = '<button className="btn btn-primary" onClick="joinRoom(this)" type="button">Join Room</button>';
+                        btn = '<button class="btn btn-primary" onClick="joinRoom(this)" type="button">Join Room</button>';
                     } else if (data.room.type === 'master') {
                         type = 'Admission';
                         pwd = '<input id="r-admit-'+data.room.name+'" type="text" size="32" placeholder="May I join the room?">';
-                        btn = '<button className="btn btn-primary" onClick="requestJoinRoom(this)" type="button">Join Room</button>';
+                        btn = '<button class="btn btn-primary" onClick="requestJoinRoom(this)" type="button">Join Room</button>';
                     }
 
                     newRow.id = 'roomID-'+data.room.name;
