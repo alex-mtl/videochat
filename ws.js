@@ -8,6 +8,7 @@ const cookieParser = require('cookie-parser');
 const session = require('express-session');
 
 const config = require('./config');
+
 const app = express();
 app.use(cookieParser());
 app.use(session({
@@ -68,6 +69,9 @@ wss.on('connection', ws => {
             case 'send-chat-message':
                 handleSendChatMessage(ws, data);
                 break;
+            case 'grant-access':
+                handleGrantAccess(ws, data);
+                break;
             default:
                 console.error('Unknown message type:', data.type);
         }
@@ -125,7 +129,8 @@ function handleJoin(ws, data) {
                     obj.host.uid = ws.uid = clientId;
                 } else if ((sess.hasOwnProperty('room-'+roomID))) {
                     console.log('143 ', sessionID, obj.host.sessionID);
-                    if (sessionID === obj.host.sessionID) {
+                    // TODO tut po idee mojno budet proveryat esli allowed to pass in 
+                    if (sessionID === obj.host.sessionID || (obj.hasOwnProperty('allowed') && obj.allowed.includes(sessionID))) {
                         pass = true;
                     } else if (obj.password === sess['room-'+roomID].password
                         && (sess['room-'+roomID].ttl >= new Date().getTime())
@@ -288,7 +293,27 @@ function handleOffer(sender, data) {
     if (recipient) {
         recipient.send(JSON.stringify({ type: 'participant-offer', from: data.from, description: data.offer }));
     }
+}
 
+function handleGrantAccess(sender, data) {
+    console.log("Access from "+sender.uid+" to "+data.to);
+    const recipient = clients[data.to];
+    if (recipient) {
+        recipient.send(JSON.stringify({ type: 'access-grant', from: sender.uid, to: data.to, roomId: data.roomId, grantAccess: data.access }));
+    }
+
+    var name = './rooms/'+data.roomId+'.json';
+    var m = JSON.parse(fs.readFileSync(name).toString());
+    m.allowed.push(data['client-session']);
+    fs.writeFileSync(name, JSON.stringify(m));
+
+}
+
+function handleConnect(sender, data) {
+    clientID = generateClientId();
+    sender.uid = clientID;
+    clients[clientID] = sender;
+    console.log('Sender : ',sender.uid, 'connected');
 }
 
 function handleConnect(sender, data) {
@@ -342,6 +367,8 @@ function handleCreateRoom(sender, data) {
         } else if (room.valid ==='On') {
             room.type = 'master';
             room.password = crypto.createHash('md5').update('master').digest('hex');
+            // console.log(clientId);
+            room.allowed = [room.chatSessionID];
         }
 
         delete room['chatSessionID'];
@@ -403,9 +430,18 @@ function handleJoinRoom(sender, data) {
             } else if (room.type === 'master') {
                 sess = getSession(sessionID);
 
-                hostConn = clients[room.host.uid];
+                hostConn = clients[room.host.uid]; // dostaet polzovatlya
+                if (room.allowed.includes(sessionID)){
+                    sender.send(JSON.stringify({type: 'room-ready', room: room }));
+                    return
+                }
+                
+                
                 if (hostConn !== undefined) {
-                    hostConn.send(JSON.stringify({ type: 'request-join', 'room': room.name, 'client-id': sender.uid, 'client-session': sessionID, message: data.request }));
+                    // if (room.allowed)
+                    // TODO: tut poslanie ot requestor to host
+                    hostConn.send(JSON.stringify({ type: 'request-join', 'room': room.name, 'client-id': sender.uid, 
+                    'client-session': sessionID, message: data.request}));
                     ttl = new Date().getTime() + 600000; // now  + 10 min
                     sess['room-'+roomID] = { ttl, admit: false, uid: sender.uid };
                     sender.send(JSON.stringify({type: 'info', message: 'Request sent to the room host. Please wait for admission.' }));
