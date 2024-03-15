@@ -1,14 +1,7 @@
 const configuration = {iceServers: [{urls: 'stun:stun.l.google.com:19302'}]};
-const constraints = {
-    video: {
-        width: { max: 426 },
-        height: { max: 240 },
-        frameRate: { max: 15 } // Adjust frame rate as needed
-    },
-    audio: true
-};
-const localVideo = document.getElementById('localVideo');
-const remoteVideosContainer = document.getElementById('remoteVideos');
+const constraints = {video: true, audio: true};
+const localVideo = document.getElementById('streamVideo');
+const remoteVideosContainer = document.querySelector('div.peers');
 var sessionID = null;
 var roomEnv = null;
 let localStream;
@@ -36,7 +29,6 @@ function createPeerConnection(peerId) {
         if (document.getElementById('video-' + peerId) === null) {
             remoteVideoFrame = createRemoteVideo(peerId, event.streams[0]);
             remoteVideosContainer.appendChild(remoteVideoFrame);
-            adjustVideoSize();
         }
     };
     peerConnections[peerId] = peerConnection;
@@ -51,48 +43,8 @@ function createPeerConnection(peerId) {
      remoteVideo.muted = false;
      remoteVideoFrame.id = 'video-' + videoID;
      remoteVideoFrame.setAttribute('alt', videoID);
-     //remoteVideoFrame.style="display:inline-block;float:left;";
-     // remoteVideo.style = "";
      remoteVideoFrame.appendChild(remoteVideo);
      remoteVideoFrame.classList.add("videobox");
-     muteAudio = document.createElement('button');
-     muteAudio.textContent = 'volume_off' ;
-     muteAudio.classList.add("material-symbols-outlined");
-     muteAudio.style="margin-left:40px;"
-     muteAudio.onclick = function () {
-         this.parentElement.querySelector('video').muted = !this.parentElement.querySelector('video').muted;
-         this.textContent = this.parentElement.querySelector('video').muted ? 'volume_up' : 'volume_off' ;
-         txt = this.parentElement.querySelector('video').muted ? 'Unmute' : 'Mute' ;
-         this.setAttribute('alt', txt);
-         this.setAttribute('tooltip', txt);
-         this.parentElement.querySelector('video').classList.toggle('muted')
-     };
-     remoteVideoFrame.appendChild(muteAudio);
-
-     muteVideo = document.createElement('button');
-     muteVideo.textContent = 'videocam_off' ;
-     muteVideo.classList.add("material-symbols-outlined");
-     muteVideo.onclick = function () {
-         video = this.parentElement.querySelector('video');
-         txt = video.classList.contains('play') ? 'videocam' : 'videocam_off' ;
-         stream = video.srcObject;
-         tracks = stream.getTracks();
-
-         tracks.forEach((track) => {
-             if (track.kind === 'video') track.enabled = !track.enabled; //stop();
-         });
-         this.textContent = txt;
-         this.setAttribute('alt', txt);
-         this.setAttribute('tooltip', txt);
-         this.parentElement.querySelector('video').classList.toggle('play');
-
-     };
-     remoteVideoFrame.appendChild(muteVideo);
-
-     slider = document.createElement('template');
-     slider.innerHTML = `<input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1" onChange="adjustVolume(this.parentElement.querySelector('video'), this.value )">`;
-     remoteVideoFrame.appendChild(slider.content.cloneNode(true));
-
      return remoteVideoFrame;
  }
 
@@ -105,6 +57,19 @@ function sendMessage(elem) {
 
 function removePeerConnection(id) {
     delete peerConnections[id];
+    let row = document.querySelector('tr[data-id="'+id+'"]');
+    if (row) {
+        // Update the second <td> text content to "LEFT"
+        let td = row.querySelector('td:nth-child(2)');
+        if (td) {
+            td.textContent = "LEFT";
+        }
+
+        // Remove the table row after 2 seconds
+        setTimeout(() => {
+            row.remove();
+        }, 2000);
+    }
     video = document.getElementById('video-'+id);
     if (video !== null) {
         video.remove();
@@ -113,17 +78,6 @@ function removePeerConnection(id) {
 
 function adjustVolume(video, volume) {
     video.volume = volume;
-}
-
-function adjustVideoSize(){
-
-    const itemsCount = document.querySelectorAll('div.video-grid .videobox').length;
-    const videoGrid = document.querySelector('.video-grid');
-    if (itemsCount >= 5) {
-        videoGrid.style.setProperty('--columns', 5);
-    } else {
-        videoGrid.style.setProperty('--columns', itemsCount ?? 1 );
-    }
 }
 
 function hostVideoToggle() {

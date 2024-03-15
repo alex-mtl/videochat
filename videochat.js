@@ -32,6 +32,8 @@ app.get('/', home.homePage);
 
 app.get('/rooms', roomList.page )
 app.get('/p/:room', publicRoom.room)
+app.get('/s/:room', publicRoom.stream)
+app.get('/w/:room', publicRoom.watch)
 
 app.listen(config.port, () => {
     console.log(`Example app listening on port ${config.port}`)
