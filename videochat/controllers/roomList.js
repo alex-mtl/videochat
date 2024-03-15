@@ -9,6 +9,11 @@ module.exports.page = (req, res) => {
 
     getActiveRooms()
         .then(roomList => {
+            roomList.forEach( room => {
+                if (room.host.sessionID !== req.sessionID) {
+                    delete room.host.sessionID;
+                }
+            })
             data = {
                 sessionID: req.sessionID,
                 wssURL: config.wssURL,
