@@ -1,7 +1,6 @@
 const WebSocket = require('ws');
 const express = require('express');
-// const https = require('https');
-const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const XRegExp = require('xregexp');
 const crypto = require('crypto');
@@ -24,8 +23,7 @@ const privateKey = fs.readFileSync('video-key.pem', 'utf8');
 const certificate = fs.readFileSync('video-cert.pem', 'utf8');
 const credentials = { key: privateKey, cert: certificate };
 
-// const server = https.createServer(credentials, app);
-const server = http.createServer(app);
+const server = https.createServer(credentials, app);
 const wss = new WebSocket.Server({ server });
 
 const clients = {};
