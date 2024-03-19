@@ -111,7 +111,7 @@ function startSignaling() {
 
     function handleAnswer(answer) {
         const peerConnection = peerConnections[answer.from];
-
+        console.log('handle Answer from:',answer.from);
         peerConnection.setRemoteDescription(new RTCSessionDescription(answer.description));
     }
 
