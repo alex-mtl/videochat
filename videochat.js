@@ -15,7 +15,7 @@ app.use(session({
     saveUninitialized: true
 }));
 app.engine('pug', require('pug').__express)
-app.set('views', path.join(__dirname, 'views'));
+app.set('views', path.join(__dirname+'/videochat', 'views'));
 app.set('view engine', 'pug');
 app.locals.pretty = true;
 //app.set('view options', { pretty: true });

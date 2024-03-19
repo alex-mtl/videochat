@@ -4,6 +4,7 @@ module.exports = {
     wssURL: "wss://video.ttl10.net:3000",
     appFolder: "/var/www/html/",
     roomsFolder: "/var/www/html/rooms",
+    sessionsFolder: "/var/www/html/sessions/",
     chatHost: "https://video.ttl10.net/",
     secret: 'mGpFoUnYpRylxBNziSzK2tVx'
 };
