@@ -20,6 +20,7 @@ const credentials = { key: privateKey, cert: certificate };
 const server = https.createServer(credentials, app);
 
 const handle = require('./ws/controllers/handle');
+const mafia = require('./ws/controllers/mafia');
 
 const WebSocket = require('ws');
 
@@ -32,12 +33,14 @@ wss.on('connection', ws => {
 
         if (typeof handle[handler] === 'function') {
             handle[handler](ws, data);
+        } else if (typeof mafia[handler] === 'function') {
+            mafia[handler](ws, data);
         } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Unknown message type:' + data.type }));
             console.error('Unknown message type:', data.type);
         }
     });
     ws.on('close', () => {
-        console.log('40',handle)
         handle.removeClient(ws);
     });
 });

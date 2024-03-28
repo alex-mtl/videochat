@@ -1,0 +1,229 @@
+var hostId = null;
+
+shuffle = new Howl({
+    src: '/static/sfx/airport-tone.mp3',
+    loop: false,
+    volume: 0.1
+});
+navigator.mediaDevices.getUserMedia(constraints)
+    .then(stream => {
+        stream.getAudioTracks().forEach(track => {
+            track.enabled = false; // Mute audio track
+        });
+        localStream = stream;
+        localVideo.srcObject = stream;
+        startSignaling();
+    })
+    .catch(error => {
+        console.error('Error accessing media devices:', error);
+    });
+
+function selfSlotDetection(selfID) {
+    let participant = false;
+    if (roomEnv.gameHost.uid !== selfID) {
+        slot = 0;
+        for (const [slotN, player] of Object.entries(roomEnv.slot)) {
+            if (player.uid === selfID) {
+                localVideo.classList.add('play', 'self-view')
+                if (player.mic === 'on') {
+                    localVideo.classList.remove('muted')
+                    localVideo.srcObject.getAudioTracks().forEach(track => {
+                        track.enabled = true; // Mute audio track
+                    });
+                }
+                slot = document.querySelector('div.videobox[data-slot="' + slotN+'"]');
+                slot.classList.remove('no-video')
+                slot.classList.add('self-view')
+                slot.querySelectorAll('video').forEach(video => video.remove());
+                slot.insertBefore(localVideo, slot.firstChild);
+                slot.setAttribute('data-uid', selfID)
+                userName = slot.querySelector('.game-user');
+                userName.textContent = selfID
+                participant = true
+                break
+            }
+        }
+    } else {
+        participant = true
+    }
+    if (!participant) {
+        localVideo.srcObject.getTracks()
+    }
+    return participant
+}
+
+function updateStatuses() {
+    for (const [slotN, player] of Object.entries(roomEnv.slot)) {
+        barSlot = document.querySelector('div.e-bar[data-slot="'+slotN+'"]')
+        barSlot.setAttribute('data-status', player.status)
+    }
+}
+function startSignaling() {
+            // Create WebSocket connection using the retrieved URL
+    ws = new WebSocket(websocketUrl);
+    ws.onopen = () => {
+        ws.send(JSON.stringify({type: 'join-game', roomId: roomId, sessionID: chatSessionID }));
+    };
+
+    ws.onmessage = event => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'id') {
+            // Assign the unique ID received from the server
+            const clientId = data.id;
+            sessionID = clientId;
+            roomEnv = data.room;
+            updateStatuses()
+            participant = selfSlotDetection(clientId);
+            hostID = data.room.gameHost.uid;
+            var script = document.createElement('script');
+            if(sessionID !== hostID) {
+
+                // if (hostID !== 'DISCONNECTED') {
+                //     peerConnection = createPeerConnection(hostID, hostID, participant);
+                //     peerConnection.onicecandidate = event => {
+                //         if (event.candidate) {
+                //             sendIceCandidate(sessionID, hostID, event.candidate);
+                //         }
+                //     };
+                //     sendOffer(ws, clientId, hostID, peerConnection);
+                // }
+                gamePanel = document.querySelector('div.game-panel')
+                gamePanel.setAttribute('data-mode',"player")
+            } else {
+                hostVideo = document.getElementById('hostVideo')
+                hostVideo.srcObject = localVideo.srcObject;
+                hostVideo.classList.add('muted')
+                hostVideo.parentElement.classList.add('self-view')
+                hostVideo.parentElement.classList.remove('no-video')
+
+                localVideo.classList.remove('muted')
+                localVideo.srcObject = null;
+                localVideo.remove();
+                gamePanel = document.querySelector('div.game-panel')
+                gamePanel.setAttribute('data-mode',"host")
+
+
+
+                // Set the source attribute to your player.js file
+                script.src = '/static/js/mafia/host.js';
+
+                // Append the script element to the head of the document
+
+            }
+            document.head.appendChild(script);
+            for (const uid in data.room.users) {
+                if (uid !== sessionID) {
+                    peerConnection = createPeerConnection(uid, hostID, participant);
+                    peerConnection.onicecandidate = event => {
+                        if (event.candidate) {
+                            sendIceCandidate(sessionID, uid, event.candidate);
+                        }
+                    };
+                    sendOffer(ws, clientId, uid, peerConnection);
+                }
+            }
+            handleGamePhase(roomEnv.game)
+
+        } else if (data.type === 'participant-joined') {
+            // Handle new participant joined
+            const clientId = data.id;
+            roomEnv = data.room;
+            if (sessionID != clientId) {
+                peerConnection = createPeerConnection(clientId);
+                peerConnection.onicecandidate = event => {
+                    if (event.candidate) {
+                        sendIceCandidate(sessionID, clientId, event.candidate);
+                    }
+                };
+            }
+
+        } else if (data.type === 'participant-left') {
+            roomEnv = data.room;
+            removePeerConnection(data.id);
+        } else if (data.type === 'offer') {
+            handleOffer(data);
+        } else if (data.type === 'participant-offer') {
+            const clientId = data.from;
+            if (sessionID != clientId) {
+                handleOffer(data);
+            }
+        } else if (data.type === 'answer') {
+            handleAnswer(data);
+        } else if (data.type === 'ice-candidate') {
+            handleIceCandidate(data);
+        } else if (data.type === 'room-list') {
+            handleRoomList(data);
+        } else if (data.type === 'chat-message') {
+            handleChatMessage(data);
+        } else if (data.type === 'request-join') {
+            handleRequestJoin(data);
+        } else if (data.type === 'error') {
+            handleError(data, 'error');
+        } else if (data.type === 'game-player-status') {
+            handleGamePlayerStatus(data);
+        } else if (data.type === 'game-player-mic') {
+            handleGamePlayerMic(data);
+        } else if (data.type === 'mute-mic') {
+            muteMic(data);
+        } else if (data.type === 'game-start') {
+            handleGameStart(data);
+        } else if (data.type === 'game-phase') {
+            handleGamePhase(data);
+        } else if (data.type === 'select-slot') {
+            console.log(new Date().toLocaleTimeString(),'select-slot');
+            handleSelectSlot(data);
+            // handleGameStart(data);
+
+
+        }
+    };
+
+
+
+    function handleRoomList(data) {
+        select = document.getElementById('roomList');
+        select.innerHTML = '';
+        roomlist = data.room - list;
+        roomlist.forEach(room => {
+            var opt = document.createElement('option');
+            opt.innerHTML = room.name;
+            opt.value = room.host;
+            select.appendChild(opt);
+        })
+
+    }
+
+    function handleRequestJoin(data) {
+        table = document.getElementById('chat-messages');
+
+        var row = document.createElement('tr');
+
+        var d = new Date(); // for now
+        var now = ''+d.getHours()+'h '+d.getMinutes()+'m';
+
+        row.innerHTML = `<td class="chat-time">`+now+`</td>`;
+        row.innerHTML += `<td class="chat-from">`+data['client-id']+`</td>`;
+        row.innerHTML += `<td class="chat-to">`+''+`</td>`;
+        row.innerHTML += `<td class="chat-message">`+escapeHtml(data.message)+
+        `<button style="float:right;" class="btn btn-danger" id="deny_`+data['client-id']+`">Deny Request</button>
+        <button style="float:right;" class="btn btn-success" id="accept_`+data['client-id']+`">Accept Request</button></td>`;
+
+        if (data.from === sessionID) {
+            row.classList.add('self-message');
+        } else if (data.from === roomEnv.host.uid) {
+            row.classList.add('host-message');
+        }
+
+        table.appendChild(row);
+
+        var acceptGuest = document.getElementById("accept_"+data['client-id'])
+        acceptGuest.onclick = function () {
+            ws.send(JSON.stringify({type: 'grant-access', from: hostId, to: data['client-id'], 'client-session': data["client-session"], roomId: roomId, access: true}));
+        };
+        var denyGuest = document.getElementById("deny_"+data['client-id'])
+        denyGuest.onclick = function () {
+            ws.send(JSON.stringify({type: 'grant-access', from: hostId, to: data['client-id'], 'client-session': data["client-session"], roomId: roomId, access: false}));
+        }
+    }
+
+}

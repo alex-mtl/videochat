@@ -1,0 +1,337 @@
+
+:root {
+    --columns: 4; /* Default number of columns */
+    --g-grey: rgba(211, 211, 211, 0.5);
+    --g-dark-grey: hsl(0, 0%, 40%);
+    --g-green: #72d972;
+    --g-alert: #f5c6cb;
+    --g-red: #e15754;
+    --g-ready: 7
+}
+
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(4 , 1fr);
+    grid-template-rows: repeat(3, auto);
+    /*height: 100vh;*/
+    grid-gap: 10px;
+}
+
+.game {
+    width: 99%;
+}
+
+video.muted {
+    border: 3px solid var(--g-red);
+}
+
+video {
+    border: 3px solid var(--g-green);
+    margin: 3px;
+    width: 100%;
+    aspect-ratio: 16/9;
+}
+
+div.videobox[data-uid="empty"] video {
+    border-color: var(--g-grey);
+}
+
+video:not(.play) {
+    opacity: 10%;
+}
+
+#localVideo {
+    object-fit:cover;
+    width:100%;
+}
+
+div.videobox {
+    position:relative;
+    background-image: url(/static/img/background_replace.svg);
+    /*background-color: var(--g-grey);*/
+    background-repeat:no-repeat;
+    background-position: center center;
+    background-size: 50% auto;
+}
+
+
+div.videobox button{
+    visibility: hidden;
+    position: absolute;
+    top: 10%;
+    left: 10%;
+    padding-left: 2px;
+    padding-right: 2px;
+}
+
+div.videobox:not(.no-video):hover button:not([data-btn="select-slot"]) {
+    visibility: visible;
+}
+
+div .videobox input#volumeSlider{
+    visibility: hidden;
+    position: absolute;
+    bottom: 10%;
+    right: 10%;
+    width: 80%;
+}
+
+div.game.videos[data-phase]:not([data-phase='shuffle']) div.videobox:not(.no-video):hover input#volumeSlider {
+    visibility: visible;
+}
+
+div.slot {
+    position: absolute;
+    top: 5%; /* Adjust top position as needed */
+    right: 3%; /* Adjust right position as needed */
+    background-color: rgba(211, 211, 211, 0.5); /* Light gray with transparency */
+    color: black; /* Text color */
+    padding-left: 7px; /* Adjust padding as needed */
+    padding-right: 7px; /* Adjust padding as needed */
+    font-size: 24px; /* Adjust font size as needed */
+    font-weight: bold; /* Bold font */
+}
+
+div.game-user {
+    position: absolute;
+    bottom: 5%; /* Adjust top position as needed */
+    left: 1%; /* Adjust right position as needed */
+    background-color: rgba(30, 30, 30, 0.5); /* Light gray with transparency */
+    color: rgba(211, 211, 211, 0.5); /* Text color */
+    padding-left: 7px; /* Adjust padding as needed */
+    padding-right: 7px; /* Adjust padding as needed */
+    font-size: 24px; /* Adjust font size as needed */
+    font-weight: bold; /* Bold font */
+}
+
+span.slot-status {
+    position: absolute;
+    bottom: 15px; /* Adjust top position as needed */
+    right: 5px; /* Adjust right position as needed */
+    background-color: transparent; /* Light gray with transparency */
+    color: rgba(211, 211, 211, 0.5); /* Text color */
+    padding: 0;
+    font-size: 36px; /* Adjust font size as needed */
+    font-weight: bold; /* Bold font */
+}
+
+.self-view .slot-status {
+    cursor: pointer; /* Change mouse pointer to hand on hover */
+}
+
+.slot-status[data-status="ready"]:before {
+    content: "check_circle";
+    color: var(--g-green);
+}
+
+.slot-status[data-status="unknown"]:before {
+    content: "radio_button_unchecked"
+}
+
+.self-view .slot-status[data-status="unknown"]:before {
+    color: var(--g-green)
+}
+
+span.slot-mic {
+    position: absolute;
+    bottom: 15px; /* Adjust top position as needed */
+    right: 40px; /* Adjust right position as needed */
+    background-color: transparent; /* Light gray with transparency */
+    color: rgba(211, 211, 211, 0.5); /* Text color */
+    padding: 0;
+    font-size: 36px; /* Adjust font size as needed */
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+span.slot-mic[data-mic="off"]:before {
+    visibility: visible;
+    content: "mic_off";
+    color: var(--g-red);
+}
+
+div.videobox[data-uid='empty'] .slot-mic[data-mic="off"]:before {
+    visibility: hidden;
+}
+
+div.videos {
+    /*display:inline-block;*/
+    /* float:left; */
+}
+#chat {
+    visibility: hidden;
+}
+body.g-mafia, html {
+    width: 100%;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    background-color: var(--g-dark-grey);
+}
+
+/*body {*/
+/*    margin: 0;*/
+/*    display: grid;*/
+/*    grid-template-rows: auto 1fr auto;*/
+/*    grid-template-columns: 100%;*/
+/*    height: 100vh;*/
+/*}*/
+
+.game-panel {
+    position: relative;
+}
+
+.equalizer {
+    position: absolute;
+    width: 20%; /* Adjust width as needed */
+    height: 100%; /* Adjust height as needed */
+    right: 0;
+    top: 0;
+    border: solid var(--g-grey);
+}
+
+.game-actions {
+    position: absolute;
+    width: 20%; /* Adjust width as needed */
+    height: 100%; /* Adjust height as needed */
+    left: 0;
+    top: 0;
+    border: solid var(--g-grey);
+}
+
+.g-action {
+    position: absolute;
+    height: 20%;
+    width: 100%;
+    border: solid var(--g-grey);
+    background-color: var(--g-grey);
+}
+
+.e-container {
+    position: relative;
+    width:100%;
+    height: 100%;
+}
+
+.e-bar {
+    position: absolute;
+    height: 10%;
+    width: 100%;
+    border: solid var(--g-grey);
+    background-color: var(--g-grey);
+}
+
+.e-bar[data-status='ready'] {
+    background-color: var(--g-green);
+}
+
+div.full-size {
+    position: relative;
+    height: 100%;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.e-bar span {
+    display:block;
+    margin: auto auto;
+}
+
+.player-panel, .host-panel {
+    visibility: hidden;
+    position: absolute;
+    width: 60%; /* Adjust width as needed */
+    height: 100%; /* Adjust height as needed */
+    left: 20%;
+    top: 0;
+    border: solid var(--g-grey);
+}
+
+div.game-panel[data-mode="host"] .host-panel {
+    visibility: visible;
+}
+
+div.game-panel[data-mode="player"] .player-panel {
+    visibility: visible;
+}
+
+@keyframes spinnerAnimation {
+
+    0% {
+        opacity: 100%;
+    }
+    25% {
+        opacity: 66%;
+    }
+    50% {
+        opacity: 33%;
+    }
+    75% {
+        opacity: 66%;
+    }
+    100% {
+        opacity: 100%;
+    }
+}
+
+.spinner-animate {
+    animation: spinnerAnimation 3s linear infinite;
+}
+
+div.middle {
+
+    display: flex;
+    justify-content: center; /* Horizontally center */
+    align-items: center; /* Vertically center */
+    position: absolute;
+    bottom: 10%;
+    left: 50%; /* Move to the center horizontally */
+    transform: translateX(-50%); /* Adjust horizontally centered content */
+    margin: auto;
+}
+
+div.select-slot {
+    position: absolute;
+    top: 0;
+    left: 0;
+    /*margin-left: 15px;*/
+    /*margin-right: 15px;*/
+    /*margin-top: 10px;*/
+    border: 3px solid var(--g-dark-grey);
+    background-color: var(--g-grey);
+    margin: 3px;
+    /*width: calc(100% - 30px);*/
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    visibility: hidden;
+    display: flex;
+    justify-content: center; /* Horizontally center */
+    align-items: center;
+}
+
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not([data-slot="game-host"]) div.select-slot button {
+    font-size: xxx-large;
+    font-weight: bold;
+    width: 80%;
+    height: 80%;
+}
+
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not([data-slot="game-host"]) div.select-slot,
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not([data-slot="game-host"]) div.select-slot button {
+    visibility: visible;
+}
+
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not([data-slot="game-host"]) video,
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not([data-slot="game-host"]) span,
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not([data-slot="game-host"]) input[type="range"],
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not([data-slot="game-host"]) button,
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not([data-slot="game-host"]) div.slot,
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not([data-slot="game-host"]) span.slot-mic,
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not([data-slot="game-host"]) span.slot-mic[data-mic="off"]:before,
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not([data-slot="game-host"]) div.game-user {
+    visibility: hidden;
+}

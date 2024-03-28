@@ -1,5 +1,12 @@
 const configuration = {iceServers: [{urls: 'stun:stun.l.google.com:19302'}]};
-const constraints = {video: true, audio: true};
+const constraints = {
+    video: {
+        width: { max: 426 },
+        height: { max: 240 },
+        frameRate: { max: 15 } // Adjust frame rate as needed
+    },
+    audio: true
+};
 const localVideo = document.getElementById('streamVideo');
 const remoteVideosContainer = document.querySelector('div.peers');
 var sessionID = null;

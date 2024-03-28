@@ -1,0 +1,14 @@
+.videobox.no-video(data-slot=slot, data-uid=player.uid, id=vbID)
+    video.play(autoplay, id=vID, muted)
+    button.material-symbols-outlined(style="margin-left: 40px;" onclick="toggleAudio(this)") volume_off
+    button.material-symbols-outlined(onclick="toggleVideo(this)") videocam_off
+    .slot= slot
+    .game-user= player.name
+    input#volumeSlider(type='range' min='0' max='1' step='0.05' value='1' onchange="adjustVolume(this.parentElement.querySelector('video'), this.value )")
+    span.slot-status(class="material-symbols-outlined", data-status=player.status, onclick="changeUserStatus(this)")
+    span.slot-mic(class="material-symbols-outlined", data-mic=player.mic)
+    .select-slot
+        .e-container
+            .middle.full-size(style="bottom:0;")
+                button.btn.btn-primary.btn-lg(onclick='selectSlot('+slot+')' type="button" data-btn="select-slot")= slot
+                span= slot
