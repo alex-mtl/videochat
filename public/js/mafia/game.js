@@ -1,9 +1,22 @@
 var hostId = null;
+let selfID = null;
 
 shuffle = new Howl({
     src: '/static/sfx/airport-tone.mp3',
     loop: false,
     volume: 0.1
+});
+
+sitdown = new Howl({
+    src: '/static/sfx/sitdown.mp3',
+    loop: false,
+    volume: 0.01
+});
+
+police = new Howl({
+    src: '/static/sfx/police-siren.mp3',
+    loop: false,
+    volume: 0.01
 });
 navigator.mediaDevices.getUserMedia(constraints)
     .then(stream => {
@@ -70,6 +83,7 @@ function startSignaling() {
         if (data.type === 'id') {
             // Assign the unique ID received from the server
             const clientId = data.id;
+            selfID = data.id;
             sessionID = clientId;
             roomEnv = data.room;
             updateStatuses()
@@ -89,6 +103,7 @@ function startSignaling() {
                 // }
                 gamePanel = document.querySelector('div.game-panel')
                 gamePanel.setAttribute('data-mode',"player")
+
             } else {
                 hostVideo = document.getElementById('hostVideo')
                 hostVideo.srcObject = localVideo.srcObject;
@@ -170,11 +185,31 @@ function startSignaling() {
         } else if (data.type === 'game-phase') {
             handleGamePhase(data);
         } else if (data.type === 'select-slot') {
-            console.log(new Date().toLocaleTimeString(),'select-slot');
             handleSelectSlot(data);
-            // handleGameStart(data);
-
-
+        } else if (data.type === 'game-phase-slot') {
+            handleGamePhaseSlot(data);
+        } else if (data.type === 'game-order') {
+            handleGameOrder(data);
+        } else if (data.type === 'shuffle-roles-ready') {
+            handleShuffleRolesReady(data);
+        } else if (data.type === 'game-phase-role') {
+            handleGamePhaseRole(data);
+        } else if (data.type === 'select-role') {
+            handleSelectRole(data);
+        } else if (data.type === 'game-role-taken') {
+            handleGameRoleTaken(data);
+        } else if (data.type === 'game-role') {
+            handleGameRole(data);
+        } else if (data.type === 'shuffle-roles') {
+            handleShuffleRoles(data);
+        } else if (data.type === 'game-roles') {
+            handleGameRoles(data);
+        } else if (data.type === 'mafia-sitdown') {
+            handleMafiaSitdown(data);
+        } else if (data.type === 'game-ready') {
+            handleGameReady(data);
+        // } else if (data.type === 'sitdown-ready') {
+        //     handleSitdownReady(data);
         }
     };
 
@@ -225,5 +260,21 @@ function startSignaling() {
             ws.send(JSON.stringify({type: 'grant-access', from: hostId, to: data['client-id'], 'client-session': data["client-session"], roomId: roomId, access: false}));
         }
     }
+
+}
+
+function selectSlot(slotID) {
+    ws.send(JSON.stringify({type: 'game-reserve-slot', slotID: slotID}));
+    handleGamePhase({phase: 'shuffle'});
+
+}
+
+function selectRole(card) {
+    // console.log(card)
+    cardID = card.getAttribute('data-card');
+    ws.send(JSON.stringify({type: 'game-reserve-role', cardID: cardID}));
+
+    deck = document.querySelector('div.deck-container')
+    deck.classList.add('locked')
 
 }

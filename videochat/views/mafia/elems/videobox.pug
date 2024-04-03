@@ -1,12 +1,14 @@
-.videobox.no-video(data-slot=slot, data-uid=player.uid, id=vbID)
-    video.play(autoplay, id=vID, muted)
-    button.material-symbols-outlined(style="margin-left: 40px;" onclick="toggleAudio(this)") volume_off
-    button.material-symbols-outlined(onclick="toggleVideo(this)") videocam_off
-    .slot= slot
-    .game-user= player.name
-    input#volumeSlider(type='range' min='0' max='1' step='0.05' value='1' onchange="adjustVolume(this.parentElement.querySelector('video'), this.value )")
-    span.slot-status(class="material-symbols-outlined", data-status=player.status, onclick="changeUserStatus(this)")
-    span.slot-mic(class="material-symbols-outlined", data-mic=player.mic)
+.videobox.no-video(data-slot=slot, data-uid=player.uid, id=vbID, class="vbox-"+slot)
+    video.g-mask.play(autoplay, id=vID, muted)
+    button.g-mask.material-symbols-outlined(style="margin-left: 40px;" onclick="toggleAudio(this)") volume_off
+    button.g-mask.material-symbols-outlined(onclick="toggleVideo(this)") videocam_off
+    .slot.g-mask= slot
+    .game-user.g-mask= player.name
+    input.g-mask#volumeSlider(type='range' min='0' max='1' step='0.05' value='1' onchange="adjustVolume(this.parentElement.querySelector('video'), this.value )")
+    span.g-mask.slot-status(class="material-symbols-outlined", data-status=player.status, onclick="changeUserStatus(this)")
+    span.slot-role.material-symbols-outlined(data-role=player.role)
+    span.video-lock.material-symbols-outlined
+    span.g-mask.slot-mic(class="material-symbols-outlined", data-mic=player.mic)
     .select-slot
         .e-container
             .middle.full-size(style="bottom:0;")

@@ -33,7 +33,7 @@ html(lang="en")
         - var slot = 'game-host'
         include elems/videobox.pug
         div.game-panel
-          video.play.muted#localVideo(autoplay, muted)
+          video.g-mask.play.muted#localVideo(autoplay, muted)
           include elems/game-actions.pug
           include elems/host-panel.pug
           include elems/player-panel.pug
@@ -42,6 +42,7 @@ html(lang="en")
           - const player = room.slot[slot]
           - var vbID = "video-"+slot+"-empty"
           include elems/videobox.pug
+    include elems/card-deck.pug
     #chat
       div
         input#chat-input(type="text")

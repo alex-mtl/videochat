@@ -130,6 +130,8 @@ function createRemoteVideo(videoID, srcObject, hostID) {
      remoteVideo.srcObject = srcObject;
      remoteVideo.autoplay = true;
      remoteVideo.classList.add('play');
+     remoteVideo.classList.add('g-mask');
+
      remoteVideo.muted = false;
      remoteVideoFrame.id = 'video-' + videoID;
      remoteVideoFrame.setAttribute('alt', videoID);
@@ -290,6 +292,14 @@ function hostAudioToggle(off = false) {
 
 
 function handleError(data, type) {
+    if (data.message.startsWith("Failed to send offer!")) {
+        const regex = /Recipient: `(.+?)` not found/;
+        let match = regex.exec(data.message);
+        let dataValue = match ? match[1] : null;
+        if (dataValue) {
+            ws.send(JSON.stringify({type: 'check-user-connection', 'uid': dataValue }));
+        }
+    }
     alertToaster(data.message, type);
     //showPopupAlert(data.message, type);
 }
@@ -418,14 +428,34 @@ function startSpinner(elem) {
     elem.classList.add("spinner-animate");
 }
 
+function gameMessage(msg, line = 1) {
+
+    roomMessage = document.querySelectorAll('span.gameMessage'+line)
+    roomMessage.forEach(span =>  {
+        span.textContent = msg
+    });
+}
+
 function handleGameStart(data) {
 
     shuffle.play()
-    // slotMic = document.querySelector('div.videobox[data-uid="'+data.uid+'"] span.slot-mic')
-    // slotN = slotMic.parentElement.getAttribute('data-slot')
-    // if (slotMic) {
-    //     slotMic.setAttribute('data-mic', data.mic)
-    // }
+    gameMessage('Pick a slot')
+
+}
+
+function handleShuffleRoles(data) {
+    police.play()
+    gameMessage('Pick a role')
+    deck = document.querySelector('div.deck-container')
+    deck.classList.add('deck-active', 'locked')
+    cards = document.querySelectorAll('div.game-card.taken[data-card]')
+    cards.forEach(card =>  {
+        card.classList.remove('taken')
+    });
+    roleSpan = document.querySelector('div.game-deck span.game-role')
+    roleSpan.classList.remove('role-show')
+    roleSpan.textContent = ''
+
 }
 
 function handleGamePhase(data) {
@@ -438,8 +468,112 @@ function handleGamePhase(data) {
             btn.classList.add('btn-secondary')
             btn.disabled = true
         });
+        videoElems = document.querySelectorAll('div.videobox[data-slot]:not([data-slot="game-host"]) .g-mask')
+        videoElems.forEach( elem => {
+            elem.classList.add('night')
+        })
+
+    } else if (data.phase === 'sitdown') {
+        sitdown.play()
+    } else if (data.phase === 'lobby') {
+        shuffle.stop()
+        police.stop()
+        sitdown.stop()
+        videoElems = document.querySelectorAll('div.videobox[data-slot]:not([data-slot="game-host"]) .g-mask')
+        videoElems.forEach( elem => {
+            elem.classList.remove('night')
+        })
     }
 }
+
+function handleGamePhaseSlot(data) {
+    gameMessage('Player '+data.slot, 2)
+
+    slotBars = document.querySelectorAll('div.e-bar')
+    slotBars.forEach(slotBar =>  {
+        slotBar.classList.remove('blink')
+    });
+    slotBar = document.querySelector('div.e-bar[data-slot="'+data.slot+'"]')
+    slotBar.classList.add('blink')
+
+    vBoxAll = document.querySelectorAll('div.videobox div.select-slot')
+    vBoxAll.forEach(vBox =>  {
+        vBox.classList.remove('blink')
+    });
+    vBox = document.querySelector('div.videobox[data-slot="'+data.slot+'"] div.select-slot')
+    vBox.classList.add('blink')
+}
+
+function handleGamePhaseRole(data) {
+    gameMessage('Player '+data.slot, 2)
+    let self = false;
+    slotBars = document.querySelectorAll('div.e-bar')
+    slotBars.forEach(slotBar =>  {
+        slotBar.classList.remove('blink')
+    });
+    slotBar = document.querySelector('div.e-bar[data-slot="'+data.slot+'"]')
+    slotBar.classList.add('blink')
+
+    vBoxAll = document.querySelectorAll('div.videobox div.select-slot')
+    vBoxAll.forEach(vBox =>  {
+        vBox.classList.remove('blink')
+    });
+    vBox = document.querySelector('div.videobox[data-slot="'+data.slot+'"] div.select-slot')
+    vBox.classList.add('blink')
+
+    // if (!vBox.classList.contains('self-view')) {
+    //     deck = document.querySelector('div.deck-container')
+    //     deck.classList.add('locked')
+    // }
+
+}
+
+function handleGameOrder(data) {
+    slotBars = document.querySelectorAll('div.e-bar')
+    slotBars.forEach(slotBar =>  {
+        slotBar.classList.remove('blink')
+    });
+    for (const [slot, player] of Object.entries(data.slots)) {
+
+        let divPlayer = document.querySelector(`div.videobox[data-uid="${player.uid}"]`);
+        if (divPlayer === null) {
+            let divPlayer = document.querySelector(`div.videobox[data-uid="empty"]`);
+        }
+        let prevSlot = divPlayer.getAttribute('data-slot');
+        let targetDiv = document.querySelector(`div.videobox[data-slot="${slot}"]`);
+        let targetSlot = targetDiv.getAttribute('data-slot');
+        if (prevSlot !== targetSlot) {
+            // Swap the contents of the two divs
+            // const temp = divPlayer.outerHTML;
+            // divPlayer.outerHTML = targetDiv.outerHTML;
+            // targetDiv.outerHTML = temp;
+            // Swap the video elements' parent nodes instead of swapping outerHTML
+            let tempParent = divPlayer.parentNode;
+            let tempNextSibling = divPlayer.nextSibling;
+            targetDiv.parentNode.insertBefore(divPlayer, targetDiv);
+            tempParent.insertBefore(targetDiv, tempNextSibling);
+
+            // Update the data-slot attributes to reflect the slot swap
+            divPlayer.setAttribute('data-slot', targetSlot);
+            divPlayer.querySelector('div.slot').textContent = targetSlot;
+            divPlayer.querySelector('button.btn[data-btn="select-slot"]').textContent = targetSlot;
+            divPlayer.querySelector('button.btn[data-btn="select-slot"]').onclick = function() {
+                selectSlot(targetSlot);
+            };
+
+            targetDiv.setAttribute('data-slot', prevSlot);
+            targetDiv.querySelector('div.slot').textContent = prevSlot;
+            targetDiv.querySelector('button.btn[data-btn="select-slot"]').textContent = prevSlot;
+            targetDiv.querySelector('button.btn[data-btn="select-slot"]').onclick = function() {
+                selectSlot(targetSlot);
+            };
+
+        }
+
+    }
+}
+
+
 
 function handleSelectSlot(data) {
 
@@ -451,6 +585,61 @@ function handleSelectSlot(data) {
     });
 
 }
+
+function handleSelectRole(data) {
+    deck = document.querySelector('div.deck-container')
+    deck.classList.remove('locked')
+}
+
+function handleGameRoleTaken(data) {
+    if (data.card === 'any') {
+        card = document.querySelector('div.game-card[data-card]:not(.taken)')
+        card.classList.add('taken')
+    } else {
+        card = document.querySelector('div.game-card[data-card="'+data.card+'"]:not(.taken)')
+        card.classList.add('taken')
+    }
+}
+
+function handleGameRole(data) {
+    roleSpan = document.querySelector('div.game-deck span.game-role')
+    roleSpan.classList.remove('role-show')
+    if (data.role === 'R') {
+        roleSpan.textContent = 'CITIZEN'
+        roleSpan.setAttribute('data-role', 'CITIZEN')
+    } else if (data.role === 'S') {
+        roleSpan.textContent = 'SHERIFF'
+        roleSpan.setAttribute('data-role', 'SHERIFF')
+    } else if (data.role === 'D') {
+        roleSpan.textContent = 'DON'
+        roleSpan.setAttribute('data-role', 'DON')
+    } else if (data.role === 'B') {
+        roleSpan.textContent = 'MAFIA'
+        roleSpan.setAttribute('data-role', 'MAFIA')
+    }
+    roleSpan.classList.add('role-show')
+}
+
+function handleGameReady(data) {
+    police.stop();
+    deck = document.querySelector('div.deck-container')
+    deck.classList.remove('deck-active', 'locked')
+    slotBars = document.querySelectorAll('div.e-bar.blink')
+    slotBars.forEach(slotBar =>  {
+        slotBar.classList.remove('blink')
+    });
+    vBoxBlink = document.querySelectorAll('div.videobox div.select-slot.blink')
+    vBoxBlink.forEach(vBox =>  {
+        vBox.classList.remove('blink')
+    });
+
+    gameMessage('Sitdown')
+    gameMessage('ready...',2)
+    if (selfID === roomEnv.gameHost.uid) {
+        sitdownReady()
+    }
+}
+
 
 function handleGamePlayerMic(data) {
     slotMic = document.querySelector('div.videobox[data-uid="'+data.uid+'"] span.slot-mic')
@@ -468,6 +657,34 @@ function handleGamePlayerStatus(data) {
         barSlot = document.querySelector('div.e-bar[data-slot="'+slotN+'"]')
         barSlot.setAttribute('data-status', data.status)
     }
+}
+
+function handleMafiaSitdown(data) {
+    for (const [slotN, player] of Object.entries(data.team)) {
+        role = 'unknown'
+        if (player.role === 'B') {
+            role = 'mafia'
+        } else if (player.role === 'D') {
+            role = 'don'
+        }
+        span = document.querySelector('div.videobox[data-slot="'+slotN+'"] span.slot-role')
+        span.setAttribute('data-role', role)
+    }
+    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-role:not([data-role="mafia"]):not([data-role="don"])')
+    citizens.forEach(citizen => {
+        citizen.setAttribute('data-role', 'citizen')
+        citizen.parentElement.querySelector('video').classList.add('night-video')
+        citizen.parentElement.querySelector('span.video-lock').setAttribute('data-role', 'citizen')
+    })
+
+    videoElems = document.querySelectorAll(
+        'div.videobox[data-slot]:not(.vbox-game-host) .g-mask,' +
+        'div.videobox[data-slot]:not(.vbox-game-host) .g-mask:hover'
+    )
+    videoElems.forEach( elem => {
+        elem.classList.remove('night')
+    })
+    handleGamePhase({phase: 'show-roles'});
 }
 
 

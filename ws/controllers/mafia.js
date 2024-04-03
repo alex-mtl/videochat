@@ -99,7 +99,7 @@ function joinGame(ws, data) {
                     return;
                 }
             }
-            console.log("WS order 91",clientId)
+
             let emptySlot = true;
             for (const [slot, player] of Object.entries(room.slot)) {
                 if (player.sessionID === sessionID) {
@@ -110,14 +110,17 @@ function joinGame(ws, data) {
                         break
                     }
                 }
-                if ((player.uid === 'empty') && emptySlot) {
-                    if (clientId !== room.gameHost.uid) {
-                        player.uid = clientId;
-                        player.sessionID = sessionID;
-                        emptySlot = false;
-                        break;
+                if (room.game.phase === 'pre-game') {
+                    if ((player.uid === 'empty') && emptySlot) {
+                        if (clientId !== room.gameHost.uid) {
+                            player.uid = clientId;
+                            player.sessionID = sessionID;
+                            emptySlot = false;
+                            break;
+                        }
                     }
                 }
+
             };
 
             if (!pass) {
@@ -214,7 +217,92 @@ async function gamePlayerMic(ws, data) {
     }
 }
 
+async function gameReserveSlot(ws, data) {
+    let room = await getRoom(ws.roomID);
+    if (!room.game.availableSlots.includes(data.slotID)) {
+        ws.send(JSON.stringify({ type: 'error', message: "Slot "+data.slotID+" is not available..." }));
+        return
+    }
+
+    for (const [slot, player] of Object.entries(room.slot)) {
+        if (player.uid === ws.uid) {
+            if (player.slot === 'none') {
+                room.slot[slot].slot = data.slotID
+                room.game.availableSlots = room.game.availableSlots.filter(slotID => slotID !== data.slotID);
+                room = await updateRoom(ws.roomID, room)
+                break
+            }
+        }
+    }
+}
+
+async function gameReserveRole(ws, data) {
+    let room = await getRoom(ws.roomID);
+    if (!room.game.availableCards.includes(parseInt(data.cardID))) {
+        console.log('242 ',room.game.availableCards)
+        ws.send(JSON.stringify({ type: 'error', message: "Card "+data.cardID+" is not available...", availabe: room.game.availableCards }));
+        return
+    }
+    for (const [slot, player] of Object.entries(room.slot)) {
+
+        if (player.uid === ws.uid) {
+            if (player.role === 'none') {
+                let idx = room.game.availableCards.indexOf(parseInt(data.cardID))
+                room.slot[slot].role = room.game.availableRoles[idx]
+                delete room.game.availableRoles[idx]
+                room.game.availableRoles =  room.game.availableRoles.filter(role => role !== null);
+                room.game.availableCards = room.game.availableCards.filter(cardID => cardID !== data.cardID);
+                room = await updateRoom(ws.roomID, room)
+                broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-role-taken', card: data.cardID }));
+                ws.send(JSON.stringify({ type: 'game-role', role: room.slot[slot].role }));
+                ws.send(JSON.stringify({ type: 'game-phase', phase: 'shuffle' }));
+
+                break
+            }
+        }
+    }
+}
+
+async function showRoles(ws, data) {
+    let room = await getRoom(ws.roomID);
+    ws.send(JSON.stringify({ type: 'game-roles', players: room.slot }));
+}
+
+async function startSitdown(ws, data) {
+    let room = await getRoom(ws.roomID);
+
+
+    if (ws.uid !== room.gameHost.uid) {
+        console.log('Attempt to start game when not a host!', ws.uid, ws.roomID)
+        return
+    } else {
+        const mafTeam = Object.fromEntries(
+            Object.entries(room.slot)
+                .filter(([key, value]) => ['B', 'D'].includes(value.role))
+        );
+        console.log(mafTeam)
+        ws.send(JSON.stringify({type: 'sitdown-started', team: mafTeam}));
+        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'sitdown' }));
+
+        for (const [slot, player] of Object.entries(mafTeam)) {
+            if (player.uid !== 'empty') {
+                user = clients[player.uid]
+                if (user !== undefined) {
+                    user.send(JSON.stringify({type: 'mafia-sitdown', team: mafTeam}));
+                } else {
+                    ws.send(JSON.stringify({type: 'player-not-ready', slot: slot}));
+                    return
+                }
+            }
+        }
+    }
+
+}
+
+
+
 async function gameStart(ws, data) {
+
     let room = await getRoom(ws.roomID);
     if (ws.uid !== room.gameHost.uid) {
         console.log('Attempt to start game when not a host!', ws.uid, ws.roomID)
@@ -223,6 +311,7 @@ async function gameStart(ws, data) {
         ready = true;
         for (const [slot, player] of Object.entries(room.slot)) {
             room.slot[slot].slot = 'none';
+            room.slot[slot].role = 'none';
             if ((player.uid !== 'empty') && (player.status !== 'ready')) {
                 console.log('slot is not ready: ', slot)
                 ready = false;
@@ -238,10 +327,9 @@ async function gameStart(ws, data) {
                 }
             }
         }
-        console.log('241', room.slot[1])
+
         room = await updateRoom(ws.roomID, room)
         if (!ready) {
-
             ws.send(JSON.stringify({ type: 'error', message: "Some users are not ready yet..." }));
             return;
         }
@@ -250,9 +338,8 @@ async function gameStart(ws, data) {
         room.game.phase = 'shuffle';
         room.game.availableSlots = [1,2,3,4,5,6,7,8,9,10]
         room = await updateRoom(ws.roomID, room);
-        console.log('245', room.slot[1])
-        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'shuffle' }));
 
+        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'shuffle' }));
 
         for (let i= 1; i<=10; i++) {
             roomState = await getRoom(ws.roomID)
@@ -270,42 +357,152 @@ async function gameStart(ws, data) {
             }
 
             curPlayer = roomState.slot[i]
-
+            sleepTime = 300; // skip empty slots
             if ((roomState.game.phase === 'shuffle')
                 && (curPlayer.slot === 'none')) {
                 user = clients[curPlayer.uid]
                 if (user !== undefined) {
+                    sleepTime = 3000
                     user.send(JSON.stringify({ type: 'select-slot', slots: roomState.game.availableSlots }));
+
                 }
 
             }
-            await sleep(3000);
+            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase-slot', slot: i }));
+            await sleep(sleepTime);
         }
-        // for (const [slot, player] of Object.entries(room.slot)) {
-        //
-        //     if (player.slot === 'none') {
-        //         user = clients[player.uid]
-        //         user.send(JSON.stringify({ type: 'select-slot' }));
-        //     }
-        // }
-    }
+        //await sleep(3000);
+        roomState = await getRoom(ws.roomID)
+        if (roomState.game.availableSlots.length > 0) {
+            roomState.game.availableSlots = shuffleArray(roomState.game.availableSlots);
+            // console.log('310', roomState.game.availableSlots)
+            correctOrder = {}
+            for (const [slot, player] of Object.entries(roomState.slot)) {
+                if ((player.slot === 'any') || (player.slot === 'none')) {
+                    roomState.slot[slot].slot = roomState.game.availableSlots[0]
+                    roomState.game.availableSlots = roomState.game.availableSlots.filter(slotID => slotID !== roomState.slot[slot].slot);
+                }
+                correctOrder[roomState.slot[slot].slot] = { ...roomState.slot[slot], initialSlot: slot }
+            }
+            console.log(correctOrder)
+            roomState.slot = correctOrder;
+        }
+        roomState = await updateRoom(ws.roomID, roomState)
+        broadcastRoom(ws.roomID,JSON.stringify({ type: 'game-order', slots: roomState.slot }));
+        ws.send(JSON.stringify({ type: 'shuffle-roles-ready' }));
 
+    }
 }
 
+async function shuffleRoles(ws, data) {
+    let room = await getRoom(ws.roomID);
+    if (ws.uid !== room.gameHost.uid) {
+        console.log('Attempt to start game when not a host!', ws.uid, ws.roomID)
+        return
+    } else {
+        ready = true;
+        room.game.availableRoles = shuffleArray(['R','D','R','S','R','B','R','B','R','R']);
+        room.game.availableCards = [1,2,3,4,5,6,7,8,9,10];
+        room = await updateRoom(ws.roomID, room)
+        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'shuffle-roles' }));
+
+        for (let i= 1; i<=10; i++) {
+            roomState = await getRoom(ws.roomID)
+            if (i>1) {
+                prevPlayer = roomState.slot[i-1]
+                if (prevPlayer.role === 'none') {
+                    roomState.slot[i-1].role = roomState.game.availableRoles.shift()
+                    roomState.game.availableCards.shift()
+                    console.log('350 :', roomState.game.availableRoles)
+                    roomState = await updateRoom(ws.roomID, roomState)
+                    let prevUser = clients[prevPlayer.uid]
+                    if (prevUser !== undefined) {
+                        prevUser.send(JSON.stringify({ type: 'game-role', role: roomState.slot[i-1].role }));
+                        prevUser.send(JSON.stringify({ type: 'game-phase', phase: 'shuffle' }));
+                    }
+                    broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-role-taken', card: 'any' }));
+                }
+            }
+
+            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase-role', slot: i }));
+            curPlayer = roomState.slot[i]
+            sleepTime = 300; // skip empty slots
+            if ((roomState.game.phase === 'shuffle')
+                && (curPlayer.role === 'none')) {
+                user = clients[curPlayer.uid]
+                if (user !== undefined) {
+                    sleepTime = 3000
+                    user.send(JSON.stringify({ type: 'select-role' }));
+                }
+
+            }
+
+            await sleep(sleepTime);
+        }
+        //await sleep(3000);
+        roomState = await getRoom(ws.roomID)
+        if (roomState.game.availableRoles.length > 0) {
+            for (const [slot, player] of Object.entries(roomState.slot)) {
+                if (player.role === 'none') {
+                    roomState.slot[slot].role = roomState.game.availableRoles.shift()
+
+                    broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-role-taken', card: 'any' }));
+                }
+            }
+        }
+        roomState = await updateRoom(ws.roomID, roomState)
+        ws.send(JSON.stringify({ type: 'roles-ready' }));
+        broadcastRoom(ws.roomID,JSON.stringify({ type: 'game-ready', slots: roomState.slot }));
+
+
+    }
+}
+function shuffleArray(array) {
+    if (array.length > 1) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]]; // Swap elements
+        }
+    }
+    return array;
+}
+
+async function checkUserConnection(ws, data) {
+    let room = await getRoom(ws.roomID);
+
+    if (room.users.hasOwnProperty(data.uid)) {
+        userConn = clients[ data.uid ];
+        if (userConn === undefined) {
+            delete room.users[data.uid]
+            room = await updateRoom(ws.roomID, room)
+            console.log("Fresh user list: ", room.users)
+        } else {
+            console.log("Seems connection still available: ", data.uid)
+        }
+    } else {
+        console.log("Failed to check user: ", data.uid, room.users, room.users.hasOwnProperty(data.uid))
+    }
+}
 async function gameStop(ws, data) {
     let room = await getRoom(ws.roomID);
     if (ws.uid !== room.gameHost.uid) {
-        console.log('Attempt to stop game when not a host!', ws.uid, ws.roomID)
+        console.log('Attempt to stop game when not a host!', ws.uid, ws.roomID, )
         return
     } else {
         room.game.phase = 'lobby';
+        for (const [slot, player] of Object.entries(room.slot)) {
+            room.slot[slot].slot = 'none';
+            room.slot[slot].role = 'none';
+            room.slot[slot].status = 'unknown';
+            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-player-status', uid: player.uid, status: 'unknown' }));
+        }
         room = await updateRoom(ws.roomID, room)
         broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'lobby' }));
     }
 }
 
-function broadcastRoom(roomID, message, ws = null) {
-    room = rooms[roomID];
+async function broadcastRoom(roomID, message, ws = null) {
+    let room = await getRoom(roomID);
     if (room !== undefined) {
         // if (ws === null || room.host.uid !== ws.uid) {
         //     hostConn = clients[room.host.uid];
@@ -543,12 +740,18 @@ function getHandler(str) {
 
 module.exports = {
     getHandler,
+    checkUserConnection,
     joinGame,
     createGame,
     joinRoomGame,
     gamePlayerStatus,
     gamePlayerMic,
     gameStart,
+    shuffleRoles,
     gameStop,
+    gameReserveSlot,
+    gameReserveRole,
+    showRoles,
+    startSitdown,
     grantAccess
 };
