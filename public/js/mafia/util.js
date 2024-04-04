@@ -14,6 +14,8 @@ var roomEnv = null;
 let localStream;
 const peerConnections = {};
 var ws = null;
+let countdown;
+let remainingSeconds = -1;
 
 function escapeHtml(unsafe)
 {
@@ -438,13 +440,13 @@ function gameMessage(msg, line = 1) {
 
 function handleGameStart(data) {
 
-    shuffle.play()
+    sfx.shuffle.play()
     gameMessage('Pick a slot')
 
 }
 
 function handleShuffleRoles(data) {
-    police.play()
+    sfx.police.play()
     gameMessage('Pick a role')
     deck = document.querySelector('div.deck-container')
     deck.classList.add('deck-active', 'locked')
@@ -456,6 +458,46 @@ function handleShuffleRoles(data) {
     roleSpan.classList.remove('role-show')
     roleSpan.textContent = ''
 
+}
+
+function showPlaceholders() {
+    playerPlaceholders = document.querySelectorAll(
+        'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot')
+    playerPlaceholders.forEach( slot => {
+        slot.classList.add('show');
+    })
+}
+ function hidePlaceholders() {
+     playerPlaceholders = document.querySelectorAll(
+         'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot.show')
+     playerPlaceholders.forEach( slot => {
+         slot.classList.remove('show');
+     })
+ }
+
+function startCountdown(seconds) {
+    remainingSeconds = seconds;
+    let span = document.querySelector('span.g-countdown')
+    span.style.visibility = 'visible';
+
+    // Update the countdown every second
+    countdown = setInterval(() => {
+        if (remainingSeconds < 0) {
+            clearInterval(countdown);
+            return;
+        }
+        span.textContent = remainingSeconds;
+        remainingSeconds--;
+    }, 1000);
+
+}
+function stopCountdown() {
+    let span = document.querySelector('span.g-countdown')
+    if (countdown) {
+        span.textContent = ''
+        remainingSeconds = -1;
+        clearInterval(countdown);
+    }
 }
 
 function handleGamePhase(data) {
@@ -474,15 +516,57 @@ function handleGamePhase(data) {
         })
 
     } else if (data.phase === 'sitdown') {
-        sitdown.play()
+        startCountdown(60)
+        sfx.sitdown.play()
+        if (selfID !== roomEnv.gameHost.uid) {
+            // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot button,'+
+            showPlaceholders()
+        } else {
+            showDonWatch()
+        }
+        gameMessage('')
+        gameMessage('', 2)
+
+    } else if (data.phase === 'don-watch') {
+        stopCountdown()
+        muteAllSfx()
+        startCountdown(20)
+        sfx.godfather.play()
+        if (selfID !== roomEnv.gameHost.uid) {
+            // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot button,'+
+            hideAllRolesAndVideos()
+            showPlaceholders()
+        } else {
+            showSheriffWatch()
+        }
+        gameMessage('Don watch...')
+        gameMessage('', 2)
+
+    } else if (data.phase === 'sheriff-watch') {
+        stopCountdown()
+        muteAllSfx()
+        startCountdown(20)
+        sfx.sheriff.play()
+        if (selfID !== roomEnv.gameHost.uid) {
+            // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot button,'+
+            hideAllRolesAndVideos()
+            showPlaceholders()
+        } else {
+            showStartDay1()
+        }
+        gameMessage('Sheriff watch...')
+        gameMessage('', 2)
+
+
     } else if (data.phase === 'lobby') {
-        shuffle.stop()
-        police.stop()
-        sitdown.stop()
+        muteAllSfx()
         videoElems = document.querySelectorAll('div.videobox[data-slot]:not([data-slot="game-host"]) .g-mask')
         videoElems.forEach( elem => {
             elem.classList.remove('night')
         })
+        // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot.show button,'+
+        hidePlaceholders()
+        stopCountdown()
     }
 }
 
@@ -621,7 +705,7 @@ function handleGameRole(data) {
 }
 
 function handleGameReady(data) {
-    police.stop();
+    sfx.police.stop();
     deck = document.querySelector('div.deck-container')
     deck.classList.remove('deck-active', 'locked')
     slotBars = document.querySelectorAll('div.e-bar.blink')
@@ -659,6 +743,22 @@ function handleGamePlayerStatus(data) {
     }
 }
 
+function hideAllRolesAndVideos() {
+    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-role')
+    citizens.forEach(citizen => {
+        citizen.setAttribute('data-role', 'none')
+        citizen.parentElement.querySelector('video').classList.remove('night-video')
+        citizen.parentElement.querySelector('span.video-lock').setAttribute('data-role', 'none')
+    })
+    videoElems = document.querySelectorAll(
+        'div.videobox[data-slot]:not([data-slot="game-host"]) .g-mask,' +
+        'div.videobox[data-slot]:not([data-slot="game-host"]) .g-mask:hover'
+    )
+    videoElems.forEach( elem => {
+        elem.classList.add('night')
+    })
+
+}
 function handleMafiaSitdown(data) {
     for (const [slotN, player] of Object.entries(data.team)) {
         role = 'unknown'
@@ -676,7 +776,7 @@ function handleMafiaSitdown(data) {
         citizen.parentElement.querySelector('video').classList.add('night-video')
         citizen.parentElement.querySelector('span.video-lock').setAttribute('data-role', 'citizen')
     })
-
+    hidePlaceholders()
     videoElems = document.querySelectorAll(
         'div.videobox[data-slot]:not(.vbox-game-host) .g-mask,' +
         'div.videobox[data-slot]:not(.vbox-game-host) .g-mask:hover'
@@ -686,6 +786,61 @@ function handleMafiaSitdown(data) {
     })
     handleGamePhase({phase: 'show-roles'});
 }
+function handleDonWatch(data) {
+    for (const [slotN, player] of Object.entries(data.team)) {
+        role = 'unknown'
+        if (player.role === 'B') {
+            role = 'mafia'
+        } else if (player.role === 'D') {
+            role = 'don'
+        }
+        span = document.querySelector('div.videobox[data-slot="'+slotN+'"] span.slot-role')
+        span.setAttribute('data-role', role)
+    }
+    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-role:not([data-role="mafia"]):not([data-role="don"])')
+    citizens.forEach(citizen => {
+        citizen.setAttribute('data-role', 'none')
+        citizen.parentElement.querySelector('video').classList.add('night-video')
+        citizen.parentElement.querySelector('span.video-lock').setAttribute('data-role', 'citizen')
+    })
+    hidePlaceholders()
+    videoElems = document.querySelectorAll(
+        'div.videobox[data-slot]:not(.vbox-game-host) .g-mask,' +
+        'div.videobox[data-slot]:not(.vbox-game-host) .g-mask:hover'
+    )
+    videoElems.forEach( elem => {
+        elem.classList.remove('night')
+    })
+    handleGamePhase({phase: 'show-roles'});
+}
+
+function handleSheriffWatch(data) {
+    for (const [slotN, player] of Object.entries(data.team)) {
+        role = 'unknown'
+        if (player.role === 'S') {
+            role = 'sheriff'
+        }
+        span = document.querySelector('div.videobox[data-slot="'+slotN+'"] span.slot-role')
+        span.setAttribute('data-role', role)
+    }
+    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-role:not([data-role="sheriff"])')
+    citizens.forEach(citizen => {
+        citizen.setAttribute('data-role', 'none')
+        citizen.parentElement.querySelector('video').classList.add('night-video')
+        citizen.parentElement.querySelector('span.video-lock').setAttribute('data-role', 'citizen')
+    })
+    hidePlaceholders()
+    videoElems = document.querySelectorAll(
+        'div.videobox[data-slot]:not(.vbox-game-host) .g-mask,' +
+        'div.videobox[data-slot]:not(.vbox-game-host) .g-mask:hover'
+    )
+    videoElems.forEach( elem => {
+        elem.classList.remove('night')
+    })
+    handleGamePhase({phase: 'show-roles'});
+}
+
+
 
 
 

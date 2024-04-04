@@ -1,20 +1,21 @@
 function startGame() {
+    mainButton('Sitdown', startSitdown)
+    gStop = document.getElementById('game-stop')
+    gStop.hidden = true;
     ws.send(JSON.stringify({type: 'game-start'}));
 }
 
 function stopGame() {
-    shuffle.stop();
-    police.stop();
+    muteAllSfx()
     ws.send(JSON.stringify({type: 'game-stop'}));
     hostButtons([
         {btn: 1, action: startGame, txt: 'Start', type: actionBtnTypes.SUCCESS},
         {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
     ])
-    gStart = document.getElementById('game-start')
-    gStart.textContent = 'Start'
-    gStart.onclick = startGame
+    mainButton('Start', startGame)
     gameMessage('')
     gameMessage('', 2)
+    stopCountdown()
 }
 
 const actionBtnTypes = {
@@ -46,26 +47,56 @@ function handleShuffleRolesReady(data) {
     ws.send(JSON.stringify({type: 'shuffle-roles'}));
 }
 
+function mainButton(txt, fn) {
+    gStart = document.getElementById('game-start')
+    gStart.textContent = txt
+    gStart.onclick = fn
+    gStart.classList.add('g-show')
+}
+
+function hideMainButton() {
+    gStart = document.getElementById('game-start')
+    gStart.classList.remove('g-show')
+}
 function sitdownReady() {
     hostButtons([
         {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
     ])
-    gStart = document.getElementById('game-start')
-    gStart.textContent = 'Sitdown'
-    gStart.onclick = startSitdown
-
-    gStop = document.getElementById('game-stop')
-    gStop.hidden = true;
-
     ws.send(JSON.stringify({type: 'show-roles'}));
 }
 
+function donWatchSend() {
+    stopCountdown()
+    ws.send(JSON.stringify({type: 'don-watch'}));
+}
+
+function showDonWatch() {
+    mainButton('Don watch', donWatchSend)
+}
+
+function sheriffWatchSend() {
+    stopCountdown()
+    ws.send(JSON.stringify({type: 'sheriff-watch'}));
+}
+function showSheriffWatch() {
+    mainButton('Sheriff watch', sheriffWatchSend)
+}
+
+function startDaySend() {
+    stopCountdown()
+    ws.send(JSON.stringify({type: 'start-day-1'}));
+}
+function showStartDay1() {
+    mainButton('Day 1', startDaySend)
+}
 function startSitdown() {
-    handleGamePhase({phase: 'sitdown'});
+    hideMainButton()
+    //handleGamePhase({phase: 'sitdown'});
     ws.send(JSON.stringify({type: 'start-sitdown'}));
 }
 
 function handleGameRoles(data) {
+    let role = 'unknown'
     for (const [slotN, player] of Object.entries(data.players)) {
         role = 'unknown'
         if (player.role === 'B') {

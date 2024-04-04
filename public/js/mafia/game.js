@@ -1,23 +1,38 @@
 var hostId = null;
 let selfID = null;
+let sfx = {
+    shuffle : new Howl({
+        src: '/static/sfx/airport-tone.mp3',
+        loop: false,
+        volume: 0.1
+    }),
 
-shuffle = new Howl({
-    src: '/static/sfx/airport-tone.mp3',
-    loop: false,
-    volume: 0.1
-});
+    sitdown : new Howl({
+        src: '/static/sfx/sitdown.mp3',
+        loop: false,
+        volume: 0.01
+    }),
 
-sitdown = new Howl({
-    src: '/static/sfx/sitdown.mp3',
-    loop: false,
-    volume: 0.01
-});
+    police : new Howl({
+        src: '/static/sfx/police-siren.mp3',
+        loop: false,
+        volume: 0.01
+    }),
 
-police = new Howl({
-    src: '/static/sfx/police-siren.mp3',
-    loop: false,
-    volume: 0.01
-});
+    godfather : new Howl({
+        src: '/static/sfx/godfather.mp3',
+        loop: false,
+        volume: 0.01
+    }),
+
+    sheriff : new Howl({
+        src: '/static/sfx/sherlock.mp3',
+        loop: false,
+        volume: 0.01
+    }),
+}
+
+
 navigator.mediaDevices.getUserMedia(constraints)
     .then(stream => {
         stream.getAudioTracks().forEach(track => {
@@ -31,6 +46,11 @@ navigator.mediaDevices.getUserMedia(constraints)
         console.error('Error accessing media devices:', error);
     });
 
+function muteAllSfx() {
+    for (const [name, sound] of Object.entries(sfx)) {
+        sound.stop()
+    }
+}
 function selfSlotDetection(selfID) {
     let participant = false;
     if (roomEnv.gameHost.uid !== selfID) {
@@ -103,7 +123,8 @@ function startSignaling() {
                 // }
                 gamePanel = document.querySelector('div.game-panel')
                 gamePanel.setAttribute('data-mode',"player")
-
+                hostPanel = document.querySelector('div.host-panel')
+                hostPanel.remove()
             } else {
                 hostVideo = document.getElementById('hostVideo')
                 hostVideo.srcObject = localVideo.srcObject;
@@ -116,16 +137,24 @@ function startSignaling() {
                 localVideo.remove();
                 gamePanel = document.querySelector('div.game-panel')
                 gamePanel.setAttribute('data-mode',"host")
+                playerPanel = document.querySelector('div.player-panel')
+                playerPanel.remove()
 
 
 
                 // Set the source attribute to your player.js file
                 script.src = '/static/js/mafia/host.js';
+                document.head.appendChild(script);
+                script.onload = () => {
+                    mainButton('Start', startGame)
+                };
+
+
 
                 // Append the script element to the head of the document
 
             }
-            document.head.appendChild(script);
+
             for (const uid in data.room.users) {
                 if (uid !== sessionID) {
                     peerConnection = createPeerConnection(uid, hostID, participant);
@@ -206,6 +235,10 @@ function startSignaling() {
             handleGameRoles(data);
         } else if (data.type === 'mafia-sitdown') {
             handleMafiaSitdown(data);
+        } else if (data.type === 'don-watch') {
+            handleDonWatch(data);
+        } else if (data.type === 'sheriff-watch') {
+            handleSheriffWatch(data);
         } else if (data.type === 'game-ready') {
             handleGameReady(data);
         // } else if (data.type === 'sitdown-ready') {

@@ -283,7 +283,7 @@ async function startSitdown(ws, data) {
         console.log(mafTeam)
         ws.send(JSON.stringify({type: 'sitdown-started', team: mafTeam}));
         broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'sitdown' }));
-
+        await sleep(300);
         for (const [slot, player] of Object.entries(mafTeam)) {
             if (player.uid !== 'empty') {
                 user = clients[player.uid]
@@ -296,7 +296,58 @@ async function startSitdown(ws, data) {
             }
         }
     }
+}
 
+async function donWatch(ws, data) {
+    let room = await getRoom(ws.roomID);
+    if (ws.uid !== room.gameHost.uid) {
+        console.log('Attempt to start game when not a host!', ws.uid, ws.roomID)
+        return
+    } else {
+        const mafTeam = Object.fromEntries(
+            Object.entries(room.slot)
+                .filter(([key, value]) => ['B', 'D'].includes(value.role))
+        );
+        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'don-watch' }));
+        await sleep(300);
+        for (const [slot, player] of Object.entries(mafTeam)) {
+            if (player.uid !== 'empty' && player.role === 'D') {
+                user = clients[player.uid]
+                if (user !== undefined) {
+                    user.send(JSON.stringify({type: 'don-watch', team: mafTeam}));
+                } else {
+                    ws.send(JSON.stringify({type: 'player-not-ready', slot: slot}));
+                    return
+                }
+            }
+        }
+    }
+}
+
+async function sheriffWatch(ws, data) {
+    let room = await getRoom(ws.roomID);
+    if (ws.uid !== room.gameHost.uid) {
+        console.log('Attempt to start game when not a host!', ws.uid, ws.roomID)
+        return
+    } else {
+        const sheriff = Object.fromEntries(
+            Object.entries(room.slot)
+                .filter(([key, value]) => ['S'].includes(value.role))
+        );
+        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'sheriff-watch' }));
+        await sleep(300);
+        for (const [slot, player] of Object.entries(sheriff)) {
+            if (player.uid !== 'empty' && player.role === 'S') {
+                user = clients[player.uid]
+                if (user !== undefined) {
+                    user.send(JSON.stringify({type: 'sheriff-watch', team: sheriff}));
+                } else {
+                    ws.send(JSON.stringify({type: 'sheriff-not-ready', slot: slot}));
+                    return
+                }
+            }
+        }
+    }
 }
 
 
@@ -317,7 +368,7 @@ async function gameStart(ws, data) {
                 ready = false;
                 //break;
             }
-            if (player.mic === 'on') {
+            if ((player.mic === 'on') &&  (room.slot[slot].uid !== 'empty')) {
                 user = clients[player.uid]
                 if (user !== undefined) {
                     user.send(JSON.stringify({ type: 'mute-mic' }));
@@ -401,7 +452,7 @@ async function shuffleRoles(ws, data) {
         return
     } else {
         ready = true;
-        room.game.availableRoles = shuffleArray(['R','D','R','S','R','B','R','B','R','R']);
+        room.game.availableRoles = shuffleArray(['R','D','S','S','S','B','R','B','R','R']);
         room.game.availableCards = [1,2,3,4,5,6,7,8,9,10];
         room = await updateRoom(ws.roomID, room)
         broadcastRoom(ws.roomID,  JSON.stringify({ type: 'shuffle-roles' }));
@@ -753,5 +804,7 @@ module.exports = {
     gameReserveRole,
     showRoles,
     startSitdown,
+    donWatch,
+    sheriffWatch,
     grantAccess
 };
