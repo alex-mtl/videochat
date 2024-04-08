@@ -18,7 +18,7 @@
     grid-template-columns: repeat(4 , 1fr);
     grid-template-rows: repeat(3, auto);
     /*height: 100vh;*/
-    grid-gap: 10px;
+    grid-gap: 5px;
 }
 
 .game {
@@ -34,6 +34,27 @@ video {
     margin: 3px;
     width: 100%;
     aspect-ratio: 16/9;
+}
+
+video.active-speaker {
+    border: none;
+    box-shadow: 0 0 1vw darkgreen;
+}
+
+.videobox.shout-out video {
+    border: none;
+    box-shadow: 0 0 1vw red;
+}
+
+
+.e-bar.shout-out {
+    background-color: red;
+    animation: blinker 1s linear infinite;
+}
+
+.e-bar.active-speaker {
+    background-color: darkgreen;
+    animation: blinker 1s linear infinite;
 }
 
 div.videobox[data-uid="empty"] video {
@@ -68,7 +89,7 @@ div.videobox button{
     padding-right: 2px;
 }
 
-div.videobox:not(.no-video):hover button:not([data-btn="select-slot"]) {
+.game.videos[data-phase="lobby"] div.videobox:not(.no-video):hover button:not([data-btn="select-slot"]) {
     visibility: visible;
 }
 
@@ -121,6 +142,11 @@ span.slot-status {
     padding: 0;
     font-size: 36px; 
     font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+div.game.videos[data-phase='lobby'] span.slot-status {
+    visibility: visible;
 }
 
 .self-view .slot-status {
@@ -197,7 +223,59 @@ span.slot-mic[data-mic="off"]:before {
     color: var(--g-red);
 }
 
-div.videobox[data-uid='empty'] .slot-mic[data-mic="off"]:before,
+/*** SHOUT OUT ***/
+span.slot-shout {
+    position: absolute;
+    bottom: 15px;
+    right: 5px;
+    background-color: transparent;
+    color: rgba(211, 211, 211, 0.5); /* Text color */
+    padding: 0;
+    font-size: 36px;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+
+div.game.videos:not([data-phase='lobby']) .self-view:not(.vbox-game-host) .slot-shout:before {
+    visibility: visible;
+    cursor: pointer; /* Change mouse pointer to hand on hover */
+}
+
+div.game.videos:not([data-phase='lobby']) .shout-out .slot-shout:before {
+    visibility: visible;
+    color: var(--g-red);
+}
+
+
+.videobox:not(.vbox-game-host) span.slot-shout:before {
+    content: "record_voice_over";
+    color: var(--g-grey);
+}
+
+div.game.videos:not([data-phase='lobby']) .self-view video.active-speaker ~ .slot-shout:before {
+    visibility: hidden;
+}
+
+/*** END SHOUT OUT ***/
+
+video.active-speaker ~ span.slot-mic[data-mic="on"]:before,
+.videobox.shout-out span.slot-mic[data-mic="on"]:before
+{
+    visibility: visible;
+    right: 5px;
+    content: "mic";
+    color: var(--g-green);
+    animation: blinker 1s linear infinite;
+}
+
+@keyframes blinker {
+    50% {
+        opacity: 0;
+    }
+}
+
+div.videobox[data-uid='empty']:not(.shout-out) .slot-mic[data-mic="off"]:before,
 span.slot-mic.night[data-mic="off"]:before {
     visibility: hidden;
 }
@@ -257,10 +335,17 @@ body.g-mafia, html {
     background-color: var(--g-dark-grey);
 }
 
-.e-container {
+div.game.videos[data-phase='lobby'] .player-panel .e-container,
+div.game.videos[data-phase='lobby'] .host-panel .e-container
+{
     position: relative;
     width:100%;
     height: 100%;
+    background-image: url(/static/img/paypal_donate.png);
+    /*background-color: var(--g-grey);*/
+    background-repeat:no-repeat;
+    background-position: center center;
+    background-size: 50% auto;
 }
 
 .e-bar {
@@ -385,6 +470,10 @@ button.g-panel-btn.active.g-btn-success {
 
 button.g-panel-btn.active.g-btn-fail {
     background-color: var(--g-failure)
+}
+
+button.g-panel-btn.active.g-btn-info {
+    background-color: var(--g-green)
 }
 
 
@@ -655,9 +744,192 @@ span.g-countdown {
     color: white;
 }
 
+span.g-countdown[data-count="0"],
+span.g-countdown[data-count="1"],
+span.g-countdown[data-count="2"],
+span.g-countdown[data-count="3"] {
+    color: var(--g-red);
+    animation: blinker 0.5s linear infinite;
+}
+
+
+
+
 button#game-start {
     visibility: hidden;
 }
 button.g-show#game-start {
     visibility: visible;
 }
+
+/* WARN */
+
+.warn-1,
+.warn-2,
+.warn-3,
+.warn-4,
+.warn-5
+{
+    background: var(--g-failure);
+    padding: 2px;
+    width: 10%;
+    height: 100%;
+    position: absolute;
+    visibility: hidden;
+}
+
+.warn-1 {
+    right: 0;
+}
+
+.warn-2 {
+    right: 15%;
+}
+
+.warn-3 {
+    right: 15%;
+}
+
+/*** WARNINGS ***/
+span.slot-warn {
+    position: absolute;
+    left: 0.7vw;
+    top: 0.7vw;
+    background-color: transparent;
+    color: rgba(211, 211, 211, 0.5); /* Text color */
+    padding: 0;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+    letter-spacing: -1.3vw;
+}
+
+[data-mode="host"] .videobox:not(.vbox-game-host):hover span.slot-warn {
+    left: 3.5vw;
+}
+
+.videobox:not(.vbox-game-host) .slot-warn[class*="warn-"]:after {
+    content: "bolt";
+    font-size: 1.5vw;
+    visibility: visible;
+    vertical-align: top;
+    color: orange;
+}
+
+.videobox:not(.vbox-game-host) .slot-warn[class*="warn-4"]:after {
+    visibility: hidden;
+}
+
+/* "error" "do_not_disturb_on" "add_circle" */
+.videobox:not(.vbox-game-host) .slot-warn:before {
+    font-size: 3vw;
+    visibility: visible;
+    color: var(--g-red);
+    z-index: 2;
+}
+
+[data-mode="host"]:not([data-phase="lobby"]) .videobox:not(.vbox-game-host) .slot-warn:not([class*="warn-"]):before {
+    content: "counter_0";
+    font-size: 3vw;
+    visibility: visible;
+    color: var(--g-grey);
+}
+
+[data-mode="host"]:not([data-phase="lobby"]) .videobox:not(.vbox-game-host) .slot-warn:before {
+    visibility: visible;
+}
+
+.slot-warn.warn-4:before {
+    content: "bolt";
+}
+
+.slot-warn.warn-1:before {
+    content: "counter_1";
+}
+
+.slot-warn.warn-2:before {
+    content: "counter_2";
+}
+
+.slot-warn.warn-3:before {
+    content: "counter_3";
+}
+
+/* HOST WARN ACTIONS */
+
+span.slot-warn-add {
+    position: absolute;
+    left: 6.3vw;
+    top: 0.7vw;
+    background-color: transparent;
+    color: var(--g-red);
+    padding: 0;
+    cursor: pointer;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+span.slot-warn-remove {
+    position: absolute;
+    left: 0.7vw;
+    top: 0.7vw;
+    background-color: transparent;
+    color: var(--g-green);
+    padding: 0;
+    cursor: pointer;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+/* "error" "do_not_disturb_on" "add_circle" */
+[data-mode="host"]:not([data-phase="lobby"]) .videobox:not(.vbox-game-host):hover .slot-warn-add:before {
+    content: "add_circle";
+    font-size: 3vw;
+    visibility: visible;
+}
+[data-mode="host"]:not([data-phase="lobby"]) .videobox:not(.vbox-game-host):hover .slot-warn-remove:before {
+    content: "do_not_disturb_on";
+    font-size: 3vw;
+    visibility: visible;
+}
+
+/*** END WARNINGS ***/
+
+/* HOST NOMINATE ACTION */
+
+span.slot-nominate {
+    visibility: hidden;
+    display: flex;
+    position: absolute;
+}
+
+span.slot-nominate {
+    position: absolute;
+    right: 0.7vw;
+    top: 0.7vw;
+    background-color: transparent;
+    color: var(--g-red);
+    font-size: 4vw;
+    padding: 0;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+[data-mode="host"]:not([data-phase="lobby"]) .videobox:not(.vbox-game-host):hover .slot-nominate:before {
+    content: "frame_person_mic";
+    visibility: visible;
+    color: var(--g-success);
+    cursor: pointer;
+}
+
+:not([data-phase="lobby"]) .videobox.nominated:not(.vbox-game-host) .slot-nominate:before {
+    content: "frame_person_mic";
+    visibility: visible;
+    color: var(--g-green);
+    animation: blinker 1s linear infinite;
+}
+
+[data-mode="host"]:not([data-phase="lobby"]) .videobox:not(.vbox-game-host):hover .slot {
+    visibility: hidden;
+
+}
+
+/* END NOMINATE */

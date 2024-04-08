@@ -28,7 +28,7 @@ function escapeHtml(unsafe)
 }
 function createPeerConnection(peerId, hostID, participant = true) {
     const peerConnection = new RTCPeerConnection(configuration);
-    console.log('attempt to create peer:',peerId,' host => ', hostID)
+
     localStream.getTracks().forEach(track => {
         if (participant) {
             peerConnection.addTrack(track, localStream);
@@ -241,6 +241,12 @@ function sendMessage(elem) {
 
     ws.send(JSON.stringify({type: 'send-chat-message', 'from': sessionID, to: 'all', message: message}));
 
+}
+
+function shoutOut(elem) {
+    let slot = elem.parentElement.getAttribute('data-slot')
+    let uid = elem.parentElement.getAttribute('data-uid')
+    ws.send(JSON.stringify({type: 'shout-out', slot: slot, uid: uid}));
 }
 
 function removePeerConnection(id) {
@@ -475,6 +481,14 @@ function showPlaceholders() {
      })
  }
 
+function hideRoles() {
+    spanRole = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-role')
+    spanRole.forEach( span => {
+        span.setAttribute('data-role', 'none')
+    })
+}
+
+
 function startCountdown(seconds) {
     remainingSeconds = seconds;
     let span = document.querySelector('span.g-countdown')
@@ -484,9 +498,11 @@ function startCountdown(seconds) {
     countdown = setInterval(() => {
         if (remainingSeconds < 0) {
             clearInterval(countdown);
+            sfx.notify.play()
             return;
         }
         span.textContent = remainingSeconds;
+        span.setAttribute('data-count', remainingSeconds)
         remainingSeconds--;
     }, 1000);
 
@@ -495,6 +511,7 @@ function stopCountdown() {
     let span = document.querySelector('span.g-countdown')
     if (countdown) {
         span.textContent = ''
+        span.setAttribute('data-count', -1)
         remainingSeconds = -1;
         clearInterval(countdown);
     }
@@ -524,7 +541,7 @@ function handleGamePhase(data) {
         } else {
             showDonWatch()
         }
-        gameMessage('')
+        gameMessage('Mafia sitdown')
         gameMessage('', 2)
 
     } else if (data.phase === 'don-watch') {
@@ -541,6 +558,20 @@ function handleGamePhase(data) {
         }
         gameMessage('Don watch...')
         gameMessage('', 2)
+    } else if (data.phase === 'day') {
+            stopCountdown()
+            muteAllSfx()
+
+            if (selfID !== roomEnv.gameHost.uid) {
+                hidePlaceholders()
+                showDayVideos()
+            } else {
+                hidePlaceholders()
+                hideRoles()
+                showNextSpeaker()
+            }
+            gameMessage('Day '+data.day)
+            gameMessage('', 2)
 
     } else if (data.phase === 'sheriff-watch') {
         stopCountdown()
@@ -560,10 +591,23 @@ function handleGamePhase(data) {
 
     } else if (data.phase === 'lobby') {
         muteAllSfx()
-        videoElems = document.querySelectorAll('div.videobox[data-slot]:not([data-slot="game-host"]) .g-mask')
+        let videoElems = document.querySelectorAll('div.videobox[data-slot]:not([data-slot="game-host"]) .g-mask')
         videoElems.forEach( elem => {
             elem.classList.remove('night')
         })
+        let videos = document.querySelectorAll('video.active-speaker')
+        videos.forEach(video => {
+            video.classList.remove('active-speaker')
+        })
+        let eBars = document.querySelectorAll('div.e-bar')
+        eBars.forEach(eBar => {
+            eBar.classList.remove('active-speaker')
+        })
+        let barSlots = document.querySelectorAll('div.e-bar[data-status="ready"]')
+        barSlots.forEach( barSlot => {
+            barSlot.setAttribute('data-status', "unknown")
+        })
+
         // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot.show button,'+
         hidePlaceholders()
         stopCountdown()
@@ -759,6 +803,23 @@ function hideAllRolesAndVideos() {
     })
 
 }
+
+function showDayVideos() {
+    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-role')
+    citizens.forEach(citizen => {
+        citizen.setAttribute('data-role', 'none')
+        citizen.parentElement.querySelector('video').classList.remove('night-video')
+        citizen.parentElement.querySelector('span.video-lock').setAttribute('data-role', 'none')
+    })
+    videoElems = document.querySelectorAll(
+        'div.videobox[data-slot]:not([data-slot="game-host"]) .g-mask,' +
+        'div.videobox[data-slot]:not([data-slot="game-host"]) .g-mask:hover'
+    )
+    videoElems.forEach( elem => {
+        elem.classList.remove('night')
+    })
+
+}
 function handleMafiaSitdown(data) {
     for (const [slotN, player] of Object.entries(data.team)) {
         role = 'unknown'
@@ -839,6 +900,78 @@ function handleSheriffWatch(data) {
     })
     handleGamePhase({phase: 'show-roles'});
 }
+
+function handleActiveSpeaker(data) {
+    stopCountdown()
+    let videos = document.querySelectorAll('video.active-speaker')
+    videos.forEach(video => {
+        video.classList.remove('active-speaker')
+    })
+    let eBars = document.querySelectorAll('div.e-bar')
+    eBars.forEach(eBar => {
+        eBar.classList.remove('active-speaker')
+    })
+    let speaker = document.querySelector('div.videobox[data-slot="'+data.slot+'"] video')
+    speaker.classList.add('active-speaker')
+    let eBar  = document.querySelector('div.e-bar[data-slot="'+data.slot+'"]')
+    eBar.classList.add('active-speaker')
+    startCountdown(data.duration)
+    handleGamePhase({phase: 'show-roles'});
+}
+
+function handleShoutOut(data) {
+    let vBox = document.querySelector('div.videobox[data-slot="'+data.slot+'"]')
+    vBox.classList.add('shout-out')
+    let eBar  = document.querySelector('div.e-bar[data-slot="'+data.slot+'"]')
+    eBar.classList.add('shout-out')
+    setTimeout(() => {
+        vBox.classList.remove('shout-out')
+        eBar.classList.remove('shout-out')
+
+    }, 3000)
+}
+
+function handleNominate(data) {
+    sfx.nominate.play()
+    if (data.nominees.length === 0) {
+        let vBoxes = document.querySelectorAll('div.videobox[data-slot="'+data.slot+'"]')
+        vBoxes.forEach( vBox => {
+            vBox.classList.remove('nominated')
+        })
+        let eBars  = document.querySelectorAll('div.e-bar[data-slot="'+data.slot+'"]')
+        eBars.forEach( eBar => {
+            eBar.classList.remove('nominated')
+        })
+    } else {
+        let slot = data.nominees[data.nominees.length - 1]
+        let vBox = document.querySelector('div.videobox[data-slot="'+slot+'"]')
+        vBox.classList.add('nominated')
+        let eBar  = document.querySelector('div.e-bar[data-slot="'+slot+'"]')
+        eBar.classList.add('nominated')
+        setTimeout(() => {
+            vBox.classList.remove('nominated')
+            eBar.classList.remove('nominated')
+
+        }, 3000)
+    }
+
+
+}
+
+function handlePlayerWarn(data) {
+    sfx.warn.play()
+    let vBox = document.querySelector('div.videobox[data-slot="'+data.slot+'"]')
+    vBox.setAttribute('data-warn', data.warn)
+    let slotWarn  = vBox.querySelector('span.slot-warn')
+    slotWarn.classList.remove('warn-1', 'warn-2', 'warn-3', 'warn-4')
+    if (data.warn > 0) {
+        slotWarn.classList.add('warn-'+data.warn)
+    }
+}
+
+
+
+
 
 
 

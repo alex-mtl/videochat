@@ -4,4 +4,6 @@
             - const player = room.slot[bar]
             .e-bar(data-slot=bar style="bottom: "+((bar-1)*10)+"%;", data-status=player.status)
                 div.full-size
+                    each s in [1,2,3,4,5]
+                        span(class="warn-"+(6-s))
                     //span #{bar} : X X X

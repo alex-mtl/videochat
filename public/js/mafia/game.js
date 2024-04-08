@@ -30,6 +30,21 @@ let sfx = {
         loop: false,
         volume: 0.01
     }),
+    notify : new Howl({
+        src: '/static/sfx/notify.mp3',
+        loop: false,
+        volume: 0.1
+    }),
+    warn : new Howl({
+        src: '/static/sfx/warn.mp3',
+        loop: false,
+        volume: 0.1
+    }),
+    nominate : new Howl({
+        src: '/static/sfx/nominate.mp3',
+        loop: false,
+        volume: 0.1
+    }),
 }
 
 
@@ -112,17 +127,12 @@ function startSignaling() {
             var script = document.createElement('script');
             if(sessionID !== hostID) {
 
-                // if (hostID !== 'DISCONNECTED') {
-                //     peerConnection = createPeerConnection(hostID, hostID, participant);
-                //     peerConnection.onicecandidate = event => {
-                //         if (event.candidate) {
-                //             sendIceCandidate(sessionID, hostID, event.candidate);
-                //         }
-                //     };
-                //     sendOffer(ws, clientId, hostID, peerConnection);
-                // }
                 gamePanel = document.querySelector('div.game-panel')
                 gamePanel.setAttribute('data-mode',"player")
+
+                let gameMode = document.querySelector('div.game.videos')
+                gameMode.setAttribute('data-mode',"player")
+
                 hostPanel = document.querySelector('div.host-panel')
                 hostPanel.remove()
             } else {
@@ -137,21 +147,20 @@ function startSignaling() {
                 localVideo.remove();
                 gamePanel = document.querySelector('div.game-panel')
                 gamePanel.setAttribute('data-mode',"host")
+
+                let gameMode = document.querySelector('div.game.videos')
+                gameMode.setAttribute('data-mode',"host")
+
                 playerPanel = document.querySelector('div.player-panel')
                 playerPanel.remove()
-
-
 
                 // Set the source attribute to your player.js file
                 script.src = '/static/js/mafia/host.js';
                 document.head.appendChild(script);
                 script.onload = () => {
-                    mainButton('Start', startGame)
+                    detectGameState()
+                    // handleGamePhase(roomEnv.game)
                 };
-
-
-
-                // Append the script element to the head of the document
 
             }
 
@@ -209,6 +218,8 @@ function startSignaling() {
             handleGamePlayerMic(data);
         } else if (data.type === 'mute-mic') {
             muteMic(data);
+        } else if (data.type === 'unmute-mic') {
+            muteMic(data);
         } else if (data.type === 'game-start') {
             handleGameStart(data);
         } else if (data.type === 'game-phase') {
@@ -221,6 +232,8 @@ function startSignaling() {
             handleGameOrder(data);
         } else if (data.type === 'shuffle-roles-ready') {
             handleShuffleRolesReady(data);
+        } else if (data.type === 'roles-ready') {
+            hostRolesReady(data);
         } else if (data.type === 'game-phase-role') {
             handleGamePhaseRole(data);
         } else if (data.type === 'select-role') {
@@ -239,6 +252,14 @@ function startSignaling() {
             handleDonWatch(data);
         } else if (data.type === 'sheriff-watch') {
             handleSheriffWatch(data);
+        } else if (data.type === 'active-speaker') {
+            handleActiveSpeaker(data);
+        } else if (data.type === 'shout-out') {
+            handleShoutOut(data);
+        } else if (data.type === 'player-warn') {
+            handlePlayerWarn(data);
+        } else if (data.type === 'nominees') {
+            handleNominate(data);
         } else if (data.type === 'game-ready') {
             handleGameReady(data);
         // } else if (data.type === 'sitdown-ready') {

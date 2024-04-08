@@ -1,5 +1,4 @@
 function startGame() {
-    mainButton('Sitdown', startSitdown)
     gStop = document.getElementById('game-stop')
     gStop.hidden = true;
     ws.send(JSON.stringify({type: 'game-start'}));
@@ -59,12 +58,22 @@ function hideMainButton() {
     gStart.classList.remove('g-show')
 }
 function sitdownReady() {
+    mainButton('Sitdown', startSitdown)
     hostButtons([
+        {btn: 1, action: startSitdown, txt: 'Sitdown', type: actionBtnTypes.SUCCESS},
         {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
     ])
     ws.send(JSON.stringify({type: 'show-roles'}));
 }
 
+function hostRolesReady() {
+    mainButton('Sitdown', startSitdown)
+    hostButtons([
+        {btn: 1, action: startSitdown, txt: 'Sitdown', type: actionBtnTypes.SUCCESS},
+        {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
+    ])
+    ws.send(JSON.stringify({type: 'show-roles'}));
+}
 function donWatchSend() {
     stopCountdown()
     ws.send(JSON.stringify({type: 'don-watch'}));
@@ -82,9 +91,21 @@ function showSheriffWatch() {
     mainButton('Sheriff watch', sheriffWatchSend)
 }
 
+function nextSpeakerSend() {
+    ws.send(JSON.stringify({type: 'next-speaker'}));
+}
+function showNextSpeaker() {
+    mainButton('Next speaker', nextSpeakerSend)
+}
+
+function stopSpeakerSend() {
+    ws.send(JSON.stringify({type: 'stop-speaker'}));
+}
+function showStopSpeaker() {
+    mainButton('Stop', stopSpeakerSend)
+}
 function startDaySend() {
-    stopCountdown()
-    ws.send(JSON.stringify({type: 'start-day-1'}));
+    ws.send(JSON.stringify({type: 'start-day-one'}));
 }
 function showStartDay1() {
     mainButton('Day 1', startDaySend)
@@ -119,4 +140,28 @@ function handleGameRoles(data) {
         elem.classList.remove('night')
     })
     handleGamePhase({phase: 'show-roles'});
+}
+
+function detectGameState() {
+    //mainButton('Start', startGame)
+    hostButtons([
+        {btn: 1, action: startGame, txt: 'Start', type: actionBtnTypes.SUCCESS},
+        {btn: 3, action: nextSpeakerSend, txt: 'Next', type: actionBtnTypes.INFO},
+        {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
+    ])
+}
+
+function warnAdd(el) {
+    let slot = el.parentElement.getAttribute('data-slot')
+    ws.send(JSON.stringify({type: 'warn-add', slot: slot}));
+}
+
+function warnRemove(el) {
+    let slot = el.parentElement.getAttribute('data-slot')
+    ws.send(JSON.stringify({type: 'warn-remove', slot: slot}));
+}
+
+function nominate(el) {
+    let slot = el.parentElement.getAttribute('data-slot')
+    ws.send(JSON.stringify({type: 'nominate', slot: slot}));
 }

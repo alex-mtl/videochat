@@ -12,6 +12,8 @@ html(lang="en")
   body
     script let chatSessionID = "#{sessionID}"; var websocketUrl = "#{wssURL}";
     #create-room.container
+      div.donate
+        a(href="https://www.paypal.com/donate/?business=C4FYW2FWXS83C&no_recurring=0&item_name=Mafia+Game+Development&currency_code=CAD") Donate
       form
         if error
           p #{error}

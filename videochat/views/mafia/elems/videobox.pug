@@ -6,9 +6,15 @@
     .game-user.g-mask= player.name
     input.g-mask#volumeSlider(type='range' min='0' max='1' step='0.05' value='1' onchange="adjustVolume(this.parentElement.querySelector('video'), this.value )")
     span.g-mask.slot-status(class="material-symbols-outlined", data-status=player.status, onclick="changeUserStatus(this)")
+    span.g-mask.slot-mic(class="material-symbols-outlined", data-mic=player.mic)
     span.slot-role.material-symbols-outlined(data-role=player.role)
     span.video-lock.material-symbols-outlined
-    span.g-mask.slot-mic(class="material-symbols-outlined", data-mic=player.mic)
+    span.slot-shout.material-symbols-outlined(onclick="shoutOut(this)")
+    span.slot-warn-remove.material-symbols-outlined(onclick="warnRemove(this)")
+    span.slot-warn.material-symbols-outlined(class=`${player.warn ? 'warn-' + player.warn : ''}`)
+    span.slot-warn-add.material-symbols-outlined(onclick="warnAdd(this)")
+    span.slot-nominate.material-symbols-outlined(onclick="nominate(this)")
+
     .select-slot
         .e-container
             .middle.full-size(style="bottom:0;")
