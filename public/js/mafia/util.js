@@ -119,12 +119,30 @@ function changeUserStatus(elem) {
         && videoBox.classList.contains('self-view')) {
         if (elem.getAttribute('data-status') === 'unknown') {
             ws.send(JSON.stringify({type: 'game-player-status', 'from': sessionID, status: 'ready'}));
-            // elem.setAttribute('data-status', 'ready')
         } else {
             ws.send(JSON.stringify({type: 'game-player-status', 'from': sessionID, status: 'unknown'}));
-            // elem.setAttribute('data-status', 'unknown')
         }
     }
+}
+
+function vote(elem) {
+    let slot = 0
+    if (typeof elem === 'object' && elem instanceof Element) {
+        slot = elem.parentElement.getAttribute('data-slot')
+    } else if ((typeof elem === 'number') || (typeof elem === 'string')) {
+        slot = elem
+    } else {
+        // Handle other cases if needed
+        console.log('elem is of unexpected type', typeof elem);
+        return
+    }
+    ws.send(JSON.stringify({type: 'player-vote', slot: slot}));
+}
+
+function setPlayerName(elem) {
+    let videoBox = elem.parentElement;
+    let slot =videoBox.getAttribute('data-slot')
+    ws.send(JSON.stringify({type: 'set-player-name', slot: slot, name: elem.value}));
 }
 function createRemoteVideo(videoID, srcObject, hostID) {
      const remoteVideoFrame = document.createElement('div');
@@ -214,8 +232,8 @@ function bindRemoteVideo(videoID, srcObject, slot) {
     // remoteVideoFrame.appendChild(remoteVideo);
     // remoteVideoFrame.classList.add("videobox");
 
-    host = slot.querySelector('div.game-user');
-    host.textContent = videoID;
+    let name = slot.querySelector('span.game-user');
+    name.textContent = slot.getAttribute('data-name');
 }
 
 function bindHostVideo(videoID, srcObject, slot) {
@@ -231,8 +249,8 @@ function bindHostVideo(videoID, srcObject, slot) {
     // remoteVideoFrame.appendChild(remoteVideo);
     // remoteVideoFrame.classList.add("videobox");
 
-    host = slot.querySelector('div.game-user');
-    host.textContent = videoID;
+    host = slot.querySelector('span.game-user');
+    host.textContent = roomEnv.gameHost.name;
 
 }
 
@@ -490,9 +508,11 @@ function hideRoles() {
 
 
 function startCountdown(seconds) {
-    remainingSeconds = seconds;
+    remainingSeconds = seconds - 1;
     let span = document.querySelector('span.g-countdown')
     span.style.visibility = 'visible';
+    span.textContent = remainingSeconds;
+    remainingSeconds--;
 
     // Update the countdown every second
     countdown = setInterval(() => {
@@ -541,8 +561,8 @@ function handleGamePhase(data) {
         } else {
             showDonWatch()
         }
-        gameMessage('Mafia sitdown')
-        gameMessage('', 2)
+        gameMessage('Mafia')
+        gameMessage('cahoot sitdown', 2)
 
     } else if (data.phase === 'don-watch') {
         stopCountdown()
@@ -568,7 +588,7 @@ function handleGamePhase(data) {
             } else {
                 hidePlaceholders()
                 hideRoles()
-                showNextSpeaker()
+                mainButton('Next speaker', nextSpeakerSend)
             }
             gameMessage('Day '+data.day)
             gameMessage('', 2)
@@ -931,6 +951,17 @@ function handleShoutOut(data) {
     }, 3000)
 }
 
+function handleSetPlayerName(data) {
+    let vBox = document.querySelector('div.videobox[data-slot="'+data.slot+'"]')
+    let span = vBox.querySelector('span.game-user')
+    span.textContent = data.name
+}
+function handleSetHostName(data) {
+    let vBox = document.querySelector('div.videobox[data-slot="'+data.slot+'"]')
+    let span = vBox.querySelector('span.game-user')
+    span.textContent = data.name
+}
+
 function handleNominate(data) {
     sfx.nominate.play()
     if (data.nominees.length === 0) {
@@ -954,9 +985,42 @@ function handleNominate(data) {
 
         }, 3000)
     }
-
-
 }
+
+async function sleep(millis) {
+    return new Promise(resolve => setTimeout(resolve, millis));
+}
+function handleStartVoting(data) {
+
+    if (data.nominees.length === 0) {
+        let vBoxes = document.querySelectorAll('div.videobox[data-slot="'+data.slot+'"]')
+        vBoxes.forEach( vBox => {
+            vBox.classList.remove('nominated')
+        })
+        let eBars  = document.querySelectorAll('div.e-bar[data-slot="'+data.slot+'"]')
+        eBars.forEach( eBar => {
+            eBar.classList.remove('nominated')
+        })
+    } else {
+        gameMessage('Nominees:')
+        gameMessage(data.nominees.join(', '),2)
+        data.nominees.forEach( async (slot, idx) => {
+            setTimeout(() => {
+                sfx.nominate.play()
+                let vBox = document.querySelector('div.videobox[data-slot="'+slot+'"]')
+                vBox.classList.add('nominated')
+                let eBar  = document.querySelector('div.e-bar[data-slot="'+slot+'"]')
+                eBar.classList.add('nominated')
+                setTimeout(() => {
+                    vBox.classList.remove('nominated')
+                    eBar.classList.remove('nominated')
+
+                }, 2000)
+            }, idx * 500)
+        })
+    }
+}
+
 
 function handlePlayerWarn(data) {
     sfx.warn.play()
@@ -968,6 +1032,98 @@ function handlePlayerWarn(data) {
         slotWarn.classList.add('warn-'+data.warn)
     }
 }
+
+function playerButton(txt, fn) {
+    gStart = document.getElementById('player-button')
+    gStart.textContent = txt
+    gStart.onclick = fn
+    gStart.classList.add('active')
+}
+
+function playerButtonDisable() {
+    gStart = document.getElementById('player-button')
+    gStart.classList.remove('active')
+}
+function handleVotingRound(data) {
+    if (selfID !== roomEnv.gameHost.uid) {
+        let vBox = document.querySelector('div.videobox[data-slot="' + data.candidate + '"]')
+        let slotCandidate = vBox.querySelector('span.slot-candidate')
+        slotCandidate.classList.add('active')
+        slotCandidate.setAttribute('tabindex', '0');
+        slotCandidate.focus();
+
+        playerButton("Vote", () => { vote(data.candidate) });
+
+
+        function handleKeyDown(event) {
+            if (event.keyCode === 13 || event.keyCode === 32) {
+                event.preventDefault();
+
+                slotCandidate.click();
+            }
+        }
+
+        slotCandidate.addEventListener('keydown', handleKeyDown);
+
+        setTimeout(() => {
+            slotCandidate.classList.remove('active')
+            slotCandidate.removeEventListener('keydown', handleKeyDown);
+            playerButtonDisable()
+        }, 3000)
+    }
+}
+
+function fly(boxFrom, toBox) {
+    const flySpan = document.getElementById('flySpan');
+
+    const fromRect = fromBox.getBoundingClientRect();
+    const toRect = toBox.getBoundingClientRect();
+
+    console.log("From position:", fromRect.left, fromRect.top);
+    console.log("To position:", toRect.left, toRect.top);
+
+    flySpan.style.left = `${fromRect.left + fromRect.width / 2}px`;
+    flySpan.style.top = `${fromRect.top + fromRect.height / 2}px`;
+    flySpan.style.display = 'block';
+
+    // Use setTimeout to ensure the span animation starts after the position is set
+    setTimeout(() => {
+        flySpan.style.left = `${toRect.left + toRect.width / 2}px`;
+        flySpan.style.top = `${toRect.top + toRect.height / 2}px`;
+    }, 0);
+
+    // Remove the span after the animation finishes
+    setTimeout(() => {
+        flySpan.style.display = 'none';
+    }, 1000);
+}
+function handlePlayerVote(data) {
+    let fromSlot = document.querySelector('div.videobox[data-slot="' + data.player + '"]')
+    let toSlot = document.querySelector('div.videobox[data-slot="' + data.candidate + '"]')
+    fromSlot.querySelector('span.slot-vote').classList.add('active')
+    setTimeout(() => {
+        fromSlot.querySelector('span.slot-vote').classList.remove('active')
+    }, 2000);
+    // fly(fromSlot, toSlot)
+}
+
+function handleVotingRoundResult(data) {
+    let candidate = document.querySelector('div.videobox[data-slot="' + data.candidate + '"]')
+    if (data.votes.length > 0) {
+        let likes = ''
+        data.votes.forEach( vote => {
+            likes += '\u{1F44D}'
+        })
+        candidate.querySelector('span.slot-vote').classList.add('voted')
+        candidate.textContent = likes
+        setTimeout(() => {
+            fromSlot.querySelector('span.slot-vote').classList.remove('active')
+        }, 2000);
+    }
+
+    // fly(fromSlot, toSlot)
+}
+
 
 
 

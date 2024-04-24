@@ -15,13 +15,24 @@ module.exports.home = (req, res) => {
                 if (room.host.sessionID !== req.sessionID) {
                     delete room.host.sessionID;
                 }
+                room.userCount = Object.keys(room.users).length
+                room.aliveCount = (() => {
+                    let count = 0
+                    for (const [slot, player] of Object.entries(room.slot)) {
+                        if (player.status === 'alive') {
+                            count++
+                        }
+                    }
+                    console.log('VC 26', count)
+                    return count
+                })()
             })
-            console.log('VC 19', req.sessionID)
-            console.log('VC 20', req.session)
+            console.log(roomList)
+            // console.log('VC 19', req.sessionID)
+            // console.log('VC 20', req.session)
             req.session.test = 'lets check'
-            req.session.
 
-            data = {
+            let data = {
                 sessionID: req.sessionID,
                 wssURL: config.wssURL,
                 roomList
@@ -35,8 +46,9 @@ module.exports.home = (req, res) => {
                     delete req.session.error;
                 //}
             }
-
-            res.render('mafia/home', data)
+            console.log('VC 38 ',data)
+            res.render('mafia/home-mafia', data)
+            // res.render('mafia/home', data)
         })
         .catch(error => {
             console.error('Error retrieving active rooms:', error);

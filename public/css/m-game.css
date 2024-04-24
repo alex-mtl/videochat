@@ -25,6 +25,11 @@
     width: 99%;
 }
 
+/* any span invisible by default! */
+span {
+    visibility: hidden;
+}
+
 video.muted {
     border: 3px solid var(--g-red);
 }
@@ -96,9 +101,9 @@ div.videobox button{
 div .videobox input#volumeSlider{
     visibility: hidden;
     position: absolute;
-    bottom: 10%;
-    right: 10%;
-    width: 80%;
+    top: 15%;
+    left: 35%;
+    width: 50%;
 }
 
 div.game.videos[data-phase]:not([data-phase='shuffle']) div.videobox:not(.no-video):hover input#volumeSlider {
@@ -117,19 +122,43 @@ div.slot {
     font-weight: bold; /* Bold font */
 }
 
-div.game-user {
+span.game-user {
     position: absolute;
+    display: flex;
+    max-width:18vw;
     bottom: 5%; 
     left: 1%; 
     background-color: rgba(30, 30, 30, 0.5); 
     color: rgba(211, 211, 211, 0.5); /* Text color */
-    padding-left: 7px; 
-    padding-right: 7px; 
-    font-size: 24px; 
+    padding-left: 0.1vw;
+    padding-right: 0.1vw;
+    font-size: 2vw;
     font-weight: bold; /* Bold font */
+    visibility: visible;
 }
 
-div.videobox.self-view div.game-user {
+input.game-user {
+    position: absolute;
+    max-width:18vw;
+    /*bottom: 0.7vw;*/
+    /*left: 0.7vw;*/
+    bottom: 5%;
+    left: 1%;
+    background-color: white;
+    color: var(--g-dark-grey); /* Text color */
+    padding-left: 0.1vw;
+    padding-right: 0.1vw;
+    font-size: 2vw;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+    z-index: 3;
+}
+.game.videos[data-phase="lobby"] div.videobox.self-view:not(.no-video):hover input.game-user {
+    visibility: visible;
+}
+
+
+div.videobox.self-view span.game-user {
     color: var(--g-green)
 }
 
@@ -391,7 +420,28 @@ span.gameMessage2
     position: absolute;
     text-align: center;
     color: var(--g-grey);
+    visibility: visible;
+    font-size: 1.5vw;
 }
+
+span.gameMessage1 {
+    top: 0.5vw;
+}
+span.gameMessage2 {
+    top: 2vw;
+}
+
+.player-panel div.middle {
+    bottom: 0.7vw;
+}
+button#player-button {
+    visibility: hidden;
+}
+
+button.active#player-button {
+    visibility: visible;
+}
+
 
 div.game-panel[data-mode="host"] .host-panel {
     visibility: visible;
@@ -442,9 +492,11 @@ div.middle {
     width:100%;
     background-color: var(--g-dark-grey);
     border: 1px var(--g-grey);
+    font-size: 1vw;
+    line-height: 1.1vw;
 }
 .host-panel div.middle {
-    bottom: 10%;
+    bottom: 0.7vw;
 }
 
 .game-actions div.middle button {
@@ -736,10 +788,11 @@ div.videobox:not([data-phase="lobby"]) .video-lock[data-role="citizen"]:before {
 }
 
 span.g-countdown {
-    font-size: 8vw;
+    font-size: 6vw;
     width: 100%;
     text-align: center;
     position: absolute;
+    top: 3vw;
     font-weight: bold;
     color: white;
 }
@@ -827,7 +880,7 @@ span.slot-warn {
     z-index: 2;
 }
 
-[data-mode="host"]:not([data-phase="lobby"]) .videobox:not(.vbox-game-host) .slot-warn:not([class*="warn-"]):before {
+[data-mode="host"][data-phase="day"] .videobox:not(.vbox-game-host) .slot-warn:not([class*="warn-"]):before {
     content: "counter_0";
     font-size: 3vw;
     visibility: visible;
@@ -933,3 +986,54 @@ span.slot-nominate {
 }
 
 /* END NOMINATE */
+
+/* CANDIDATE */
+
+span.slot-candidate {
+    position: absolute;
+    top: 0.3vw;
+    width: 100%;
+    text-align: center;
+    background-color: transparent;
+    color: var(--g-green);
+    font-size: 14vw;
+    font-weight: bold; /* Bold font */
+}
+
+:not([data-phase="lobby"]) .slot-candidate.active:before {
+    content: "crop_free";
+    visibility: visible;
+    cursor: pointer;
+    animation: blinker 2s linear infinite;
+}
+
+/* CANDIDATE */
+
+/* VOTE */
+
+span.slot-vote {
+    position: absolute;
+    top: 3vw;
+    width: 100%;
+    text-align: center;
+    background-color: transparent;
+    color: var(--g-green);
+    font-size: 6vw;
+    font-weight: bold; /* Bold font */
+}
+
+span.slot-vote.active:before {
+    content: "\1F44D";
+    visibility: visible;
+}
+span.slot-vote.voted {
+    visibility: visible;
+}
+
+span.slot-vote.voted {
+    visibility: visible;
+}
+
+
+/* grid_4x4, lock_person */
+

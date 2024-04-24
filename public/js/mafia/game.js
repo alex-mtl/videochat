@@ -86,7 +86,14 @@ function selfSlotDetection(selfID) {
                 slot.insertBefore(localVideo, slot.firstChild);
                 slot.setAttribute('data-uid', selfID)
                 userName = slot.querySelector('.game-user');
-                userName.textContent = selfID
+                // userName.textContent = selfID
+                userName.childNodes.forEach(node => {
+                    // Check if the child node is a text node
+                    if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim() === 'unknown') {
+                        // Replace the text content with selfID
+                        node.textContent = selfID;
+                    }
+                });
                 participant = true
                 break
             }
@@ -256,10 +263,26 @@ function startSignaling() {
             handleActiveSpeaker(data);
         } else if (data.type === 'shout-out') {
             handleShoutOut(data);
+        } else if (data.type === 'set-player-name') {
+            handleSetPlayerName(data);
+        } else if (data.type === 'set-host-name') {
+            handleSetHostName(data);
         } else if (data.type === 'player-warn') {
             handlePlayerWarn(data);
         } else if (data.type === 'nominees') {
             handleNominate(data);
+        } else if (data.type === 'ready-to-vote') {
+            handleReadyToVote(data);
+        } else if (data.type === 'start-voting') {
+            handleStartVoting(data);
+        } else if (data.type === 'voting-round-ready') {
+            handleVotingRoundReady(data);
+        } else if (data.type === 'voting-round') {
+            handleVotingRound(data);
+        } else if (data.type === 'player-vote') {
+            handlePlayerVote(data);
+        } else if (data.type === 'voting-round-result') {
+            handleVotingRoundResult(data);
         } else if (data.type === 'game-ready') {
             handleGameReady(data);
         // } else if (data.type === 'sitdown-ready') {

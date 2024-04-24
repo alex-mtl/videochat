@@ -116,6 +116,14 @@ function startSitdown() {
     ws.send(JSON.stringify({type: 'start-sitdown'}));
 }
 
+function startVotingSend() {
+    ws.send(JSON.stringify({type: 'start-voting'}));
+}
+
+function startVoteSend() {
+    ws.send(JSON.stringify({type: 'start-voting-round'}));
+}
+
 function handleGameRoles(data) {
     let role = 'unknown'
     for (const [slotN, player] of Object.entries(data.players)) {
@@ -142,13 +150,48 @@ function handleGameRoles(data) {
     handleGamePhase({phase: 'show-roles'});
 }
 
+function handleReadyToVote(data) {
+    gameMessage('Nominees:')
+    gameMessage(data.nominees.join(', '),2)
+    if (data.nominees.length > 0) {
+        mainButton('Start Voting', startVotingSend)
+    } else {
+        mainButton('Night', startNight)
+    }
+}
+
+function handleVotingRoundReady(data) {
+    mainButton('Vote '+data.candidate, startVoteSend)
+}
+
+
 function detectGameState() {
-    //mainButton('Start', startGame)
-    hostButtons([
-        {btn: 1, action: startGame, txt: 'Start', type: actionBtnTypes.SUCCESS},
-        {btn: 3, action: nextSpeakerSend, txt: 'Next', type: actionBtnTypes.INFO},
-        {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
-    ])
+    if (roomEnv.game.phase === 'lobby') {
+        mainButton('Start', startGame)
+        gStop = document.getElementById('game-stop')
+        gStop.hidden = true;
+    } else if (roomEnv.game.phase === 'day') {
+        mainButton('Next speaker', nextSpeakerSend)
+        gStop = document.getElementById('game-stop')
+        gStop.hidden = true;
+
+        hostButtons([
+            {btn: 1, action: startGame, txt: 'Start', type: actionBtnTypes.SUCCESS},
+            {btn: 3, action: nextSpeakerSend, txt: 'Next', type: actionBtnTypes.INFO},
+            {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
+        ])
+    } else if (roomEnv.game.phase === 'shuffle') {
+        hostButtons([
+            {btn: 1, action: startSitdown, txt: 'Sitdown', type: actionBtnTypes.INFO},
+            {btn: 2, action: donWatchSend, txt: 'Don watch', type: actionBtnTypes.INFO},
+            {btn: 3, action: sheriffWatchSend, txt: 'Sheriff watch', type: actionBtnTypes.INFO},
+            {btn: 4, action: sheriffWatchSend, txt: 'Day start', type: actionBtnTypes.INFO},
+            {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
+        ])
+    }
+
+
+
 }
 
 function warnAdd(el) {

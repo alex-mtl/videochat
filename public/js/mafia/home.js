@@ -8,11 +8,16 @@ function createRoom() {
     form = document.getElementById('create-room');
     room.host = form.querySelector("input#userName").value;
     room.name = form.querySelector("input#roomName").value;
-    room.password = form.querySelector("input#roomPassword").value;
-    room.valid = form.querySelector("input#valid").checked ? 'On' : 'Off';
-    room.mute = form.querySelector("input#mute").checked ? 'On' : 'Off';
-    room.chat = form.querySelector("input#chat").checked ? 'On' : 'Off';
-    room.stream = form.querySelector("input#stream").checked ? 'On' : 'Off';
+    // room.password = form.querySelector("input#roomPassword").value;
+    // room.valid = form.querySelector("input#valid").checked ? 'On' : 'Off';
+    // room.mute = form.querySelector("input#mute").checked ? 'On' : 'Off';
+    // room.chat = form.querySelector("input#chat").checked ? 'On' : 'Off';
+    // room.stream = form.querySelector("input#stream").checked ? 'On' : 'Off';
+    room.password = '';
+    room.valid = 'Off';
+    room.mute = 'On';
+    room.chat = 'Off';
+    room.stream = 'Off';
     room.chatSessionID = chatSessionID;
     roomID = room.name;
 
