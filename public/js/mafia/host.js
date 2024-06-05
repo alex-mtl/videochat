@@ -87,8 +87,12 @@ function sheriffWatchSend() {
     stopCountdown()
     ws.send(JSON.stringify({type: 'sheriff-watch'}));
 }
+
 function showSheriffWatch() {
     mainButton('Sheriff watch', sheriffWatchSend)
+}
+function showSheriffCheck() {
+    mainButton('Sheriff check', startSheriffCheck)
 }
 
 function nextSpeakerSend() {
@@ -110,14 +114,39 @@ function startDaySend() {
 function showStartDay1() {
     mainButton('Day 1', startDaySend)
 }
+
+function showStartDay() {
+    mainButton('Day', startDay)
+}
+
+function startDay() {
+    ws.send(JSON.stringify({type: 'start-day'}));
+}
 function startSitdown() {
     hideMainButton()
     //handleGamePhase({phase: 'sitdown'});
     ws.send(JSON.stringify({type: 'start-sitdown'}));
 }
+function startShooting() {
+    hideMainButton()
+    ws.send(JSON.stringify({type: 'start-shooting'}));
+}
+
+function startDonCheck() {
+    mainButton('Sheriff check', startSheriffCheck)
+    ws.send(JSON.stringify({type: 'start-don-check'}));
+}
+
+function startSheriffCheck() {
+    mainButton('Day', startDay)
+    ws.send(JSON.stringify({type: 'start-sheriff-check'}));
+}
 
 function startVotingSend() {
     ws.send(JSON.stringify({type: 'start-voting'}));
+}
+function startNight() {
+    ws.send(JSON.stringify({type: 'start-night'}));
 }
 
 function startVoteSend() {
@@ -139,6 +168,7 @@ function handleGameRoles(data) {
         }
         span = document.querySelector('div.videobox[data-slot="'+slotN+'"] span.slot-role')
         span.setAttribute('data-role', role)
+
     }
     videoElems = document.querySelectorAll(
         'div.videobox[data-slot]:not([data-slot="game-host"]) .g-mask,' +
@@ -148,6 +178,9 @@ function handleGameRoles(data) {
         elem.classList.remove('night')
     })
     handleGamePhase({phase: 'show-roles'});
+    if (data.phase === 'night') {
+
+    }
 }
 
 function handleReadyToVote(data) {
@@ -158,6 +191,12 @@ function handleReadyToVote(data) {
     } else {
         mainButton('Night', startNight)
     }
+}
+function handleReadyToNight(data) {
+    gameMessage('')
+    gameMessage('',2)
+    mainButton('Night', startNight)
+
 }
 
 function handleVotingRoundReady(data) {

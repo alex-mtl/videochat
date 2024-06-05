@@ -45,6 +45,16 @@ let sfx = {
         loop: false,
         volume: 0.1
     }),
+    shot : new Howl({
+        src: '/static/sfx/shot.mp3',
+        loop: false,
+        volume: 0.01
+    }),
+    dog : new Howl({
+        src: '/static/sfx/dog.mp3',
+        loop: false,
+        volume: 0.01
+    }),
 }
 
 
@@ -283,8 +293,18 @@ function startSignaling() {
             handlePlayerVote(data);
         } else if (data.type === 'voting-round-result') {
             handleVotingRoundResult(data);
+        } else if (data.type === 'ready-to-night') {
+            handleReadyToNight(data);
+        } else if (data.type === 'mafia-shooting') {
+            handleMafiaShooting(data);
+        } else if (data.type === 'player-shoot') {
+            handlePlayerShoot(data);
         } else if (data.type === 'game-ready') {
             handleGameReady(data);
+        } else if (data.type === 'don-check') {
+            handleDonCheck(data);
+        } else if (data.type === 'sheriff-check') {
+            handleSheriffCheck(data);
         // } else if (data.type === 'sitdown-ready') {
         //     handleSitdownReady(data);
         }

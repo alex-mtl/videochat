@@ -75,15 +75,19 @@ video:not(.play) {
     width:100%;
 }
 
+/* content: "background_replace"; */
 div.videobox {
     position:relative;
     background-image: url(/static/img/background_replace.svg);
     /*background-color: var(--g-grey);*/
-    background-repeat:no-repeat;
+    background-repeat: no-repeat;
     background-position: center center;
     background-size: 50% auto;
 }
 
+[data-phase="shooting"] div.videobox {
+    background-image: none;
+}
 
 div.videobox button{
     visibility: hidden;
@@ -1036,4 +1040,32 @@ span.slot-vote.voted {
 
 
 /* grid_4x4, lock_person */
+
+div.videobox span.video-target {
+    position: absolute;
+    top: 3vw;
+    left: 8.5vw;
+    font-size: 8vw;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+[data-phase="shooting"] div.videobox:not(.vbox-game-host) .video-target {
+    color: var(--g-grey);
+}
+
+[data-mode="player"][data-phase="shooting"] div.videobox:not(.vbox-game-host) .video-target:before {
+    content: "motion_sensor_active";
+    visibility: visible;
+}
+
+[data-phase="shooting"] div.videobox:not(.vbox-game-host) .video-target[data-role="none"]:before {
+    visibility: hidden;
+}
+
+[data-phase="shooting"] div.videobox:not(.vbox-game-host) .video-target:hover {
+    cursor: pointer;
+    color: var(--g-red);
+}
+
 

@@ -16,5 +16,7 @@ npm install cookie-parser
 npm install express-session
 npm install fs
 
-
+pm2 start ws.js
 pm2 start videochat.js
+
+pm2 start cron-60.js --cron "*/15 * * * *"
