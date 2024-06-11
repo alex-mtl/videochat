@@ -85,7 +85,8 @@ div.videobox {
     background-size: 50% auto;
 }
 
-[data-phase="shooting"] div.videobox {
+[data-phase="shooting"] div.videobox,
+div.videobox:not([data-player-status="alive"]):not([data-player-status="unknown"]) {
     background-image: none;
 }
 
@@ -1017,26 +1018,77 @@ span.slot-candidate {
 
 span.slot-vote {
     position: absolute;
-    top: 3vw;
+    top: 4vw;
     width: 100%;
     text-align: center;
     background-color: transparent;
-    color: var(--g-green);
-    font-size: 6vw;
+    color: orange;
+    font-size: 7vw;
     font-weight: bold; /* Bold font */
+    letter-spacing: -1vw;
 }
 
-span.slot-vote.active:before {
+
+
+/*span.slot-vote.active:before {*/
+/*    content: "\1F44D";*/
+/*    visibility: visible;*/
+/*}*/
+span.slot-vote.voted {
+    visibility: visible;
+}
+
+.slot-vote.votes-1:before {
+    content: "counter_1";
+}
+
+.slot-vote.votes-2:before {
+    content: "counter_2";
+}
+
+.slot-vote.votes-3:before {
+    content: "counter_3";
+}
+
+.slot-vote.votes-4:before {
+    content: "counter_4";
+}
+
+.slot-vote.votes-5:before {
+    content: "counter_5";
+}
+
+.slot-vote.votes-6:before {
+    content: "counter_6";
+}
+
+.slot-vote.votes-7:before {
+    content: "counter_7";
+}
+
+.slot-vote.votes-8:before {
+    content: "counter_8";
+}
+
+.slot-vote.votes-9:before {
+    content: "counter_9";
+}
+
+.slot-vote.votes-10:before,
+.slot-vote.active:before
+{
     content: "\1F44D";
     visibility: visible;
 }
-span.slot-vote.voted {
+
+.videobox:not(.vbox-game-host) .slot-vote[class*="votes-"]:not([class*="votes-10"]):after {
+    content: "\1F44D";
+    font-size: 2.5vw;
     visibility: visible;
+    vertical-align: top;
+    margin-left: -1.7vw;
 }
 
-span.slot-vote.voted {
-    visibility: visible;
-}
 
 
 /* grid_4x4, lock_person */
@@ -1068,4 +1120,97 @@ div.videobox span.video-target {
     color: var(--g-red);
 }
 
+/* player-status */
+div.videobox span.player-status {
+    position: absolute;
+    top: 3vw;
+    left: 8.5vw;
+    font-size: 8vw;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+    color: var(--g-grey);
+}
 
+div.videobox[data-player-status='disqualified'] .player-status:before {
+    content: 'bolt';
+    visibility: visible;
+}
+
+/* player kill, lock,restore */
+
+span.player-kill {
+    position: absolute;
+    left: 3.5vw;
+    top: 4vw;
+    font-size: 8vw;
+    color: var(--g-grey);
+    padding: 0;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+[data-mode="host"] div.videobox[data-player-status='alive']:hover span.player-kill:before {
+    content:  "motion_sensor_active";
+    visibility: visible;
+}
+
+div.videobox[data-player-status='alive']:hover span.player-kill:hover {
+    color: var(--g-red);
+    cursor: pointer;
+}
+
+div.videobox[data-player-status='killed'] .player-status:before {
+    content: 'motion_sensor_active';
+    visibility: visible;
+}
+
+span.player-lock {
+    position: absolute;
+    right: 3.5vw;
+    top: 4vw;
+    font-size: 8vw;
+    color: var(--g-grey);
+    padding: 0;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+[data-mode="host"] div.videobox[data-player-status='alive']:hover span.player-lock:before {
+    content:  "grid_4x4";
+    visibility: visible;
+}
+
+div.videobox[data-player-status='alive']:hover span.player-lock:hover {
+    color: var(--g-red);
+    cursor: pointer;
+}
+
+div.videobox[data-player-status='locked'] .player-status:before {
+    content: 'grid_4x4';
+    visibility: visible;
+}
+
+span.player-restore {
+    position: absolute;
+    right: 8.5vw;
+    top: 4vw;
+    font-size: 8vw;
+    color: var(--g-grey);
+    padding: 0;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+[data-mode="host"] div.videobox[data-player-status='killed']:hover span.player-restore:before,
+[data-mode="host"] div.videobox[data-player-status='locked']:hover span.player-restore:before
+{
+    content:  "person";
+    visibility: visible;
+}
+
+div.videobox[data-player-status='killed']:hover span.player-restore:hover,
+div.videobox[data-player-status='locked']:hover span.player-restore:hover
+{
+    color: var(--g-green);
+    cursor: pointer;
+}

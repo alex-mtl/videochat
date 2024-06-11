@@ -95,6 +95,10 @@ function selfSlotDetection(selfID) {
                 slot.querySelectorAll('video').forEach(video => video.remove());
                 slot.insertBefore(localVideo, slot.firstChild);
                 slot.setAttribute('data-uid', selfID)
+                if(slot.getAttribute('data-player-status') === 'disqualified') {
+                    localVideo.origSrcObject = localVideo.srcObject
+                    localVideo.srcObject = null
+                }
                 userName = slot.querySelector('.game-user');
                 // userName.textContent = selfID
                 userName.childNodes.forEach(node => {
@@ -305,6 +309,11 @@ function startSignaling() {
             handleDonCheck(data);
         } else if (data.type === 'sheriff-check') {
             handleSheriffCheck(data);
+        } else if ((data.type === 'player-kill')
+        || (data.type === 'player-lock')
+        || (data.type === 'player-alive')
+        ) {
+            handlePlayerStatus(data);
         // } else if (data.type === 'sitdown-ready') {
         //     handleSitdownReady(data);
         }
@@ -368,10 +377,12 @@ function selectSlot(slotID) {
 
 function selectRole(card) {
     // console.log(card)
-    cardID = card.getAttribute('data-card');
-    ws.send(JSON.stringify({type: 'game-reserve-role', cardID: cardID}));
-
     deck = document.querySelector('div.deck-container')
-    deck.classList.add('locked')
+    if (!deck.classList.contains('locked')) {
+        cardID = card.getAttribute('data-card');
+        ws.send(JSON.stringify({type: 'game-reserve-role', cardID: cardID}));
 
+        deck = document.querySelector('div.deck-container')
+        deck.classList.add('locked')
+    }
 }

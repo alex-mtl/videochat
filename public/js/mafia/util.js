@@ -274,6 +274,10 @@ function bindRemoteVideo(videoID, srcObject, slot) {
 
     let name = slot.querySelector('span.game-user');
     name.textContent = slot.getAttribute('data-name');
+    if(slot.getAttribute('data-player-status') === 'disqualified') {
+        remoteVideo.origSrcObject = remoteVideo.srcObject
+        remoteVideo.srcObject = null
+    }
 }
 
 function bindHostVideo(videoID, srcObject, slot) {
@@ -762,7 +766,7 @@ function handleGamePhaseRole(data) {
     });
     vBox = document.querySelector('div.videobox[data-slot="'+data.slot+'"] div.select-slot')
     vBox.classList.add('blink')
-
+    //
     // if (!vBox.classList.contains('self-view')) {
     //     deck = document.querySelector('div.deck-container')
     //     deck.classList.add('locked')
@@ -864,6 +868,11 @@ function handleGameRole(data) {
 
 function handleGameReady(data) {
     sfx.police.stop();
+    let vBoxes = document.querySelectorAll('div.videobox[data-slot="'+data.slot+'"]')
+    vBoxes.forEach(vBox =>  {
+        vBox.setAttribute('data-player-status', 'alive')
+    });
+
     deck = document.querySelector('div.deck-container')
     deck.classList.remove('deck-active', 'locked')
     slotBars = document.querySelectorAll('div.e-bar.blink')
@@ -1131,7 +1140,7 @@ function handleActiveSpeaker(data) {
     let eBar  = document.querySelector('div.e-bar[data-slot="'+data.slot+'"]')
     eBar.classList.add('active-speaker')
     startCountdown(data.duration)
-    handleGamePhase({phase: 'show-roles'});
+    // handleGamePhase({phase: 'show-roles'});
 }
 
 function handleShoutOut(data) {
@@ -1221,12 +1230,41 @@ function handlePlayerWarn(data) {
     sfx.warn.play()
     let vBox = document.querySelector('div.videobox[data-slot="'+data.slot+'"]')
     vBox.setAttribute('data-warn', data.warn)
+    vBox.setAttribute('data-player-status', data.status)
     let slotWarn  = vBox.querySelector('span.slot-warn')
     slotWarn.classList.remove('warn-1', 'warn-2', 'warn-3', 'warn-4')
     if (data.warn > 0) {
         slotWarn.classList.add('warn-'+data.warn)
     }
+    if (data.warn > 3) {
+        video = vBox.querySelector('video')
+        video.origSrcObject = video.srcObject;
+        video.srcObject = null
+    } else if (data.warn < 4) {
+        video = vBox.querySelector('video')
+        if (video.origSrcObject !== undefined) {
+            video.srcObject = video.origSrcObject
+        }
+    }
 }
+
+function handlePlayerStatus(data) {
+    sfx.warn.play()
+    let vBox = document.querySelector('div.videobox[data-slot="'+data.slot+'"]')
+    vBox.setAttribute('data-player-status', data.status)
+
+    if (data.status !== 'alive') {
+        video = vBox.querySelector('video')
+        video.origSrcObject = video.srcObject;
+        video.srcObject = null
+    } else {
+        video = vBox.querySelector('video')
+        if (video.origSrcObject !== undefined) {
+            video.srcObject = video.origSrcObject
+        }
+    }
+}
+
 
 function playerButton(txt, fn) {
     gStart = document.getElementById('player-button')
@@ -1313,11 +1351,16 @@ function handleVotingRoundResult(data) {
         data.votes.forEach( vote => {
             likes += '\u{1F44D}'
         })
-        candidate.querySelector('span.slot-vote').classList.add('voted')
-        candidate.textContent = likes
-        setTimeout(() => {
-            fromSlot.querySelector('span.slot-vote').classList.remove('active')
-        }, 2000);
+        span = candidate.querySelector('span.slot-vote')
+        span.classList.add('voted')
+        if (data.votes.length >0) {
+            span.classList.add('votes-'+data.votes.length)
+        }
+
+        //span.textContent = likes
+        // setTimeout(() => {
+        //     fromSlot.querySelector('span.slot-vote').classList.remove('active')
+        // }, 2000);
     }
 
     // fly(fromSlot, toSlot)

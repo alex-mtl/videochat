@@ -247,3 +247,18 @@ function nominate(el) {
     let slot = el.parentElement.getAttribute('data-slot')
     ws.send(JSON.stringify({type: 'nominate', slot: slot}));
 }
+
+function playerKill(el) {
+    let slot = el.parentElement.getAttribute('data-slot')
+    ws.send(JSON.stringify({type: 'player-kill', slot: slot}));
+}
+
+function playerLock(el) {
+    let slot = el.parentElement.getAttribute('data-slot')
+    ws.send(JSON.stringify({type: 'player-lock', slot: slot}));
+}
+
+function playerRestore(el) {
+    let slot = el.parentElement.getAttribute('data-slot')
+    ws.send(JSON.stringify({type: 'player-restore', slot: slot}));
+}
