@@ -46,10 +46,10 @@ function handleShuffleRolesReady(data) {
     ws.send(JSON.stringify({type: 'shuffle-roles'}));
 }
 
-function mainButton(txt, fn) {
+function mainButton(txt, fn, args = []) {
     gStart = document.getElementById('game-start')
     gStart.textContent = txt
-    gStart.onclick = fn
+    gStart.onclick = () => fn(...args);
     gStart.classList.add('g-show')
 }
 
@@ -98,6 +98,7 @@ function showSheriffCheck() {
 function nextSpeakerSend() {
     ws.send(JSON.stringify({type: 'next-speaker'}));
 }
+
 function showNextSpeaker() {
     mainButton('Next speaker', nextSpeakerSend)
 }
@@ -108,6 +109,23 @@ function stopSpeakerSend() {
 function showStopSpeaker() {
     mainButton('Stop', stopSpeakerSend)
 }
+
+
+function lastSpeech(candidate, action) {
+    ws.send(JSON.stringify({type: 'last-speech', candidate: candidate, action: action}));
+}
+
+function showPlayerVoted(slot) {
+    let vBox = document.querySelector('div.videobox[data-slot="'+slot+'"] span.slot-candidate')
+    mainButton('Voted '+slot, playerLock, [vBox])
+}
+
+function showPlayerKilled(slot) {
+    let vBox = document.querySelector('div.videobox[data-slot="'+slot+'"] span.slot-candidate')
+    mainButton('Killed '+slot, playerKill, [vBox])
+}
+
+
 function startDaySend() {
     ws.send(JSON.stringify({type: 'start-day-one'}));
 }
@@ -135,6 +153,13 @@ function startShooting() {
 function startDonCheck() {
     mainButton('Sheriff check', startSheriffCheck)
     ws.send(JSON.stringify({type: 'start-don-check'}));
+    mafias = document.querySelectorAll(
+        'div.videobox[data-slot] span.mafia-shoot[data-victim]'
+    )
+    mafias.forEach( maf => {
+        maf.removeAttribute('data-victim')
+
+    })
 }
 
 function startSheriffCheck() {
@@ -201,6 +226,27 @@ function handleReadyToNight(data) {
 
 function handleVotingRoundReady(data) {
     mainButton('Vote '+data.candidate, startVoteSend)
+}
+
+function handleLastSpeechVoted(data) {
+    mainButton('Last speech '+data.candidate, lastSpeech, [data.candidate, data.action])
+}
+
+function handleLastSpeechKilled(data) {
+    mainButton('Last speech '+data.victim, lastSpeech, [data.victim, data.action])
+}
+
+function handleMafiaShoot(data) {
+
+    mafiaShoot = document.querySelector(
+        'div.videobox[data-slot="'+data.mafia+'"] span.mafia-shoot'
+    )
+    mafiaShoot.setAttribute('data-victim', data.victim)
+    if (Number(data.victim) < 10) {
+        mafiaShoot.style.setProperty('--shootVictim', '"counter_'+data.victim+'"');
+    }
+
+
 }
 
 

@@ -10,7 +10,8 @@
     --g-failure: #dc3545;
     --g-alert: #f5c6cb;
     --g-red: #e15754;
-    --g-ready: 7
+    --g-ready: 7;
+    --shootVictim: 'timer_10'
 }
 
 .video-grid {
@@ -31,12 +32,12 @@ span {
 }
 
 video.muted {
-    border: 3px solid var(--g-red);
+    border: 0.1vw solid var(--g-red);
 }
 
 video {
-    border: 3px solid var(--g-green);
-    margin: 3px;
+    border: 0.1vw solid var(--g-green);
+    margin: 0.1vw;
     width: 100%;
     aspect-ratio: 16/9;
 }
@@ -90,16 +91,61 @@ div.videobox:not([data-player-status="alive"]):not([data-player-status="unknown"
     background-image: none;
 }
 
-div.videobox button{
+
+div.videobox span.toggle-audio,
+div.videobox span.toggle-video
+{
+    position: absolute;
     visibility: hidden;
     position: absolute;
-    top: 10%;
-    left: 10%;
-    padding-left: 2px;
-    padding-right: 2px;
+    top: 0.7vw;
+    font-size: 3vw;
+    background-color: var(--g-dark-grey);
+    border-radius: 0.5vw;
+    border: solid 0.1vw var(--g-dark-grey);
+    opacity:70%;
 }
 
-.game.videos[data-phase="lobby"] div.videobox:not(.no-video):hover button:not([data-btn="select-slot"]) {
+div.videobox span.toggle-audio:hover,
+div.videobox span.toggle-video:hover
+{
+    cursor:pointer;
+
+}
+
+div.videobox span.toggle-audio {
+    left: 4.5vw;
+}
+
+div.videobox span.toggle-video {
+    left: 0.7vw;
+}
+
+div.videobox span.toggle-audio:before {
+    content: 'volume_up';
+}
+
+div.videobox span.toggle-video:before {
+    content: 'videocam';
+}
+
+
+div.videobox span.toggle-audio.muted,
+div.videobox span.toggle-video.muted
+{
+    color:var(--g-grey);
+}
+
+div.videobox span.toggle-audio:not(.muted),
+div.videobox span.toggle-video:not(.muted)
+{
+    color:var(--g-green);
+}
+
+
+.game.videos[data-phase="lobby"] div.videobox:not(.no-video):hover span.toggle-audio,
+.game.videos[data-phase="lobby"] div.videobox:not(.no-video):hover span.toggle-video
+{
     visibility: visible;
 }
 
@@ -169,12 +215,12 @@ div.videobox.self-view span.game-user {
 
 span.slot-status {
     position: absolute;
-    bottom: 15px; 
-    right: 5px; 
+    bottom: 1vw;
+    right: 0.5vw;
     background-color: transparent; 
     color: rgba(211, 211, 211, 0.5); /* Text color */
     padding: 0;
-    font-size: 36px; 
+    font-size: 3vw;
     font-weight: bold; /* Bold font */
     visibility: hidden;
 }
@@ -196,6 +242,12 @@ div.game.videos[data-phase='lobby'] span.slot-status {
     content: "radio_button_unchecked"
 }
 
+[data-mode="host"][data-phase='lobby'] div.videobox:not([data-uid='empty']):not(.vbox-game-host) .slot-status[data-status]:hover:before {
+    content: "cancel";
+    color: var(--g-red);
+    cursor: pointer;
+}
+
 div.videobox span.slot-role {
     position: absolute;
     top: 0.3vw; 
@@ -204,7 +256,7 @@ div.videobox span.slot-role {
     background-color: var(--g-grey);
     font-size: 4vw;
     font-weight: bold; /* Bold font */
-    border: 3px solid var(--g-grey);
+    border: 0.3vw solid var(--g-grey);
     border-radius: 1vw;
     visibility: hidden;
 }
@@ -241,12 +293,12 @@ div.videobox .slot-role[data-role="don"]:before {
 
 span.slot-mic {
     position: absolute;
-    bottom: 15px; 
-    right: 40px; 
+    bottom: 1vw;
+    right: 3.5vw;
     background-color: transparent; 
     color: rgba(211, 211, 211, 0.5); /* Text color */
     padding: 0;
-    font-size: 36px; 
+    font-size: 3vw;
     font-weight: bold; /* Bold font */
     visibility: hidden;
 }
@@ -971,14 +1023,14 @@ span.slot-nominate {
     visibility: hidden;
 }
 
-[data-mode="host"]:not([data-phase="lobby"]) .videobox:not(.vbox-game-host):hover .slot-nominate:before {
+[data-mode="host"][data-phase="day"] .videobox:not(.vbox-game-host):hover .slot-nominate:before {
     content: "frame_person_mic";
     visibility: visible;
     color: var(--g-success);
     cursor: pointer;
 }
 
-:not([data-phase="lobby"]) .videobox.nominated:not(.vbox-game-host) .slot-nominate:before {
+[data-phase="day"] .videobox.nominated:not(.vbox-game-host) .slot-nominate:before {
     content: "frame_person_mic";
     visibility: visible;
     color: var(--g-green);
@@ -1028,18 +1080,16 @@ span.slot-vote {
     letter-spacing: -1vw;
 }
 
-
-
-/*span.slot-vote.active:before {*/
-/*    content: "\1F44D";*/
-/*    visibility: visible;*/
-/*}*/
 span.slot-vote.voted {
     visibility: visible;
 }
 
 .slot-vote.votes-1:before {
     content: "counter_1";
+}
+
+.slot-vote.votes-0:before {
+    content: "counter_0";
 }
 
 .slot-vote.votes-2:before {
@@ -1213,4 +1263,54 @@ div.videobox[data-player-status='locked']:hover span.player-restore:hover
 {
     color: var(--g-green);
     cursor: pointer;
+}
+
+/* SHOOT */
+
+span.mafia-shoot {
+    position: absolute;
+    top: 4vw;
+    width: 100%;
+    text-align: center;
+    background-color: transparent;
+    color: var(--g-red);
+    font-size: 7vw;
+    font-weight: bold; /* Bold font */
+    letter-spacing: -1vw;
+}
+
+
+span.mafia-shoot:after {
+    font-size: 2.5vw;
+    vertical-align: top;
+    color: black;
+    margin-left: -1.7vw;
+}
+
+/*.mafia-shoot.victim-0:after,*/
+/*.mafia-shoot.victim-1:after,*/
+/*.mafia-shoot.victim-2:after,*/
+/*.mafia-shoot.victim-3:after,*/
+/*.mafia-shoot.victim-4:after,*/
+/*.mafia-shoot.victim-5:after,*/
+/*.mafia-shoot.victim-6:after,*/
+/*.mafia-shoot.victim-7:after,*/
+/*.mafia-shoot.victim-8:after,*/
+/*.mafia-shoot.victim-9:after,*/
+/*.mafia-shoot.victim-10:after*/
+/*{*/
+/*    content: 'motion_sensor_active';*/
+/*}*/
+
+span.mafia-shoot:after {
+    content: 'motion_sensor_active';
+}
+span.mafia-shoot[data-victim] {
+    visibility: visible;
+
+}
+
+.mafia-shoot[data-victim]:before {
+    content: var(--shootVictim);
+
 }

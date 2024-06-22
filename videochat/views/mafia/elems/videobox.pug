@@ -1,7 +1,7 @@
 .videobox.no-video(data-slot=slot, data-uid=player.uid, id=vbID, class="vbox-"+slot, data-name=player.name, data-player-status=player.status)
-    video.g-mask.play.material-symbols-outlined(autoplay, id=vID, muted)
-    button.g-mask.material-symbols-outlined(style="margin-left: 40px;" onclick="toggleAudio(this)") volume_off
-    button.g-mask.material-symbols-outlined(onclick="toggleVideo(this)") videocam_off
+    video.g-mask.play.material-symbols-outlined(autoplay, id=vID, muted, playsInline)
+    span.toggle-audio.muted.g-mask.material-symbols-outlined(onclick="toggleAudio(this)")
+    span.toggle-video.g-mask.material-symbols-outlined(onclick="toggleVideo(this)")
     .slot.g-mask= slot
     span.game-user.g-mask= player.name
     input.game-user.g-mask(type="text", minlength="15", value=player.name, onblur="setPlayerName(this)")
@@ -14,6 +14,7 @@
     span.video-target.material-symbols-outlined(onclick="shoot(this)")
     span.player-status.material-symbols-outlined
     span.player-kill.material-symbols-outlined(onclick="playerKill(this)")
+    span.mafia-shoot.material-symbols-outlined
     span.player-lock.material-symbols-outlined(onclick="playerLock(this)")
     span.player-restore.material-symbols-outlined(onclick="playerRestore(this)")
     span.slot-shout.material-symbols-outlined(onclick="shoutOut(this)")

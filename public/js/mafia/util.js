@@ -1,9 +1,25 @@
-const configuration = {iceServers: [{urls: 'stun:stun.l.google.com:19302'}]};
+const configuration = {
+    iceServers: [
+        {urls: 'stun:stun.l.google.com:19302'},
+        {
+            urls: "turn:194.26.138.209:3478?transport=udp",
+            username: "turnuser",
+            credential: "turnpassword",
+        }
+    ]
+};
+// const configuration = {iceServers: [{
+//         urls: "turn:194.26.138.209:3478?transport=udp",
+//         username: "turnuser",
+//         credential: "turnpassword",
+//     },]};
 const constraints = {
     video: {
-        width: { max: 800 },
-        height: { ideal: 120, max: 120 },
-        frameRate: { ideal: 20, max: 25 }
+        width: { ideal: 240, max: 240 },
+        height: { ideal: 135, max: 135 },
+        aspectRatio: { ideal: 16 / 9 },
+        frameRate: { ideal: 20, max: 25 },
+        facingMode: "user"
     },
     audio: true
 };
@@ -66,49 +82,61 @@ function createPeerConnection(peerId, hostID, participant = true) {
 function toggleAudio(elem) {
     if (elem.parentElement.classList.contains('self-view')) {
         const audioTracks =  elem.parentElement.querySelector('video').srcObject.getAudioTracks();
-        let txt = '';
         audioTracks.forEach(track => {
-            txt = track.enabled ? 'volume_up' : 'volume_off' ;
             track.enabled = !track.enabled;
-            micOn = track.enabled ? 'on' : 'off'
+            muted = (!track.enabled)
         });
-        elem.parentElement.querySelector('video').classList.toggle('muted')
-        elem.textContent = txt ;
-        txt = (micOn === 'off') ? 'Unmute' : 'Mute' ;
-        elem.setAttribute('alt', txt);
-        elem.setAttribute('tooltip', txt);
+
+        if (muted) {
+            micOn = 'off'
+            elem.classList.add('muted')
+            elem.parentElement.querySelector('video').classList.add('muted')
+        } else {
+            micOn = 'on'
+            elem.classList.remove('muted')
+            elem.parentElement.querySelector('video').classList.remove('muted')
+        }
         ws.send(JSON.stringify({type: 'game-player-mic', 'from': sessionID, mic: micOn}));
 
     } else {
         elem.parentElement.querySelector('video').muted = !elem.parentElement.querySelector('video').muted;
-        elem.textContent = elem.parentElement.querySelector('video').muted ? 'volume_up' : 'volume_off' ;
-        txt = elem.parentElement.querySelector('video').muted ? 'Unmute' : 'Mute' ;
-        elem.setAttribute('alt', txt);
-        elem.setAttribute('tooltip', txt);
-        elem.parentElement.querySelector('video').classList.toggle('muted')
+        muted = elem.parentElement.querySelector('video').classList.toggle('muted')
+        if (muted) {
+            elem.classList.add('muted')
+        } else {
+            elem.classList.remove(muted)
+        }
     }
 
 }
 
 function muteMic(data) {
 
-    button = document.querySelector('div.videobox.self-view button');
+    button = document.querySelector('div.videobox.self-view span.toggle-audio');
     toggleAudio(button)
 
 }
 
 function toggleVideo(elem) {
     video = elem.parentElement.querySelector('video');
-    txt = video.classList.contains('play') ? 'videocam' : 'videocam_off';
+    // txt = video.classList.contains('play') ? 'videocam' : 'videocam_off';
     stream = video.srcObject;
     tracks = stream.getTracks();
 
     tracks.forEach((track) => {
-        if (track.kind === 'video') track.enabled = !track.enabled;
+        if (track.kind === 'video') {
+            track.enabled = !track.enabled;
+            muted = (!track.enabled)
+        }
     });
-    elem.textContent = txt;
-    elem.setAttribute('alt', txt);
-    elem.setAttribute('tooltip', txt);
+    if (muted) {
+        elem.classList.add('muted')
+    } else {
+        elem.classList.remove('muted')
+    }
+    // elem.textContent = txt;
+    // elem.setAttribute('alt', txt);
+    // elem.setAttribute('tooltip', txt);
     elem.parentElement.querySelector('video').classList.toggle('play');
 }
 
@@ -122,6 +150,9 @@ function changeUserStatus(elem) {
         } else {
             ws.send(JSON.stringify({type: 'game-player-status', 'from': sessionID, status: 'unknown'}));
         }
+    } else if (sessionID === roomEnv.gameHost.uid) {
+        slot = videoBox.getAttribute('data-slot')
+        ws.send(JSON.stringify({type: 'game-player-status', 'from': sessionID, status: 'reset', slot: slot}));
     }
 }
 
@@ -505,6 +536,18 @@ function gameMessage(msg, line = 1) {
         span.textContent = msg
     });
 }
+
+
+function handleReset(data) {
+    if (data.type === 'reset' ) {
+        alertToaster('Host reset the slot...');
+        setInterval(() => {
+            window.location.href = '/mafia'
+        }, 1000);
+
+    }
+}
+
 
 function handleGameStart(data) {
 
@@ -901,13 +944,30 @@ function handleGamePlayerMic(data) {
 }
 
 function handleGamePlayerStatus(data) {
-    slotStatus = document.querySelector('div.videobox[data-uid="'+data.uid+'"] span.slot-status')
-    slotN = slotStatus.parentElement.getAttribute('data-slot')
-    if (slotStatus) {
-        slotStatus.setAttribute('data-status', data.status)
-        barSlot = document.querySelector('div.e-bar[data-slot="'+slotN+'"]')
-        barSlot.setAttribute('data-status', data.status)
+    if (data.status === 'reset') {
+        slotStatus = document.querySelector('div.videobox[data-slot="'+data.slot+'"] span.slot-status')
+        videobox = slotStatus.parentElement
+        uid = videobox.getAttribute('data-uid')
+        removePeerConnection(uid)
+        // delete peerConnections[uid];
+        videobox.setAttribute('data-player-status', 'unknown')
+        videobox.setAttribute('data-uid', 'empty')
+        videobox.setAttribute('id', 'video-'+data.slot+'-empty')
+
+        slotStatus.setAttribute('data-status', 'unknown')
+        barSlot = document.querySelector('div.e-bar[data-slot="'+data.slot+'"]')
+        barSlot.setAttribute('data-status', 'unknown')
+
+    } else {
+        slotStatus = document.querySelector('div.videobox[data-uid="'+data.uid+'"] span.slot-status')
+        slotN = slotStatus.parentElement.getAttribute('data-slot')
+        if (slotStatus) {
+            slotStatus.setAttribute('data-status', data.status)
+            barSlot = document.querySelector('div.e-bar[data-slot="'+slotN+'"]')
+            barSlot.setAttribute('data-status', data.status)
+        }
     }
+
 }
 
 function hideAllRolesAndVideos() {
@@ -1131,15 +1191,38 @@ function removeActiveSpeaker() {
         eBar.classList.remove('active-speaker')
     })
 }
+function removeVotingResult() {
+    let candidates = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-vote.voted')
+    candidates.forEach(candidate => {
+        candidate.classList.remove('voted')
+        let classes = Array.from(candidate.classList);
+
+        classes.forEach(className => {
+            if (className.startsWith('votes-')) {
+                candidate.classList.remove(className);
+            }
+        });
+    })
+}
 
 function handleActiveSpeaker(data) {
     stopCountdown()
     removeActiveSpeaker()
+    removeVotingResult()
     let speaker = document.querySelector('div.videobox[data-slot="'+data.slot+'"] video')
     speaker.classList.add('active-speaker')
     let eBar  = document.querySelector('div.e-bar[data-slot="'+data.slot+'"]')
     eBar.classList.add('active-speaker')
     startCountdown(data.duration)
+    if (selfID === roomEnv.gameHost.uid) {
+        if (data.action !== undefined) {
+            if (data.action === 'voted') {
+                showPlayerVoted(data.slot)
+            } else if (data.action === 'killed') {
+                showPlayerKilled(data.slot)
+            }
+        }
+    }
     // handleGamePhase({phase: 'show-roles'});
 }
 
@@ -1255,10 +1338,12 @@ function handlePlayerStatus(data) {
 
     if (data.status !== 'alive') {
         video = vBox.querySelector('video')
+        video.classList.remove('active-speaker')
         video.origSrcObject = video.srcObject;
         video.srcObject = null
     } else {
         video = vBox.querySelector('video')
+        video.classList.remove('active-speaker')
         if (video.origSrcObject !== undefined) {
             video.srcObject = video.origSrcObject
         }
@@ -1353,9 +1438,8 @@ function handleVotingRoundResult(data) {
         })
         span = candidate.querySelector('span.slot-vote')
         span.classList.add('voted')
-        if (data.votes.length >0) {
-            span.classList.add('votes-'+data.votes.length)
-        }
+        span.classList.add('votes-'+data.votes.length)
+
 
         //span.textContent = likes
         // setTimeout(() => {

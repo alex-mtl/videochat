@@ -137,12 +137,28 @@ async function updateRoom(roomID, room) {
 async function gamePlayerStatus(ws, data) {
     room = await getRoom(ws.roomID);
     valid = false
+    let slotRes = 0
     if (ws.uid === room.gameHost.uid) {
-        room.gameHost.status = data.status
+        if (data.status === 'reset') {
+            player = room.slot[data.slot]
+            slotRes = data.slot
+            userWS = clients[player.uid]
+            if (userWS !== undefined) {
+                userWS.send(JSON.stringify({ type: 'reset' }));
+                checkUserConnection(userWS, player)
+            }
+            delete room.users[player.uid]
+            player = { uid : 'empty', name: "unknown", sessionID: 'none', status: "unknown", mic: "off"}
+            room.slot[data.slot] = player
+        } else {
+            room.gameHost.status = data.status
+        }
+
         valid = true
     } else {
         for (const [slot, player] of Object.entries(room.slot)) {
             if (player.uid === ws.uid) {
+                slotRes = slot
                 player.status = data.status
                 valid = true
                 break
@@ -151,7 +167,7 @@ async function gamePlayerStatus(ws, data) {
     }
     if (valid) {
         await updateRoom(ws.roomID, room)
-        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-player-status', uid: ws.uid, status: data.status }));
+        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-player-status', uid: ws.uid, status: data.status, slot: slotRes }));
     } else {
         ws.send(JSON.stringify({ type: 'error', message: "Something went wrong. Can't change your status..." }));
     }
@@ -305,6 +321,32 @@ async function startShooting(ws, data) {
         }
         setTimeout(async () => {
             room = await getRoom(ws.roomID);
+            let curDay = room.game.days["D"+room.game.day]
+            let victim = 'none'
+            let missed= 'none'
+            for (const [maf, shootVictim] of Object.entries(curDay.shoot)) {
+                if (shootVictim !== 'none') {
+                    if (missed === 'none') {
+                        victim = shootVictim
+                        missed = false
+                    } else if (victim !== shootVictim) {
+                        missed = true
+                    }
+                } else {
+                    missed = true
+                    broadcastRoom(ws.roomID, JSON.stringify({
+                        type: 'player-shoot'
+                    }));
+                    let hostWS = clients[room.gameHost.uid]
+                    if (hostWS !== undefined) {
+                        hostWS.send(JSON.stringify({ type: 'mafia-shoot', mafia: maf, victim: 0 }));
+                    }
+                    await sleep(200);
+                }
+            }
+            if (missed !== true) {
+                curDay.victim = victim
+            }
 
             room = await updateRoom(ws.roomID, room)
 
@@ -445,10 +487,11 @@ async function startDayOne(ws, data) {
         room.game.lastSlot = 0
         room.game.day = 1
         room.game.days = {}
-        room.game.days["D1"] = { nominees: [], rounds: [] }
+        room.game.days["D1"] = { nominees: [], rounds: [], shooters: [], victims: {} }
         room.game.speakers = []
         for (const [slot, player] of Object.entries(room.slot)) {
             player.status = 'alive'
+            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'player-alive', slot: slot, status: 'alive' }));
         }
         room = await updateRoom(ws.roomID, room)
         broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: room.game.phase, day: room.game.day }));
@@ -461,26 +504,24 @@ async function startDay(ws, data) {
         console.log('Attempt to start game when not a host!', ws.uid, ws.roomID)
         return
     } else {
+        let victim = room.game.days["D"+room.game.day].victim
+
         room.game.phase = 'day'
         slotReady = false
-        // if (room.game.lastSlot === 10) {
-        //     room.game.lastSlot = room.game.day
-        // }
-        // for (const [slot, player] of Object.entries(room.slot)) {
-        //     if ((player.status === 'alive')
-        //         && (slot > room.game.day)
-        //     ){
-        //         room.game.lastSlot = (slot - 1)
-        //         break;
-        //     }
-        // }
+
         room.game.lastSlot = 0
         room.game.day = (room.game.day + 1)
-        room.game.days["D"+room.game.day] = { nominees: [], rounds: [] }
+        room.game.days["D"+room.game.day] = { nominees: [], rounds: [], shooters: [], victims: {} }
         room.game.speakers = []
 
         room = await updateRoom(ws.roomID, room)
-        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: room.game.phase, day: room.game.day }));
+        room = await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: room.game.phase, day: room.game.day }));
+        if ((victim !== undefined) && (victim !== 'none')) {
+            let hostWS = clients[room.gameHost.uid]
+            if (hostWS !== undefined) {
+                hostWS.send(JSON.stringify({ type: 'last-speech-killed', victim: victim, action: 'killed' }));
+            }
+        }
     }
 }
 
@@ -491,6 +532,15 @@ async function startNight(ws, data) {
         return
     } else {
         room.game.phase = 'night'
+        for (const [slot, player] of Object.entries(room.slot)) {
+            if ((player.mic === 'on') &&  (player.uid !== 'empty')) {
+                let user = clients[player.uid]
+                if (user !== undefined) {
+                    user.send(JSON.stringify({ type: 'mute-mic' }));
+                }
+            }
+            // await sleep(300)
+        }
         room = await updateRoom(ws.roomID, room)
         broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: room.game.phase, night: room.game.day }));
     }
@@ -538,53 +588,112 @@ async function startVotingRound(ws, data) {
         let roundN = Object.keys(rounds).length - 1
         let curRound = rounds[roundN]
         let candidateSlot = curRound.nominees[curRound.next]
-        curRound['V'+curRound.next] = {
-            state: 'START',
-            slot: candidateSlot,
-            votes: []
-        }
 
-        room.game.days[curDay].rounds[roundN] = curRound
-
-
-        room = await updateRoom(ws.roomID, room)
-        broadcastRoom(ws.roomID, JSON.stringify({
-            type: 'voting-round',
-            round: (roundN+1),
-            candidate: candidateSlot
-        }));
-        setTimeout(async () => {
-            room = await getRoom(ws.roomID);
-            room.game.days[curDay].rounds[roundN]['V'+curRound.next].state = 'END'
-            room.game.days[curDay].rounds[roundN].next++
-            room = await updateRoom(ws.roomID, room)
-            // console.log('WS 398', curRound, ' | ', room.game.days[curDay].rounds)
-            nextCandidate = room.game.days[curDay].rounds[roundN].nominees[room.game.days[curDay].rounds[roundN].next]
-            if (nextCandidate !== undefined) {
-                broadcastRoom(ws.roomID, JSON.stringify({
-                    type: 'voting-round-result',
-                    round: (roundN + 1),
-                    candidate: candidateSlot,
-                    votes: room.game.days[curDay].rounds[roundN]['V' + (curRound.next)].votes
-                }));
-                // nextCandidate = room.game.days[curDay].rounds[roundN].nominees[room.game.days[curDay].rounds[roundN].next]
-                if (nextCandidate !== undefined) {
-                    ws.send(JSON.stringify({
-                        type: 'voting-round-ready',
-                        round: roundN,
-                        candidate: nextCandidate
+        if (candidateSlot === curRound.nominees.at(-1)) {
+            // The last candidate receives all the votes from players who have not yet voted
+            let votes = []
+            for (const [slot, player] of Object.entries(room.slot)) {
+                if ((!curRound.voted.includes(slot))
+                    && (player.status === 'alive')
+                ) {
+                    votes.push(slot)
+                    curRound.voted.push(slot)
+                    broadcastRoom(ws.roomID, JSON.stringify({
+                        type: 'player-vote',
+                        player: slot,
+                        candidate: candidateSlot
                     }));
                 }
-            } else {
-                broadcastRoom(ws.roomID, JSON.stringify({
-                    type: 'voting-round-result',
-                    round: (roundN + 1),
-                    candidate: candidateSlot,
-                    votes: room.game.days[curDay].rounds[roundN]['V' + (curRound.next)].votes
-                }));
+            }
+            curRound['V'+curRound.next] = {
+                state: 'END',
+                slot: candidateSlot,
+                votes: votes
+            }
+            room = await updateRoom(ws.roomID, room)
+
+            broadcastRoom(ws.roomID, JSON.stringify({
+                type: 'voting-round-result',
+                round: (roundN + 1),
+                candidate: candidateSlot,
+                votes: room.game.days[curDay].rounds[roundN]['V' + (curRound.next)].votes
+            }));
+            // Let's find out who gets the most votes
+            maxVotes = 0
+            // Object.keys(curRound).forEach(([key, value]) => {
+            for (const [key, value] of Object.entries(curRound)) {
+                console.log('574', key)
+                if (key.startsWith('V')) {
+                    console.log('576', key)
+                    if ((value.votes.length > 0)
+                        && (value.votes.length >= maxVotes)) {
+                        if (value.votes.length === maxVotes) {
+                            curRound.winners.push(value.slot)
+                        } else {
+                            curRound.winners = [value.slot]
+                        }
+                    }
+                    console.log(value)
+                }
+            };
+            room.game.days[curDay].rounds[roundN] = curRound
+            room = await updateRoom(ws.roomID, room)
+            curRound = room.game.days[curDay].rounds[roundN]
+            if (curRound.winners.length === 1) {
+                // one player has been voted out
+                ws.send(JSON.stringify({ type: 'last-speech-voted', candidate: curRound.winners[0], action: 'voted' }));
+            }
+        } else {
+            curRound['V'+curRound.next] = {
+                state: 'START',
+                slot: candidateSlot,
+                votes: []
             }
 
-        }, 3000)
+            room.game.days[curDay].rounds[roundN] = curRound
+
+
+            room = await updateRoom(ws.roomID, room)
+            broadcastRoom(ws.roomID, JSON.stringify({
+                type: 'voting-round',
+                round: (roundN+1),
+                candidate: candidateSlot
+            }));
+            setTimeout(async () => {
+                room = await getRoom(ws.roomID);
+                room.game.days[curDay].rounds[roundN]['V'+curRound.next].state = 'END'
+                room.game.days[curDay].rounds[roundN].next++
+                room = await updateRoom(ws.roomID, room)
+                // console.log('WS 398', curRound, ' | ', room.game.days[curDay].rounds)
+                nextCandidate = room.game.days[curDay].rounds[roundN].nominees[room.game.days[curDay].rounds[roundN].next]
+                if (nextCandidate !== undefined) {
+                    broadcastRoom(ws.roomID, JSON.stringify({
+                        type: 'voting-round-result',
+                        round: (roundN + 1),
+                        candidate: candidateSlot,
+                        votes: room.game.days[curDay].rounds[roundN]['V' + (curRound.next)].votes
+                    }));
+                    nextCandidate = room.game.days[curDay].rounds[roundN].nominees[room.game.days[curDay].rounds[roundN].next]
+                    if (nextCandidate !== undefined) {
+                        ws.send(JSON.stringify({
+                            type: 'voting-round-ready',
+                            round: roundN,
+                            candidate: nextCandidate
+                        }));
+                    }
+                } else {
+                    broadcastRoom(ws.roomID, JSON.stringify({
+                        type: 'voting-round-result',
+                        round: (roundN + 1),
+                        candidate: candidateSlot,
+                        votes: room.game.days[curDay].rounds[roundN]['V' + (curRound.next)].votes
+                    }));
+                }
+
+            }, 3000)
+        }
+
+
     }
 }
 
@@ -642,10 +751,10 @@ async function playerVote(ws, data) {
 
 async function shoot(ws, data) {
     let room = await getRoom(ws.roomID);
-    if (ws.uid === room.gameHost.uid) {
-        console.log('Attempt to shoot when a host!', ws.uid, ws.roomID)
-        return
-    } else {
+    // if (ws.uid === room.gameHost.uid) {
+    //     console.log('Attempt to shoot when a host!', ws.uid, ws.roomID)
+    //     return
+    // } else {
         let playerSlot = 0
         for (const [slot, player] of Object.entries(room.slot)) {
             if ((player.uid === ws.uid)
@@ -664,42 +773,28 @@ async function shoot(ws, data) {
             console.log('Not alive mafia attempt to shoot!', ws.uid, room.game.slot)
             return
         } else {
-            let curDay = "D"+room.game.day
-            let rounds =  room.game.days[curDay].rounds
-            let roundN = Object.keys(rounds).length - 1
-            let curRound = rounds[roundN]
-            if (curRound.voted.includes(playerSlot)) {
+            let curDay = room.game.days["D"+room.game.day]
+
+            if (curDay.shooters.includes(playerSlot)) {
                 //
-                console.log('Player already voted this round!', playerSlot, curRound)
+                console.log('Player already shoot this night!', playerSlot, curRound)
                 return
+            } else {
+                curDay.shooters.push(playerSlot)
+                curDay.victims[playerSlot] = data.slot
+                curDay.shoot[playerSlot] = data.slot
+                room = await updateRoom(ws.roomID, room)
+                let hostWS = clients[room.gameHost.uid]
+                if (hostWS !== undefined) {
+                    hostWS.send(JSON.stringify({ type: 'mafia-shoot', mafia: playerSlot, victim: data.slot }));
+                }
+
             }
             broadcastRoom(ws.roomID, JSON.stringify({
                 type: 'player-shoot'
             }));
-            // let candidateSlot = curRound.nominees[curRound.next]
-            // if (candidateSlot !== data.slot) {
-            //     // vote phase missed
-            //     console.log('vote phase missed!', playerSlot, candidateSlot, curRound)
-            //     broadcastRoom(ws.roomID, JSON.stringify({
-            //         type: 'player-shoot'
-            //     }));
-            //     return
-            // }
-            // if (curRound['V'+curRound.next].state === 'START') {
-            //     curRound['V'+curRound.next].votes.push(playerSlot)
-            //     curRound.voted.push(playerSlot)
-            //     room.game.days[curDay].rounds[roundN] = curRound
-            //     room = await updateRoom(ws.roomID, room)
-            //     broadcastRoom(ws.roomID, JSON.stringify({
-            //         type: 'player-vote',
-            //         player: playerSlot,
-            //         candidate: candidateSlot
-            //     }));
-            // } else {
-            //     console.log('Something is wrong when voted!', playerSlot, candidateSlot, curRound)
-            // }
         }
-    }
+    // }
 }
 
 
@@ -760,17 +855,6 @@ async function nextSpeaker(ws, data) {
         let curDay = "D"+room.game.day
         if (room.game.phase === 'day') {
             for (const [slot, player] of Object.entries(room.slot)) {
-                // if (room.game.day > 1) {
-                //     console.log('activeSpeaker', activeSpeaker, 'slot', slot, 'player.status', player.status, 'room.game.day', room.game.day, 'room.game.lastSlot', room.game.lastSlot, 'room.game.speakers', room.game.speakers)
-                //
-                // }
-                // if (slot === '10') {
-                //     console.log('1', (activeSpeaker === 0),
-                //         '2', (player.status === 'alive'),
-                //         '3', (Number(slot) >= room.game.day),
-                //         '4', (Number(slot) >= Number(room.game.lastSlot)),
-                //         '5', (!room.game.speakers.includes(slot)))
-                // }
                 if ((activeSpeaker === 0)
                     && (player.status === 'alive')
                     && (Number(slot) >= Number(room.game.day))
@@ -856,7 +940,7 @@ async function nextSpeaker(ws, data) {
         if (activeSpeaker > 0) {
             room.game.days[curDay].currentSpeaker = activeSpeaker
             room = await updateRoom(ws.roomID, room)
-            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'active-speaker', slot: room.game.days[curDay].currentSpeaker, duration: 60, "last-alive": lastAlive }));
+            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'active-speaker', slot: room.game.days[curDay].currentSpeaker, duration: 60 }));
         } else {
             let nominees =  room.game.days[curDay].nominees
             ws.send(JSON.stringify({ type: 'ready-to-vote', nominees: nominees }));
@@ -865,6 +949,38 @@ async function nextSpeaker(ws, data) {
     }
 }
 
+
+async function lastSpeech(ws, data) {
+    let room = await getRoom(ws.roomID);
+    if (ws.uid !== room.gameHost.uid) {
+        console.log('Attempt to act as host (' + room.gameHost.uid + ') when not a host!', ws.uid, ws.roomID)
+        return
+    } else {
+        for (const [slot, player] of Object.entries(room.slot)) {
+            if (player.status === 'alive') {
+                if ((player.mic === 'on')
+                    &&  (player.uid !== 'empty')
+                    &&  (Number(slot) !== Number(data.candidate))
+                ) {
+                    let user = clients[player.uid]
+                    if (user !== undefined) {
+                        user.send(JSON.stringify({ type: 'mute-mic' }));
+                    }
+                } else if ((player.mic === 'off')
+                    &&  (player.uid !== 'empty')
+                    &&  (Number(slot) === Number(data.candidate))
+                ) {
+                    let user = clients[player.uid]
+                    if (user !== undefined) {
+                        user.send(JSON.stringify({type: 'unmute-mic'}));
+                    }
+                }
+
+            }
+        }
+        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'active-speaker', slot: data.candidate, duration: 60, "action": data.action }));
+    }
+}
 async function warnAdd(ws, data) {
     let room = await getRoom(ws.roomID);
     if (ws.uid !== room.gameHost.uid) {
@@ -911,12 +1027,37 @@ async function playerLock(ws, data) {
         console.log('Attempt to act as host ('+room.gameHost.uid+') when not a host!', ws.uid, ws.roomID)
         return
     } else {
+        let curDay = "D"+room.game.day
+        let rounds =  room.game.days[curDay].rounds
+        let roundN = Object.keys(rounds).length - 1
+        let curRound = rounds[roundN]
+
         let player = room.slot[data.slot]
         if (player.status === 'alive') {
             player.status = 'locked'
+
+            if ((player.mic === 'on')
+                &&  (player.uid !== 'empty')
+            ) {
+                let user = clients[player.uid]
+                if (user !== undefined) {
+                    user.send(JSON.stringify({ type: 'mute-mic' }));
+                }
+            }
+
             room = await updateRoom(ws.roomID, room)
             player = room.slot[data.slot]
             broadcastRoom(ws.roomID,  JSON.stringify({ type: 'player-lock', slot: data.slot, status: player.status }));
+            if (curRound.winners !== undefined) {
+                if (Number(curRound.winners[curRound.winners.length - 1]) === Number(data.slot)) {
+                    ws.send(JSON.stringify({ type: 'ready-to-night' }));
+                } else {
+                    winner = curRound.winners.indexOf(data.slot)
+                    if (winner > 0) {
+                        ws.send(JSON.stringify({ type: 'last-speech-voted', candidate: curRound.winners[winner+1], action: 'voted' }));
+                    }
+                }
+            }
         }
     }
 }
@@ -1119,19 +1260,35 @@ async function shuffleRoles(ws, data) {
             }
 
             broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase-role', slot: i }));
-            curPlayer = roomState.slot[i]
-            sleepTime = 300; // skip empty slots
-            if ((roomState.game.phase === 'shuffle')
-                && (curPlayer.role === 'none')) {
-                user = clients[curPlayer.uid]
-                if (user !== undefined) {
-                    sleepTime = 3000
-                    user.send(JSON.stringify({ type: 'select-role' }));
+            if (i===10) {
+                curPlayer = roomState.slot[i]
+                sleepTime = 300; // skip empty slots
+                if ((roomState.game.phase === 'shuffle')
+                    && (curPlayer.role === 'none')) {
+                    curPlayer.role = roomState.game.availableRoles.shift()
+                    roomState = await updateRoom(ws.roomID, roomState)
+                    curPlayer = roomState.slot[i]
+                    user = clients[curPlayer.uid]
+                    if (user !== undefined) {
+                        user.send(JSON.stringify({ type: 'game-role', role: roomState.slot[i].role }));
+                    }
+                }
+            } else {
+
+                curPlayer = roomState.slot[i]
+                sleepTime = 300; // skip empty slots
+                if ((roomState.game.phase === 'shuffle')
+                    && (curPlayer.role === 'none')) {
+                    user = clients[curPlayer.uid]
+                    if (user !== undefined) {
+                        sleepTime = 3000
+                        user.send(JSON.stringify({ type: 'select-role' }));
+                    }
+
                 }
 
+                await sleep(sleepTime);
             }
-
-            await sleep(sleepTime);
         }
         //await sleep(3000);
         roomState = await getRoom(ws.roomID)
@@ -1220,7 +1377,7 @@ async function broadcastRoom(roomID, message, ws = null) {
             }
         }
     }
-
+    return room
 }
 
 
@@ -1472,5 +1629,6 @@ module.exports = {
     playerLock,
     playerRestore,
     startDay,
+    lastSpeech,
     grantAccess
 };

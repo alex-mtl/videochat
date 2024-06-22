@@ -233,6 +233,8 @@ function startSignaling() {
             handleRequestJoin(data);
         } else if (data.type === 'error') {
             handleError(data, 'error');
+        } else if (data.type === 'reset') {
+            handleReset(data);
         } else if (data.type === 'game-player-status') {
             handleGamePlayerStatus(data);
         } else if (data.type === 'game-player-mic') {
@@ -303,6 +305,8 @@ function startSignaling() {
             handleMafiaShooting(data);
         } else if (data.type === 'player-shoot') {
             handlePlayerShoot(data);
+        } else if (data.type === 'mafia-shoot') {
+            handleMafiaShoot(data);
         } else if (data.type === 'game-ready') {
             handleGameReady(data);
         } else if (data.type === 'don-check') {
@@ -314,6 +318,10 @@ function startSignaling() {
         || (data.type === 'player-alive')
         ) {
             handlePlayerStatus(data);
+        } else if (data.type === 'last-speech-voted') {
+            handleLastSpeechVoted(data);
+        } else if (data.type === 'last-speech-killed') {
+            handleLastSpeechKilled(data);
         // } else if (data.type === 'sitdown-ready') {
         //     handleSitdownReady(data);
         }
