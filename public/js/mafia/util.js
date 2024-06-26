@@ -170,6 +170,13 @@ function vote(elem) {
     ws.send(JSON.stringify({type: 'player-vote', slot: slot}));
 }
 
+function voteLockWinners(elem) {
+
+    ws.send(JSON.stringify({type: 'vote-lock-winners'}));
+}
+
+
+
 function shoot(elem) {
     let slot = 0
     if (typeof elem === 'object' && elem instanceof Element) {
@@ -584,6 +591,7 @@ function showPlaceholders() {
      playerPlaceholders.forEach( slot => {
          slot.classList.remove('show');
      })
+
  }
 
 function hideRoles() {
@@ -628,16 +636,8 @@ function handleGamePhase(data) {
     game = document.querySelector('div.game.videos')
     game.setAttribute('data-phase', data.phase)
     if (data.phase === 'shuffle') {
-        selectSlotBtns = document.querySelectorAll('div.select-slot button')
-        selectSlotBtns.forEach(btn =>  {
-            btn.classList.remove('btn-primary')
-            btn.classList.add('btn-secondary')
-            btn.disabled = true
-        });
-        videoElems = document.querySelectorAll('div.videobox[data-slot]:not([data-slot="game-host"]) .g-mask')
-        videoElems.forEach( elem => {
-            elem.classList.add('night')
-        })
+        resetDisableButtons()
+        hideHostVideo()
 
     } else if (data.phase === 'night') {
         gameMessage('Night '+data.night)
@@ -646,6 +646,7 @@ function handleGamePhase(data) {
         stopCountdown()
         if (selfID !== roomEnv.gameHost.uid) {
             hideAllRolesAndVideos()
+            resetDisableButtons()
             showPlaceholders()
         } else {
             mainButton('Shooting', startShooting)
@@ -711,6 +712,7 @@ function handleGamePhase(data) {
             if (selfID !== roomEnv.gameHost.uid) {
                 hidePlaceholders()
                 showDayVideos()
+                showHostVideo()
             } else {
                 hidePlaceholders()
                 hideRoles()
@@ -893,6 +895,7 @@ function handleGameRoleTaken(data) {
 function handleGameRole(data) {
     roleSpan = document.querySelector('div.game-deck span.game-role')
     roleSpan.classList.remove('role-show')
+
     if (data.role === 'R') {
         roleSpan.textContent = 'CITIZEN'
         roleSpan.setAttribute('data-role', 'CITIZEN')
@@ -907,6 +910,55 @@ function handleGameRole(data) {
         roleSpan.setAttribute('data-role', 'MAFIA')
     }
     roleSpan.classList.add('role-show')
+    setTimeout(() => {
+        roleSpan.classList.remove('role-show')
+    }, 3000);
+
+}
+
+function handleGameOver(data) {
+    sfx.gameOver.play();
+    handleGamePhase({phase: 'game-over'});
+    stopCountdown()
+    gameMessage('Game OVer')
+
+    roleSpan = document.querySelector('div.game-deck span.game-role')
+
+    roleSpan.setAttribute('data-role', data.team.toUpperCase())
+    if (data.team === 'red') {
+        roleSpan.textContent = 'RED WINS!'
+        gameMessage('RED WINS!', 2)
+    } else  {
+        roleSpan.textContent = 'BLACK WINS!'
+        gameMessage('BLACK WINS!', 2)
+    }
+    roleSpan.classList.add('role-show')
+    setTimeout(() => {
+        roleSpan.classList.remove('role-show')
+    }, 3000);
+
+    for (const [slotN, player] of Object.entries(data.players)) {
+        role = 'unknown'
+        if (player.role === 'B') {
+            role = 'mafia'
+        } else if (player.role === 'R') {
+            role = 'citizen'
+        } else if (player.role === 'D') {
+            role = 'don'
+        } else if (player.role === 'S') {
+            role = 'sheriff'
+        }
+        slotRole = document.querySelector('div.videobox[data-slot="'+slotN+'"] span.slot-role')
+        slotRole.setAttribute('data-role', role)
+        slotStatus = document.querySelector('div.videobox[data-slot="'+slotN+'"] span.slot-status')
+        slotStatus.setAttribute('data-player-status', 'alive')
+        slotVideo = document.querySelector('div.videobox[data-slot="'+slotN+'"] video')
+        slotVideo.classList.remove('active-speaker')
+        if (slotVideo.origSrcObject !== undefined) {
+            slotVideo.srcObject = slotVideo.origSrcObject
+        }
+
+    }
 }
 
 function handleGameReady(data) {
@@ -985,6 +1037,49 @@ function hideAllRolesAndVideos() {
         elem.classList.add('night')
     })
 
+    hideHostVideo()
+}
+
+function resetDisableButtons() {
+    selectSlotBtns = document.querySelectorAll('div.select-slot button')
+    selectSlotBtns.forEach(btn =>  {
+        btn.classList.remove('btn-primary')
+        btn.classList.add('btn-secondary')
+        btn.disabled = true
+    });
+    videoElems = document.querySelectorAll('div.videobox[data-slot]:not([data-slot="game-host"]) .g-mask')
+    videoElems.forEach( elem => {
+        elem.classList.add('night')
+    })
+}
+
+function hideHostVideo() {
+    if (selfID !== roomEnv.gameHost.uid) {
+        hostVideo = document.querySelector('div.videobox.vbox-game-host video')
+        stream = hostVideo.srcObject;
+        tracks = stream.getTracks();
+        tracks.forEach((track) => {
+            if (track.kind === 'video') {
+                track.enabled = false;
+            }
+        });
+
+        vBox = document.querySelector('div.videobox.vbox-game-host')
+        vBox.setAttribute('data-player-status', 'host-off')
+    }
+}
+
+function showHostVideo() {
+    hostVideo = document.querySelector('div.videobox.vbox-game-host video')
+    stream = hostVideo.srcObject;
+    tracks = stream.getTracks();
+    tracks.forEach((track) => {
+        if (track.kind === 'video') {
+            track.enabled = true;
+        }
+    });
+    vBox = document.querySelector('div.videobox.vbox-game-host')
+    vBox.setAttribute('data-player-status',null)
 }
 
 function showDayVideos() {
@@ -1001,6 +1096,7 @@ function showDayVideos() {
     videoElems.forEach( elem => {
         elem.classList.remove('night')
     })
+
 
 }
 function handleMafiaSitdown(data) {
@@ -1209,17 +1305,19 @@ function handleActiveSpeaker(data) {
     stopCountdown()
     removeActiveSpeaker()
     removeVotingResult()
-    let speaker = document.querySelector('div.videobox[data-slot="'+data.slot+'"] video')
-    speaker.classList.add('active-speaker')
-    let eBar  = document.querySelector('div.e-bar[data-slot="'+data.slot+'"]')
-    eBar.classList.add('active-speaker')
-    startCountdown(data.duration)
-    if (selfID === roomEnv.gameHost.uid) {
-        if (data.action !== undefined) {
-            if (data.action === 'voted') {
-                showPlayerVoted(data.slot)
-            } else if (data.action === 'killed') {
-                showPlayerKilled(data.slot)
+    if ((data.slot !== 0) && (data.duration > 0)) {
+        let speaker = document.querySelector('div.videobox[data-slot="' + data.slot + '"] video')
+        speaker.classList.add('active-speaker')
+        let eBar = document.querySelector('div.e-bar[data-slot="' + data.slot + '"]')
+        eBar.classList.add('active-speaker')
+        startCountdown(data.duration)
+        if (selfID === roomEnv.gameHost.uid) {
+            if (data.action !== undefined) {
+                if (data.action === 'voted') {
+                    showPlayerVoted(data.slot)
+                } else if (data.action === 'killed') {
+                    showPlayerKilled(data.slot)
+                }
             }
         }
     }
@@ -1277,37 +1375,6 @@ function handleNominate(data) {
 async function sleep(millis) {
     return new Promise(resolve => setTimeout(resolve, millis));
 }
-function handleStartVoting(data) {
-
-    if (data.nominees.length === 0) {
-        let vBoxes = document.querySelectorAll('div.videobox[data-slot="'+data.slot+'"]')
-        vBoxes.forEach( vBox => {
-            vBox.classList.remove('nominated')
-        })
-        let eBars  = document.querySelectorAll('div.e-bar[data-slot="'+data.slot+'"]')
-        eBars.forEach( eBar => {
-            eBar.classList.remove('nominated')
-        })
-    } else {
-        gameMessage('Nominees:')
-        gameMessage(data.nominees.join(', '),2)
-        data.nominees.forEach( async (slot, idx) => {
-            setTimeout(() => {
-                sfx.nominate.play()
-                let vBox = document.querySelector('div.videobox[data-slot="'+slot+'"]')
-                vBox.classList.add('nominated')
-                let eBar  = document.querySelector('div.e-bar[data-slot="'+slot+'"]')
-                eBar.classList.add('nominated')
-                setTimeout(() => {
-                    vBox.classList.remove('nominated')
-                    eBar.classList.remove('nominated')
-
-                }, 2000)
-            }, idx * 500)
-        })
-    }
-}
-
 
 function handlePlayerWarn(data) {
     sfx.warn.play()
@@ -1391,6 +1458,19 @@ function handleVotingRound(data) {
     }
 }
 
+function handleLockWinnersVote(data) {
+    if (selfID !== roomEnv.gameHost.uid) {
+        gameMessage('Lock')
+        gameMessage(data.winners.join(', '),2)
+
+        playerButton("Vote", () => { voteLockWinners(data.candidate) });
+
+        setTimeout(() => {
+            playerButtonDisable()
+        }, 3000)
+    }
+}
+
 function fly(boxFrom, toBox) {
     const flySpan = document.getElementById('flySpan');
 
@@ -1415,6 +1495,39 @@ function fly(boxFrom, toBox) {
         flySpan.style.display = 'none';
     }, 1000);
 }
+
+
+function handleStartVoting(data) {
+
+    if (data.nominees.length === 0) {
+        let vBoxes = document.querySelectorAll('div.videobox[data-slot="'+data.slot+'"]')
+        vBoxes.forEach( vBox => {
+            vBox.classList.remove('nominated')
+        })
+        let eBars  = document.querySelectorAll('div.e-bar[data-slot="'+data.slot+'"]')
+        eBars.forEach( eBar => {
+            eBar.classList.remove('nominated')
+        })
+    } else {
+        gameMessage('Nominees:')
+        gameMessage(data.nominees.join(', '),2)
+        data.nominees.forEach( async (slot, idx) => {
+            setTimeout(() => {
+                sfx.nominate.play()
+                let vBox = document.querySelector('div.videobox[data-slot="'+slot+'"]')
+                vBox.classList.add('nominated')
+                let eBar  = document.querySelector('div.e-bar[data-slot="'+slot+'"]')
+                eBar.classList.add('nominated')
+                setTimeout(() => {
+                    vBox.classList.remove('nominated')
+                    eBar.classList.remove('nominated')
+
+                }, 2000)
+            }, idx * 500)
+        })
+    }
+}
+
 function handlePlayerVote(data) {
     let fromSlot = document.querySelector('div.videobox[data-slot="' + data.player + '"]')
     let toSlot = document.querySelector('div.videobox[data-slot="' + data.candidate + '"]')
@@ -1424,6 +1537,17 @@ function handlePlayerVote(data) {
     }, 2000);
     // fly(fromSlot, toSlot)
 }
+
+function handleLockWinnersPlayerVote(data) {
+
+    let fromSlot = document.querySelector('div.videobox[data-slot="' + data.player + '"]')
+    fromSlot.querySelector('span.slot-vote').classList.add('active')
+    setTimeout(() => {
+        fromSlot.querySelector('span.slot-vote').classList.remove('active')
+    }, 2000);
+}
+
+
 
 function handlePlayerShoot(data) {
     sfx.shot.play()

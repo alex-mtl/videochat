@@ -1,6 +1,8 @@
+
 function startGame() {
     gStop = document.getElementById('game-stop')
     gStop.hidden = true;
+    hideMainButton()
     ws.send(JSON.stringify({type: 'game-start'}));
 }
 
@@ -51,6 +53,20 @@ function mainButton(txt, fn, args = []) {
     gStart.textContent = txt
     gStart.onclick = () => fn(...args);
     gStart.classList.add('g-show')
+}
+
+function secondaryButton(txt, fn, args = []) {
+    button = document.getElementById('game-stop')
+    button.hidden = false;
+    button.textContent = txt
+    button.onclick = () => fn(...args);
+    button.classList.add('g-show')
+}
+
+function hideSecondaryButton() {
+    let button = document.getElementById('game-stop')
+    button.classList.remove('g-show')
+    button.hidden = true;
 }
 
 function hideMainButton() {
@@ -113,6 +129,18 @@ function showStopSpeaker() {
 
 function lastSpeech(candidate, action) {
     ws.send(JSON.stringify({type: 'last-speech', candidate: candidate, action: action}));
+}
+
+function defenseSpeech(candidate) {
+    ws.send(JSON.stringify({type: 'defense-speech', candidate: candidate }));
+}
+
+function lockWinners(winners) {
+    ws.send(JSON.stringify({type: 'lock-winners', winners: winners }));
+}
+function teamWins(team) {
+    hideSecondaryButton()
+    ws.send(JSON.stringify({type: 'team-wins', team: team}));
 }
 
 function showPlayerVoted(slot) {
@@ -224,6 +252,30 @@ function handleReadyToNight(data) {
 
 }
 
+function handleSplitSpeech(data) {
+    gameMessage('Split ')
+    gameMessage(data.winners.join(', '),2)
+
+    if (data.winners.length > data.split.length) {
+        mainButton('Defence speech '+data.winners[data.split.length], defenseSpeech, [data.winners[data.split.length]])
+    } else {
+        mainButton('Vote gain: '+data.winners.join(', '), startVotingSend)
+
+    }
+
+}
+
+
+function handleLockAllWinners(data) {
+    gameMessage('Lock')
+    gameMessage(data.winners.join(', '),2)
+    // за поднятие всех попильных
+    mainButton('Vote: '+data.winners.join(', '), lockWinners, [data.winners])
+}
+
+
+
+
 function handleVotingRoundReady(data) {
     mainButton('Vote '+data.candidate, startVoteSend)
 }
@@ -247,6 +299,10 @@ function handleMafiaShoot(data) {
     }
 
 
+}
+
+function handleTeamWins(data) {
+    secondaryButton(data.team.toUpperCase() + ' team wins!', teamWins, [data.team])
 }
 
 

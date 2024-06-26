@@ -13,8 +13,10 @@ app.use(session({
 }));
 
 // Load SSL certificate and private key
-const privateKey = fs.readFileSync('video-key.pem', 'utf8');
-const certificate = fs.readFileSync('video-cert.pem', 'utf8');
+// const privateKey = fs.readFileSync('video-key.pem', 'utf8');
+// const certificate = fs.readFileSync('video-cert.pem', 'utf8');
+const privateKey = fs.readFileSync('video.ttl10.key.pem', 'utf8');
+const certificate = fs.readFileSync('video.ttl10.cert.pem', 'utf8');
 const credentials = { key: privateKey, cert: certificate };
 
 const server = https.createServer(credentials, app);

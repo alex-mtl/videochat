@@ -256,8 +256,8 @@ div.videobox span.slot-role {
     background-color: var(--g-grey);
     font-size: 4vw;
     font-weight: bold; /* Bold font */
-    border: 0.3vw solid var(--g-grey);
-    border-radius: 1vw;
+    /*border: 0.3vw solid var(--g-grey);*/
+    /*border-radius: 1vw;*/
     visibility: hidden;
 }
 
@@ -293,8 +293,8 @@ div.videobox .slot-role[data-role="don"]:before {
 
 span.slot-mic {
     position: absolute;
-    bottom: 1vw;
-    right: 3.5vw;
+    bottom: 0.7vw;
+    right: 3.7vw;
     background-color: transparent; 
     color: rgba(211, 211, 211, 0.5); /* Text color */
     padding: 0;
@@ -312,12 +312,12 @@ span.slot-mic[data-mic="off"]:before {
 /*** SHOUT OUT ***/
 span.slot-shout {
     position: absolute;
-    bottom: 15px;
-    right: 5px;
+    bottom: 0.7vw;
+    right: 0.7vw;
     background-color: transparent;
     color: rgba(211, 211, 211, 0.5); /* Text color */
     padding: 0;
-    font-size: 36px;
+    font-size: 3vw;
     font-weight: bold; /* Bold font */
     visibility: hidden;
 }
@@ -792,6 +792,8 @@ div.videobox .night {
 span.game-role {
     font-size: 16vw;
     font-weight: bold;
+    text-align: center;
+    line-height: 16vw;
     opacity: 90%;
     z-index: 3;
     text-shadow:
@@ -814,14 +816,16 @@ span.game-role {
 }
 span.game-role.role-show {
     visibility: visible;
-    animation: roleShow 5s forwards;
-    animation-iteration-count: 1;
+    /*animation: roleShow 5s forwards;*/
+    /*animation-iteration-count: 1;*/
 }
 
+span.game-role[data-role='RED'],
 span.game-role[data-role='CITIZEN'],
 span.game-role[data-role='SHERIFF'] {
     color: red;
 }
+span.game-role[data-role='BLACK'],
 span.game-role[data-role='DON'],
 span.game-role[data-role='MAFIA'] {
     color: black;
@@ -865,10 +869,14 @@ span.g-countdown[data-count="3"] {
 
 
 
-button#game-start {
+button#game-start,
+button#game-stop
+{
     visibility: hidden;
 }
-button.g-show#game-start {
+button.g-show#game-start,
+button.g-show#game-stop
+{
     visibility: visible;
 }
 
@@ -917,7 +925,7 @@ span.slot-warn {
     left: 3.5vw;
 }
 
-.videobox:not(.vbox-game-host) .slot-warn[class*="warn-"]:after {
+div.game.videos:not([data-phase="game-over"]) .videobox:not(.vbox-game-host) .slot-warn[class*="warn-"]:after {
     content: "bolt";
     font-size: 1.5vw;
     visibility: visible;
@@ -930,7 +938,7 @@ span.slot-warn {
 }
 
 /* "error" "do_not_disturb_on" "add_circle" */
-.videobox:not(.vbox-game-host) .slot-warn:before {
+div.game.videos:not([data-phase="game-over"])  .videobox:not(.vbox-game-host) .slot-warn:before {
     font-size: 3vw;
     visibility: visible;
     color: var(--g-red);
@@ -944,7 +952,7 @@ span.slot-warn {
     color: var(--g-grey);
 }
 
-[data-mode="host"]:not([data-phase="lobby"]) .videobox:not(.vbox-game-host) .slot-warn:before {
+[data-mode="host"]:not([data-phase="lobby"]):not([data-phase="game-over"])  .videobox:not(.vbox-game-host) .slot-warn:before {
     visibility: visible;
 }
 
@@ -1181,8 +1189,23 @@ div.videobox span.player-status {
     color: var(--g-grey);
 }
 
+[data-phase="game-over"] div.videobox span.player-status {
+    position: absolute;
+    top: 0.3vw;
+    left: 4.5vw;
+    font-size: 4vw;
+    font-weight: bold; /* Bold font */
+    color: var(--g-grey);
+}
+
 div.videobox[data-player-status='disqualified'] .player-status:before {
     content: 'bolt';
+    visibility: visible;
+}
+
+div.videobox[data-player-status='host-off'] .player-status:before {
+    content: 'family_star';
+    color: var(--g-success);
     visibility: visible;
 }
 

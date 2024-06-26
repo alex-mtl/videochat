@@ -55,6 +55,11 @@ let sfx = {
         loop: false,
         volume: 0.01
     }),
+    gameOver : new Howl({
+        src: '/static/sfx/game-over.mp3',
+        loop: false,
+        volume: 0.01
+    }),
 }
 
 
@@ -295,10 +300,18 @@ function startSignaling() {
             handleVotingRoundReady(data);
         } else if (data.type === 'voting-round') {
             handleVotingRound(data);
+        } else if (data.type === 'lock-winners-vote') {
+            handleLockWinnersVote(data);
         } else if (data.type === 'player-vote') {
             handlePlayerVote(data);
+        } else if (data.type === 'lock-winners-player-vote') {
+            handleLockWinnersPlayerVote(data);
+        } else if (data.type === 'lock-all-winners') {
+            handleLockAllWinners(data);
         } else if (data.type === 'voting-round-result') {
             handleVotingRoundResult(data);
+        } else if (data.type === 'split-speech') {
+            handleSplitSpeech(data);
         } else if (data.type === 'ready-to-night') {
             handleReadyToNight(data);
         } else if (data.type === 'mafia-shooting') {
@@ -322,6 +335,10 @@ function startSignaling() {
             handleLastSpeechVoted(data);
         } else if (data.type === 'last-speech-killed') {
             handleLastSpeechKilled(data);
+        } else if (data.type === 'team-wins') {
+            handleTeamWins(data);
+        } else if (data.type === 'game-over') {
+            handleGameOver(data);
         // } else if (data.type === 'sitdown-ready') {
         //     handleSitdownReady(data);
         }
