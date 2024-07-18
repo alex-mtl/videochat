@@ -476,7 +476,7 @@ async function startVotingRound(ws, data) {
                     }));
                 }
 
-            }, 3000)
+            }, 5000)
         }
 
 
@@ -525,7 +525,7 @@ async function lockWinners(ws, data) {
                     ws.send(JSON.stringify({ type: 'ready-to-night' }));
                 }
 
-            }, 3000)
+            }, 5000)
 
 
     }
@@ -937,6 +937,7 @@ async function gameStart(ws, data) {
         room = await updateRoom(ws.roomID, room)
         if (!ready) {
             ws.send(JSON.stringify({ type: 'error', message: "Some users are not ready yet..." }));
+            ws.send(JSON.stringify({ type: 'mainButton', message: "game-start" }));
             return;
         }
 
@@ -968,7 +969,7 @@ async function gameStart(ws, data) {
                 && (curPlayer.slot === 'none')) {
                 user = clients[curPlayer.uid]
                 if (user !== undefined) {
-                    sleepTime = 3000
+                    sleepTime = 5000
                     user.send(JSON.stringify({ type: 'select-slot', slots: roomState.game.availableSlots }));
 
                 }
@@ -1052,7 +1053,7 @@ async function shuffleRoles(ws, data) {
                     && (curPlayer.role === 'none')) {
                     user = clients[curPlayer.uid]
                     if (user !== undefined) {
-                        sleepTime = 3000
+                        sleepTime = 5000
                         user.send(JSON.stringify({ type: 'select-role' }));
                     }
 
@@ -1100,6 +1101,8 @@ async function gameStop(ws, data) {
             room.slot[slot].slot = 'none';
             room.slot[slot].role = 'none';
             room.slot[slot].status = 'unknown';
+            room.slot[slot].mic === 'off';
+
             broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-player-status', uid: player.uid, status: 'unknown' }));
         }
         room.game.lastSlot = 0

@@ -63,6 +63,26 @@ let sfx = {
 }
 
 
+
+// Retrieve stored sources from localStorage
+const videoSource = localStorage.getItem('selectedVideoSource');
+const audioSource = localStorage.getItem('selectedAudioSource');
+
+// Adjust the constraints with the stored sources
+if (videoSource !== null) {
+    constraints.video = {
+        ...constraints.video,
+        deviceId: videoSource ? { exact: videoSource } : undefined
+    };
+}
+
+if (audioSource !== null) {
+    constraints.audio = {
+        ...constraints.audio,
+        deviceId: audioSource ? {exact: audioSource} : undefined
+    };
+}
+
 navigator.mediaDevices.getUserMedia(constraints)
     .then(stream => {
         stream.getAudioTracks().forEach(track => {
@@ -70,9 +90,14 @@ navigator.mediaDevices.getUserMedia(constraints)
         });
         localStream = stream;
         localVideo.srcObject = stream;
+        localVideo.play().catch(error => {
+            console.error('Error attempting to play the video:', error);
+            // You might want to inform the user that they need to manually start the video
+        });
         startSignaling();
     })
     .catch(error => {
+        document.querySelector('settings-popup').classList.add('show')
         console.error('Error accessing media devices:', error);
     });
 
@@ -88,6 +113,7 @@ function selfSlotDetection(selfID) {
         for (const [slotN, player] of Object.entries(roomEnv.slot)) {
             if (player.uid === selfID) {
                 localVideo.classList.add('play', 'self-view')
+
                 if (player.mic === 'on') {
                     localVideo.classList.remove('muted')
                     localVideo.srcObject.getAudioTracks().forEach(track => {
@@ -99,6 +125,7 @@ function selfSlotDetection(selfID) {
                 slot.classList.add('self-view')
                 slot.querySelectorAll('video').forEach(video => video.remove());
                 slot.insertBefore(localVideo, slot.firstChild);
+
                 slot.setAttribute('data-uid', selfID)
                 if(slot.getAttribute('data-player-status') === 'disqualified') {
                     localVideo.origSrcObject = localVideo.srcObject
@@ -247,7 +274,7 @@ function startSignaling() {
         } else if (data.type === 'mute-mic') {
             muteMic(data);
         } else if (data.type === 'unmute-mic') {
-            muteMic(data);
+            unmuteMic(data);
         } else if (data.type === 'game-start') {
             handleGameStart(data);
         } else if (data.type === 'game-phase') {

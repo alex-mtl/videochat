@@ -162,7 +162,10 @@ async function gamePlayerMic(ws, data) {
         valid = true
     } else {
         for (const [slot, player] of Object.entries(room.slot)) {
-            if (player.uid === ws.uid) {
+            if (
+                (player.uid === ws.uid)
+                && ((room.game.phase === 'lobby') || (data.mode !== 'self'))
+            ) {
                 player.mic = data.mic
                 valid = true
                 break
@@ -382,11 +385,11 @@ async function shoutOut(ws, data) {
         let player = room.slot[data.slot]
 
         if ((player.mic === 'off')) {
-            ws.send(JSON.stringify({ type: 'unmute-mic' }));
+            ws.send(JSON.stringify({ type: 'unmute-mic', mode: 'shout-out' }));
             broadcastRoom(ws.roomID,  JSON.stringify({ type: 'shout-out', slot: data.slot }));
             setTimeout(() => {
-                ws.send(JSON.stringify({ type: 'mute-mic' }));
-            }, 3000);
+                ws.send(JSON.stringify({ type: 'mute-mic', mode: 'shout-out' }));
+            }, 5000);
         }
     }
 }

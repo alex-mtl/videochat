@@ -32,19 +32,20 @@ span {
 }
 
 video.muted {
-    border: 0.1vw solid var(--g-red);
+    border: 0.25vw solid var(--g-red);
 }
 
 video {
-    border: 0.1vw solid var(--g-green);
+    border: 0.25vw solid var(--g-green);
     margin: 0.1vw;
     width: 100%;
     aspect-ratio: 16/9;
 }
 
 video.active-speaker {
+    border: 0.25vw solid darkgreen;
     border: none;
-    box-shadow: 0 0 1vw darkgreen;
+    box-shadow: 0 0 1.25vw darkgreen;
 }
 
 .videobox.shout-out video {
@@ -93,7 +94,9 @@ div.videobox:not([data-player-status="alive"]):not([data-player-status="unknown"
 
 
 div.videobox span.toggle-audio,
-div.videobox span.toggle-video
+div.videobox span.toggle-video,
+div.videobox span.settings
+
 {
     position: absolute;
     visibility: hidden;
@@ -107,7 +110,8 @@ div.videobox span.toggle-video
 }
 
 div.videobox span.toggle-audio:hover,
-div.videobox span.toggle-video:hover
+div.videobox span.toggle-video:hover,
+div.videobox span.settings:hover
 {
     cursor:pointer;
 
@@ -115,6 +119,12 @@ div.videobox span.toggle-video:hover
 
 div.videobox span.toggle-audio {
     left: 4.5vw;
+}
+
+div.videobox span.settings {
+    left: 0.7vw;
+    top: 4.5vw;
+    color:var(--g-green);
 }
 
 div.videobox span.toggle-video {
@@ -127,6 +137,10 @@ div.videobox span.toggle-audio:before {
 
 div.videobox span.toggle-video:before {
     content: 'videocam';
+}
+
+div.videobox span.settings:before {
+    content: 'settings';
 }
 
 
@@ -144,7 +158,8 @@ div.videobox span.toggle-video:not(.muted)
 
 
 .game.videos[data-phase="lobby"] div.videobox:not(.no-video):hover span.toggle-audio,
-.game.videos[data-phase="lobby"] div.videobox:not(.no-video):hover span.toggle-video
+.game.videos[data-phase="lobby"] div.videobox:not(.no-video):hover span.toggle-video,
+.game.videos[data-phase="lobby"] div.videobox.self-view:not(.no-video):hover span.settings
 {
     visibility: visible;
 }
@@ -177,6 +192,7 @@ span.game-user {
     position: absolute;
     display: flex;
     max-width:18vw;
+    max-height: 3vw;
     bottom: 5%; 
     left: 1%; 
     background-color: rgba(30, 30, 30, 0.5); 
@@ -186,6 +202,8 @@ span.game-user {
     font-size: 2vw;
     font-weight: bold; /* Bold font */
     visibility: visible;
+    max-width: 20vw;
+    overflow: hidden;
 }
 
 input.game-user {
@@ -309,6 +327,12 @@ span.slot-mic[data-mic="off"]:before {
     color: var(--g-red);
 }
 
+[data-phase="lobby"] span.slot-mic[data-mic="on"]:before {
+    visibility: visible;
+    content: "mic";
+    color: var(--g-green);
+}
+
 /*** SHOUT OUT ***/
 span.slot-shout {
     position: absolute;
@@ -357,7 +381,7 @@ video.active-speaker ~ span.slot-mic[data-mic="on"]:before,
 
 @keyframes blinker {
     50% {
-        opacity: 0;
+        opacity: 20%;
     }
 }
 
@@ -1328,7 +1352,7 @@ span.mafia-shoot:after {
 span.mafia-shoot:after {
     content: 'motion_sensor_active';
 }
-span.mafia-shoot[data-victim] {
+div.game:not([data-phase="day"]) span.mafia-shoot[data-victim] {
     visibility: visible;
 
 }
@@ -1336,4 +1360,63 @@ span.mafia-shoot[data-victim] {
 .mafia-shoot[data-victim]:before {
     content: var(--shootVictim);
 
+}
+
+
+/* video settings */
+
+.settings-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: var(--g-dark-grey);
+    color: var(--g-grey);
+    padding: 1em;
+    border: 1px solid var(--g-grey);
+    z-index: 1000;
+    visibility: hidden;
+}
+
+.settings-popup.show {
+    visibility: visible;
+}
+
+.settings-popup h2 {
+    margin: 0 0 1em 0;
+    text-align: center;
+}
+
+.settings-popup label {
+    width:8vw;
+    font-size: 1.2em;
+    margin-bottom: 0.5em;
+    display: inline-block;
+}
+
+.settings-popup select {
+    /*width: 100%;*/
+    padding: 0.5em;
+    margin-bottom: 1em;
+}
+
+.settings-popup button {
+    width: 45%;
+    padding: 0.5em;
+
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+.settings-popup button#startButton {
+    background-color: var(--g-success);
+}
+
+.settings-popup button#closeButton {
+    background-color: var(--g-failure);
+}
+
+.settings-popup button:hover {
+    background-color: var(--g-success-hover);
 }

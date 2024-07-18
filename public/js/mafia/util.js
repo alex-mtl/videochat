@@ -16,7 +16,7 @@ const configuration = {
 const constraints = {
     video: {
         width: { ideal: 240, max: 240 },
-        height: { ideal: 135, max: 135 },
+        height: { ideal: 120, max: 120 },
         aspectRatio: { ideal: 16 / 9 },
         frameRate: { ideal: 20, max: 25 },
         facingMode: "user"
@@ -79,11 +79,27 @@ function createPeerConnection(peerId, hostID, participant = true) {
     return peerConnection;
 }
 
-function toggleAudio(elem) {
+function selfMic(micElem) {
+    let game = document.querySelector('div.game[data-phase]')
+    let phase = game.getAttribute('data-phase')
+    if (phase === 'lobby') {
+        if (micElem.parentElement.classList.contains('self-view')) {
+            toggler = micElem.parentElement.querySelector('span.toggle-audio')
+            toggleAudio(toggler)
+        }
+    }
+}
+function toggleAudio(elem, mode = 'self', ) {
     if (elem.parentElement.classList.contains('self-view')) {
         const audioTracks =  elem.parentElement.querySelector('video').srcObject.getAudioTracks();
         audioTracks.forEach(track => {
-            track.enabled = !track.enabled;
+            if((mode==='self') || (mode === 'shout-out')) {
+                track.enabled = !track.enabled;
+            } else if (mode === 'mute') {
+                track.enabled = false;
+            } else if (mode === 'unmute') {
+                track.enabled = true;
+            }
             muted = (!track.enabled)
         });
 
@@ -96,7 +112,7 @@ function toggleAudio(elem) {
             elem.classList.remove('muted')
             elem.parentElement.querySelector('video').classList.remove('muted')
         }
-        ws.send(JSON.stringify({type: 'game-player-mic', 'from': sessionID, mic: micOn}));
+        ws.send(JSON.stringify({type: 'game-player-mic', 'from': sessionID, mic: micOn, mode: mode}));
 
     } else {
         elem.parentElement.querySelector('video').muted = !elem.parentElement.querySelector('video').muted;
@@ -113,7 +129,14 @@ function toggleAudio(elem) {
 function muteMic(data) {
 
     button = document.querySelector('div.videobox.self-view span.toggle-audio');
-    toggleAudio(button)
+    toggleAudio(button, (data.mode === undefined) ? 'mute' : data.mode)
+
+}
+
+function unmuteMic(data) {
+
+    button = document.querySelector('div.videobox.self-view span.toggle-audio');
+    toggleAudio(button, (data.mode === undefined) ? 'unmute' : data.mode)
 
 }
 
@@ -138,6 +161,10 @@ function toggleVideo(elem) {
     // elem.setAttribute('alt', txt);
     // elem.setAttribute('tooltip', txt);
     elem.parentElement.querySelector('video').classList.toggle('play');
+}
+
+function showSettings() {
+    document.querySelector('div#mediaSourcePopup').classList.add('show')
 }
 
 function changeUserStatus(elem) {
@@ -671,6 +698,7 @@ function handleGamePhase(data) {
         if (selfID !== roomEnv.gameHost.uid) {
             // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot button,'+
             showPlaceholders()
+            hideHostVideo()
         } else {
             showDonWatch()
         }
@@ -699,6 +727,7 @@ function handleGamePhase(data) {
         if (selfID !== roomEnv.gameHost.uid) {
             // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot button,'+
             hideAllRolesAndVideos()
+            resetDisableButtons()
             showPlaceholders()
         } else {
             showSheriffCheck()
@@ -730,6 +759,7 @@ function handleGamePhase(data) {
             // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot button,'+
             hideAllRolesAndVideos()
             showPlaceholders()
+
         } else {
             showStartDay1()
         }
@@ -912,7 +942,7 @@ function handleGameRole(data) {
     roleSpan.classList.add('role-show')
     setTimeout(() => {
         roleSpan.classList.remove('role-show')
-    }, 3000);
+    }, 5000);
 
 }
 
@@ -935,7 +965,7 @@ function handleGameOver(data) {
     roleSpan.classList.add('role-show')
     setTimeout(() => {
         roleSpan.classList.remove('role-show')
-    }, 3000);
+    }, 5000);
 
     for (const [slotN, player] of Object.entries(data.players)) {
         role = 'unknown'
@@ -1117,6 +1147,7 @@ function handleMafiaSitdown(data) {
         citizen.parentElement.querySelector('span.video-lock').setAttribute('data-role', 'citizen')
     })
     hidePlaceholders()
+    showHostVideo()
     videoElems = document.querySelectorAll(
         'div.videobox[data-slot]:not(.vbox-game-host) .g-mask,' +
         'div.videobox[data-slot]:not(.vbox-game-host) .g-mask:hover'
@@ -1144,6 +1175,7 @@ function handleMafiaShooting(data) {
         citizen.parentElement.querySelector('span.video-target').setAttribute('data-role', 'citizen')
     })
     hidePlaceholders()
+    showHostVideo()
     videoElems = document.querySelectorAll(
         'div.videobox[data-slot]:not(.vbox-game-host) .g-mask,' +
         'div.videobox[data-slot]:not(.vbox-game-host) .g-mask:hover'
@@ -1187,6 +1219,7 @@ function handleDonWatch(data) {
         citizen.parentElement.querySelector('span.video-lock').setAttribute('data-role', 'citizen')
     })
     hidePlaceholders()
+    showHostVideo()
     videoElems = document.querySelectorAll(
         'div.videobox[data-slot]:not(.vbox-game-host) .g-mask,' +
         'div.videobox[data-slot]:not(.vbox-game-host) .g-mask:hover'
@@ -1215,6 +1248,7 @@ function handleDonCheck(data) {
         citizen.parentElement.querySelector('span.video-lock').setAttribute('data-role', 'citizen')
     })
     hidePlaceholders()
+    showHostVideo()
     videoElems = document.querySelectorAll(
         'div.videobox[data-slot]:not(.vbox-game-host) .g-mask,' +
         'div.videobox[data-slot]:not(.vbox-game-host) .g-mask:hover'
@@ -1241,6 +1275,7 @@ function handleSheriffWatch(data) {
         citizen.parentElement.querySelector('span.video-lock').setAttribute('data-role', 'citizen')
     })
     hidePlaceholders()
+    showHostVideo()
     videoElems = document.querySelectorAll(
         'div.videobox[data-slot]:not(.vbox-game-host) .g-mask,' +
         'div.videobox[data-slot]:not(.vbox-game-host) .g-mask:hover'
@@ -1267,6 +1302,7 @@ function handleSheriffCheck(data) {
         citizen.parentElement.querySelector('span.video-lock').setAttribute('data-role', 'citizen')
     })
     hidePlaceholders()
+    showHostVideo()
     videoElems = document.querySelectorAll(
         'div.videobox[data-slot]:not(.vbox-game-host) .g-mask,' +
         'div.videobox[data-slot]:not(.vbox-game-host) .g-mask:hover'
@@ -1333,7 +1369,7 @@ function handleShoutOut(data) {
         vBox.classList.remove('shout-out')
         eBar.classList.remove('shout-out')
 
-    }, 3000)
+    }, 5000)
 }
 
 function handleSetPlayerName(data) {
@@ -1368,7 +1404,7 @@ function handleNominate(data) {
             vBox.classList.remove('nominated')
             eBar.classList.remove('nominated')
 
-        }, 3000)
+        }, 5000)
     }
 }
 
@@ -1454,7 +1490,7 @@ function handleVotingRound(data) {
             slotCandidate.classList.remove('active')
             slotCandidate.removeEventListener('keydown', handleKeyDown);
             playerButtonDisable()
-        }, 3000)
+        }, 5000)
     }
 }
 
@@ -1467,7 +1503,7 @@ function handleLockWinnersVote(data) {
 
         setTimeout(() => {
             playerButtonDisable()
-        }, 3000)
+        }, 5000)
     }
 }
 
@@ -1573,6 +1609,114 @@ function handleVotingRoundResult(data) {
 
     // fly(fromSlot, toSlot)
 }
+
+/* media source settings */
+let videoSelect, audioSelect;
+
+
+
+// function getStream() {
+//     if (window.localStorage) {
+//         const videoSource = localStorage.getItem('selectedVideoSource');
+//         const audioSource = localStorage.getItem('selectedAudioSource');
+//
+//         const constraints = {
+//             video: { deviceId: videoSource ? { exact: videoSource } : undefined },
+//             audio: { deviceId: audioSource ? { exact: audioSource } : undefined }
+//         };
+//
+//         navigator.mediaDevices.getUserMedia(constraints)
+//             .then(stream => {
+//                 localStream = stream;
+//                 localVideo.srcObject = stream;
+//                 startSignaling();
+//             })
+//             .catch(error => {
+//                 console.error('Error accessing media devices:', error);
+//             });
+//     }
+// }
+
+/* TEST VIDEO SOURCE
+// document.getElementById('startButton').addEventListener('click', () => {
+//     localStorage.setItem('selectedVideoSource', videoSelect.value);
+//     localStorage.setItem('selectedAudioSource', audioSelect.value);
+//     // getStream();
+//     location.reload()
+//
+// });
+*/
+
+// document.getElementById('startButton').addEventListener('click', async () => {
+async function saveMediaSettings() {
+    const videoSource = videoSelect.value;
+    const audioSource = audioSelect.value;
+
+    localStorage.setItem('selectedVideoSource', videoSource);
+    localStorage.setItem('selectedAudioSource', audioSource);
+
+    // Get the new stream with updated video and audio sources
+    const newStream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: videoSource } },
+        audio: { deviceId: { exact: audioSource } }
+    });
+
+    // Replace the tracks in the existing localStream with the new tracks
+    const videoTrack = newStream.getVideoTracks()[0];
+    const audioTrack = newStream.getAudioTracks()[0];
+
+    // Get the existing video and audio tracks from the localStream
+    const existingVideoTrack = localStream.getVideoTracks()[0];
+    const existingAudioTrack = localStream.getAudioTracks()[0];
+
+    // Replace the existing tracks with the new tracks
+    localStream.removeTrack(existingVideoTrack);
+    localStream.removeTrack(existingAudioTrack);
+    localStream.addTrack(videoTrack);
+    localStream.addTrack(audioTrack);
+
+    // Update the video element with the new stream
+    localVideo.srcObject = localStream;
+    localVideo.play().catch(error => {
+        console.error('Error attempting to play the video:', error);
+        // You might want to inform the user that they need to manually start the video
+    });
+
+    // Send the new tracks to the peers
+    for (const [uid, peerConnection] of Object.entries(peerConnections)) {
+        const senderVideo = peerConnection.getSenders().find(s => s.track.kind === videoTrack.kind);
+        const senderAudio = peerConnection.getSenders().find(s => s.track.kind === audioTrack.kind);
+
+        senderVideo.replaceTrack(videoTrack);
+        senderAudio.replaceTrack(audioTrack);
+    }
+    document.querySelector('div#mediaSourcePopup').classList.remove('show')
+};
+
+function closeMediaSettings() {
+    document.querySelector('div#mediaSourcePopup').classList.remove('show')
+}
+document.addEventListener('DOMContentLoaded', () => {
+    videoSelect = document.querySelector('select#videoSource');
+    audioSelect = document.querySelector('select#audioSource');
+    //
+    // getStream();
+
+    navigator.mediaDevices.enumerateDevices()
+        .then(devices => {
+            devices.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                if (device.kind === 'videoinput') {
+                    option.text = device.label || `Camera ${videoSelect.length + 1}`;
+                    videoSelect.appendChild(option);
+                } else if (device.kind === 'audioinput') {
+                    option.text = device.label || `Microphone ${audioSelect.length + 1}`;
+                    audioSelect.appendChild(option);
+                }
+            });
+        });
+});
 
 
 
