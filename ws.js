@@ -3,6 +3,7 @@ const https = require('https');
 const fs = require('fs');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
+const config = require('./config');
 
 const app = express();
 app.use(cookieParser());
@@ -15,8 +16,8 @@ app.use(session({
 // Load SSL certificate and private key
 // const privateKey = fs.readFileSync('video-key.pem', 'utf8');
 // const certificate = fs.readFileSync('video-cert.pem', 'utf8');
-const privateKey = fs.readFileSync('video.ttl10.key.pem', 'utf8');
-const certificate = fs.readFileSync('video.ttl10.cert.pem', 'utf8');
+const privateKey = fs.readFileSync(config.ssl_key, 'utf8');
+const certificate = fs.readFileSync(config.ssl_cert, 'utf8');
 const credentials = { key: privateKey, cert: certificate };
 
 const server = https.createServer(credentials, app);
@@ -48,7 +49,7 @@ wss.on('connection', ws => {
 });
 
 
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || config.ws_port;
 server.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });

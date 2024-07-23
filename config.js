@@ -1,10 +1,13 @@
 // config.js
 module.exports = {
-    port: 3080,
-    wssURL: "wss://video.ttl10.net:3000",
-    appFolder: "/var/www/html/",
-    roomsFolder: "/var/www/html/rooms",
-    sessionsFolder: "/var/www/html/sessions/ws/",
-    chatHost: "https://video.ttl10.net/",
-    secret: 'mGpFoUnYpRylxBNziSzK2tVx'
+    port: 3087,
+    ws_port: 3007,
+    wssURL: "wss://mao-dao.com:3007",
+    appFolder: "/var/www/mao-dao/",
+    roomsFolder: "/var/www/mao-dao/rooms",
+    sessionsFolder: "/var/www/mao-dao/sessions/ws/",
+    chatHost: "https://mao-dao.com/",
+    secret: 'mGpFoUnYpRylxBNziSzK2tVx',
+    ssl_key: '/var/www/mao-dao/keys/key.pem',
+    ssl_cert: '/var/www/mao-dao/keys/cert.pem'
 };
