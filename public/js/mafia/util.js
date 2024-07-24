@@ -950,7 +950,7 @@ function handleGameOver(data) {
     sfx.gameOver.play();
     handleGamePhase({phase: 'game-over'});
     stopCountdown()
-    gameMessage('Game OVer')
+    gameMessage('Game Over')
 
     roleSpan = document.querySelector('div.game-deck span.game-role')
 
