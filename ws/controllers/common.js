@@ -93,25 +93,52 @@ function updateSession(sessionID, sess) {
 async function broadcastRoom(roomID, message, ws = null) {
     let room = await getRoom(roomID);
     if (room !== undefined) {
-        // if (ws === null || room.host.uid !== ws.uid) {
-        //     hostConn = clients[room.host.uid];
-        //     if (hostConn !== undefined) {
-        //         hostConn.send((message));
-        //     }
-        // }
-
+        const sendPromises = [];
         for (const uid in room.users) {
             if (ws === null || uid !==  ws.uid) {
                 userConn = clients[ uid ];
                 if (userConn !== undefined) {
-                    userConn.send(message);
+                    sendPromises.push(await userConn.send(message));
                 } else {
-                    console.log("Can't connect to ", uid)
+                    //console.log("Can't connect to ", uid)
                 }
             }
         }
+        await Promise.all(sendPromises);
+    }
+    // return room
+};
+
+async function host(roomID, message, log = true) {
+    let room = await getRoom(roomID);
+    if (room.gameHost.uid !== undefined) {
+        hostWS = clients[ room.gameHost.uid ];
+        if (hostWS !== undefined) {
+            if (log) {
+                room.log.push(message)
+                room = await updateRoom(roomID, room);
+            }
+            await hostWS.send(message);
+        }
     }
     return room
+};
+
+function onlyHost(handler) {
+    return async (ws, data) => {
+        try {
+            const ROOM_ID = ws.roomID;
+            const room = await getRoom(ROOM_ID);
+            if (ws.uid !== room.gameHost.uid) {
+                console.log('Attempt to execute action when not a host!', ws.uid, ROOM_ID);
+                throw new Error('Not a host');
+            }
+            await handler(ws, data, ROOM_ID, room);
+        } catch (error) {
+            // Handle the error (e.g., notify the user or log the attempt)
+            console.error(error.message);
+        }
+    };
 }
 
 async function checkUserConnection(ws, data) {
@@ -160,6 +187,8 @@ module.exports = {
     getSession,
     updateSession,
     broadcastRoom,
+    host,
+    onlyHost,
     checkUserConnection,
     sleep,
     globalContext,

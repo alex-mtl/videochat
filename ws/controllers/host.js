@@ -1,11 +1,22 @@
+const {getRoom,
+    updateRoom,
+    createSession,
+    getSession,
+    updateSession,
+    broadcastRoom,
+    host,
+    checkUserConnection,
+    sleep, onlyHost
+} = require("./common");
 
 async function showRoles(ws, data) {
-    let room = await getRoom(ws.roomID);
+    const ROOM_ID = ws.roomID
+    let room = await getRoom(ROOM_ID);
     if (ws.uid !== room.gameHost.uid) {
         console.log('Attempt to get player roles when not a host!', ws.uid, ws.roomID)
         return
     } else {
-        ws.send(JSON.stringify({type: 'game-roles', players: room.slot, phase: room.game.phase }));
+        await host(ROOM_ID, JSON.stringify({type: 'game-roles', players: room.slot, phase: room.game.phase }));
     }
 }
 
@@ -15,16 +26,17 @@ async function teamWins(ws, data) {
         console.log('Attempt to get player roles when not a host!', ws.uid, ws.roomID)
         return
     } else {
-        broadcastRoom(ws.roomID, JSON.stringify({type: 'game-over', players: room.slot, team: data.team }));
+        await broadcastRoom(ws.roomID, JSON.stringify({type: 'game-over', players: room.slot, team: data.team }));
     }
 }
 
 async function startSitdown(ws, data) {
-    let room = await getRoom(ws.roomID);
+    const ROOM_ID = ws.roomID
+    let room = await getRoom(ROOM_ID);
 
 
     if (ws.uid !== room.gameHost.uid) {
-        console.log('Attempt to start game when not a host!', ws.uid, ws.roomID)
+        console.log('Attempt to start game when not a host!', ws.uid, ROOM_ID)
         return
     } else {
         const mafTeam = Object.fromEntries(
@@ -32,16 +44,19 @@ async function startSitdown(ws, data) {
                 .filter(([key, value]) => ['B', 'D'].includes(value.role))
         );
         console.log(mafTeam)
-        ws.send(JSON.stringify({type: 'sitdown-started', team: mafTeam}));
-        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'sitdown' }));
+        room.game.phase = 'night';
+        room.game.stage = "night-sitdown"
+        room = await updateRoom(ROOM_ID, room)
+        await host(ROOM_ID, JSON.stringify({type: 'sitdown-started', team: mafTeam}));
+        await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'sitdown' }));
         await sleep(300);
         for (const [slot, player] of Object.entries(mafTeam)) {
             if (player.uid !== 'empty') {
                 user = clients[player.uid]
                 if (user !== undefined) {
-                    user.send(JSON.stringify({type: 'mafia-sitdown', team: mafTeam}));
+                    await user.send(JSON.stringify({type: 'mafia-sitdown', team: mafTeam}));
                 } else {
-                    ws.send(JSON.stringify({type: 'player-not-ready', slot: slot}));
+                    await host(ROOM_ID, JSON.stringify({type: 'player-not-ready', slot: slot}));
                     return
                 }
             }
@@ -50,10 +65,11 @@ async function startSitdown(ws, data) {
 }
 
 async function startShooting(ws, data) {
-    let room = await getRoom(ws.roomID);
+    const ROOM_ID = ws.roomID
+    let room = await getRoom(ROOM_ID);
 
     if (ws.uid !== room.gameHost.uid) {
-        console.log('Attempt to start shooting when not a host!', ws.uid, ws.roomID)
+        console.log('Attempt to start shooting when not a host!', ws.uid, ROOM_ID)
         return
     } else {
         const mafTeam = Object.fromEntries(
@@ -69,17 +85,18 @@ async function startShooting(ws, data) {
         console.log(shootingTemplate)
 
         room.game.days["D"+room.game.day]['shoot'] = shootingTemplate
+        room.game.stage = "night-shooting"
         room = await updateRoom(ws.roomID, room)
-        ws.send(JSON.stringify({type: 'shooting-started', team: mafTeam}));
-        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'shooting' }));
+        await host(ROOM_ID, JSON.stringify({type: 'shooting-started', team: mafTeam}));
+        await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'shooting' }));
         await sleep(300);
         for (const [slot, player] of Object.entries(mafTeam)) {
             if (player.uid !== 'empty') {
                 user = clients[player.uid]
                 if (user !== undefined) {
-                    user.send(JSON.stringify({type: 'mafia-shooting', team: mafTeam}));
+                    await user.send(JSON.stringify({type: 'mafia-shooting', team: mafTeam}));
                 } else {
-                    ws.send(JSON.stringify({type: 'player-not-ready', slot: slot}));
+                    await host(ROOM_ID, JSON.stringify({type: 'player-not-ready', slot: slot}));
                     return
                 }
             }
@@ -99,13 +116,11 @@ async function startShooting(ws, data) {
                     }
                 } else {
                     missed = true
-                    broadcastRoom(ws.roomID, JSON.stringify({
+                    await broadcastRoom(ws.roomID, JSON.stringify({
                         type: 'player-shoot'
                     }));
-                    let hostWS = clients[room.gameHost.uid]
-                    if (hostWS !== undefined) {
-                        hostWS.send(JSON.stringify({ type: 'mafia-shoot', mafia: maf, victim: 0 }));
-                    }
+                    await host(ROOM_ID, JSON.stringify({ type: 'mafia-shoot', mafia: maf, victim: 0 }));
+                    
                     await sleep(200);
                 }
             }
@@ -115,14 +130,15 @@ async function startShooting(ws, data) {
 
             room = await updateRoom(ws.roomID, room)
 
-            ws.send(JSON.stringify({type: 'shooting-is-over'}));
+            await host(ROOM_ID, JSON.stringify({type: 'shooting-is-over'}));
 
         }, 3500)
     }
 }
 
 async function donWatch(ws, data) {
-    let room = await getRoom(ws.roomID);
+    const ROOM_ID = ws.roomID
+    let room = await getRoom(ROOM_ID);
     if (ws.uid !== room.gameHost.uid) {
         console.log('Attempt to start game when not a host!', ws.uid, ws.roomID)
         return
@@ -131,15 +147,15 @@ async function donWatch(ws, data) {
             Object.entries(room.slot)
                 .filter(([key, value]) => ['B', 'D'].includes(value.role))
         );
-        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'don-watch' }));
+        await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'don-watch' }));
         await sleep(300);
         for (const [slot, player] of Object.entries(mafTeam)) {
             if (player.uid !== 'empty' && player.role === 'D') {
                 user = clients[player.uid]
                 if (user !== undefined) {
-                    user.send(JSON.stringify({type: 'don-watch', team: mafTeam}));
+                    await user.send(JSON.stringify({type: 'don-watch', team: mafTeam}));
                 } else {
-                    ws.send(JSON.stringify({type: 'player-not-ready', slot: slot}));
+                    await host(ROOM_ID, JSON.stringify({type: 'player-not-ready', slot: slot}));
                     return
                 }
             }
@@ -148,9 +164,10 @@ async function donWatch(ws, data) {
 }
 
 async function startDonCheck(ws, data) {
-    let room = await getRoom(ws.roomID);
+    const ROOM_ID = ws.roomID
+    let room = await getRoom(ROOM_ID);
     if (ws.uid !== room.gameHost.uid) {
-        console.log('Attempt to start don check when not a host!', ws.uid, ws.roomID)
+        console.log('Attempt to start don check when not a host!', ws.uid, ROOM_ID)
         return
     } else {
         const donTeam = Object.fromEntries(
@@ -166,7 +183,7 @@ async function startDonCheck(ws, data) {
                 break
             }
         }
-        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'don-check' }));
+        await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'don-check' }));
         await sleep(300);
         console.log(364, donSlot)
         if (donSlot>0) {
@@ -176,9 +193,9 @@ async function startDonCheck(ws, data) {
                 user = clients[player.uid]
                 if (user !== undefined) {
                     console.log(370, donSlot, donTeam)
-                    user.send(JSON.stringify({type: 'don-check', team: donTeam}));
+                    await user.send(JSON.stringify({type: 'don-check', team: donTeam}));
                 } else {
-                    ws.send(JSON.stringify({type: 'don-not-ready', slot: slot}));
+                    await host(ROOM_ID, JSON.stringify({type: 'don-not-ready', slot: slot}));
                     return
                 }
             }
@@ -188,13 +205,14 @@ async function startDonCheck(ws, data) {
     }
 }
 async function startSheriffCheck(ws, data) {
-    let room = await getRoom(ws.roomID);
+    const ROOM_ID = ws.roomID
+    let room = await getRoom(ROOM_ID);
     if (ws.uid !== room.gameHost.uid) {
-        console.log('Attempt to start sheriff check when not a host!', ws.uid, ws.roomID)
+        console.log('Attempt to start sheriff check when not a host!', ws.uid, ROOM_ID)
         return
     } else {
 
-        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'sheriff-check' }));
+        await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'sheriff-check' }));
         await sleep(300);
         for (const [slot, player] of Object.entries(room.slot)) {
             if ((player.status === 'alive')
@@ -204,9 +222,9 @@ async function startSheriffCheck(ws, data) {
                     user = clients[player.uid]
                     if (user !== undefined) {
                         sheriffTeam = { [slot]: player };
-                        user.send(JSON.stringify({type: 'sheriff-check', team: sheriffTeam }));
+                        await user.send(JSON.stringify({type: 'sheriff-check', team: sheriffTeam }));
                     } else {
-                        ws.send(JSON.stringify({type: 'sheriff-not-ready', slot: slot}));
+                        await host(ROOM_ID, JSON.stringify({type: 'sheriff-not-ready', slot: slot}));
                         return
                     }
                     break
@@ -217,24 +235,25 @@ async function startSheriffCheck(ws, data) {
 }
 
 async function sheriffWatch(ws, data) {
-    let room = await getRoom(ws.roomID);
+    const ROOM_ID = ws.roomID
+    let room = await getRoom(ROOM_ID);
     if (ws.uid !== room.gameHost.uid) {
-        console.log('Attempt to start game when not a host!', ws.uid, ws.roomID)
+        console.log('Attempt to start game when not a host!', ws.uid, ROOM_ID)
         return
     } else {
         const sheriff = Object.fromEntries(
             Object.entries(room.slot)
                 .filter(([key, value]) => ['S'].includes(value.role))
         );
-        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'sheriff-watch' }));
+        await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-phase', phase: 'sheriff-watch' }));
         await sleep(300);
         for (const [slot, player] of Object.entries(sheriff)) {
             if (player.uid !== 'empty' && player.role === 'S') {
                 user = clients[player.uid]
                 if (user !== undefined) {
-                    user.send(JSON.stringify({type: 'sheriff-watch', team: sheriff}));
+                    await user.send(JSON.stringify({type: 'sheriff-watch', team: sheriff}));
                 } else {
-                    ws.send(JSON.stringify({type: 'sheriff-not-ready', slot: slot}));
+                    await host(ROOM_ID, JSON.stringify({type: 'sheriff-not-ready', slot: slot}));
                     return
                 }
             }
@@ -243,30 +262,32 @@ async function sheriffWatch(ws, data) {
 }
 
 async function startDayOne(ws, data) {
-    let room = await getRoom(ws.roomID);
+    const ROOM_ID = ws.roomID
+    let room = await getRoom(ROOM_ID);
     if (ws.uid !== room.gameHost.uid) {
-        console.log('Attempt to start game when not a host!', ws.uid, ws.roomID)
+        console.log('Attempt to start game when not a host!', ws.uid, ROOM_ID)
         return
     } else {
         room.game.phase = 'day'
         room.game.lastSlot = 0
         room.game.day = 1
         room.game.days = {}
-        room.game.days["D1"] = { nominees: [], rounds: [], shooters: [], victims: {} }
+        room.game.days["D1"] = { nominees: [], rounds: [], shooters: [], victims: [] }
         room.game.speakers = []
         for (const [slot, player] of Object.entries(room.slot)) {
             player.status = 'alive'
-            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'player-alive', slot: slot, status: 'alive' }));
+            await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'player-alive', slot: slot, status: 'alive' }));
         }
-        room = await updateRoom(ws.roomID, room)
-        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: room.game.phase, day: room.game.day }));
+        room = await updateRoom(ROOM_ID, room)
+        await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-phase', phase: room.game.phase, day: room.game.day }));
     }
 }
 
 async function startDay(ws, data) {
-    let room = await getRoom(ws.roomID);
+    const ROOM_ID = ws.roomID
+    let room = await getRoom(ROOM_ID);
     if (ws.uid !== room.gameHost.uid) {
-        console.log('Attempt to start game when not a host!', ws.uid, ws.roomID)
+        console.log('Attempt to start game when not a host!', ws.uid, ROOM_ID)
         return
     } else {
         let victim = room.game.days["D"+room.game.day].victim
@@ -276,84 +297,71 @@ async function startDay(ws, data) {
 
         room.game.lastSlot = 0
         room.game.day = (room.game.day + 1)
-        room.game.days["D"+room.game.day] = { nominees: [], rounds: [], shooters: [], victims: {} }
+        room.game.days["D"+room.game.day] = { nominees: [], rounds: [], shooters: [], victims: []  }
         room.game.speakers = []
 
-        room = await updateRoom(ws.roomID, room)
-        room = await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: room.game.phase, day: room.game.day }));
+        room = await updateRoom(ROOM_ID, room)
+        room = await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-phase', phase: room.game.phase, day: room.game.day }));
         if ((victim !== undefined) && (victim !== 'none')) {
-            let hostWS = clients[room.gameHost.uid]
-            if (hostWS !== undefined) {
-                hostWS.send(JSON.stringify({ type: 'last-speech-killed', victim: victim, action: 'killed' }));
-            }
+            await host(ROOM_ID, JSON.stringify({ type: 'last-speech-killed', victim: victim, action: 'killed' }));
         }
     }
 }
 
-async function startNight(ws, data) {
-    let room = await getRoom(ws.roomID);
-    if (ws.uid !== room.gameHost.uid) {
-        console.log('Attempt to start night when not a host!', ws.uid, ws.roomID)
-        return
-    } else {
-        room.game.phase = 'night'
-        for (const [slot, player] of Object.entries(room.slot)) {
-            if ((player.mic === 'on') &&  (player.uid !== 'empty')) {
-                let user = clients[player.uid]
-                if (user !== undefined) {
-                    user.send(JSON.stringify({ type: 'mute-mic' }));
-                }
+const startNight = onlyHost(async (ws, data, ROOM_ID, room) => {
+    room.game.phase = 'night'
+    room.game.stage = ""
+    for (const [slot, player] of Object.entries(room.slot)) {
+        if ((player.mic === 'on') &&  (player.uid !== 'empty')) {
+            let user = clients[player.uid]
+            if (user !== undefined) {
+                await user.send(JSON.stringify({ type: 'mute-mic' }));
             }
-            // await sleep(300)
         }
-        room = await updateRoom(ws.roomID, room)
-        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: room.game.phase, night: room.game.day }));
+        // await sleep(300)
     }
-}
+    room = await updateRoom(ROOM_ID, room)
+    await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-phase', phase: room.game.phase, night: room.game.day }));
+
+})
+
 
 // nex voting round preparation
-async function startVoting(ws, data) {
-    let room = await getRoom(ws.roomID);
-    if (ws.uid !== room.gameHost.uid) {
-        console.log('Attempt to start voting when not a host!', ws.uid, ws.roomID)
-        return
+const startVoting = onlyHost(async (ws, data, ROOM_ID, room) => {
+// async function startVoting(ws, data) {
+
+    let curDay = "D"+room.game.day
+    let curRound = room.game.days[curDay].rounds.length
+    let nominees = []
+    if (curRound === 0 ) {
+        nominees =  room.game.days[curDay].nominees
     } else {
-        let curDay = "D"+room.game.day
-        let curRound = room.game.days[curDay].rounds.length
-        let nominees = []
-        if (curRound === 0 ) {
-            nominees =  room.game.days[curDay].nominees
-        } else {
-            nominees =  room.game.days[curDay].rounds[curRound-1].winners
-        }
-
-        if ((nominees.length === 0)
-            || (nominees.length === 1 && curDay==="D1")
-        ) {
-            ws.send(JSON.stringify({ type: 'ready-to-night' }));
-        } else {
-            let round = {
-                nominees: nominees,
-                next: 0,
-                voted: []
-            }
-            room.game.days[curDay].rounds.push(round)
-            roomState = await updateRoom(ws.roomID, room)
-            console.log("WS 354", roomState.game.days[curDay].rounds)
-            nominees =  roomState.game.days[curDay].rounds[curRound].nominees
-            broadcastRoom(ws.roomID, JSON.stringify({ type: 'start-voting', nominees: nominees }));
-            ws.send(JSON.stringify({ type: 'voting-round-ready', round: 0, candidate: nominees[0] }));
-        }
-
+        nominees =  room.game.days[curDay].rounds[curRound-1].winners
     }
-}
 
-async function startVotingRound(ws, data) {
-    let room = await getRoom(ws.roomID);
-    if (ws.uid !== room.gameHost.uid) {
-        console.log('Attempt to start voting round when not a host!', ws.uid, ws.roomID)
-        return
+    if ((nominees.length === 0)
+        || (nominees.length === 1 && curDay==="D1")
+    ) {
+        await host(ROOM_ID, JSON.stringify({ type: 'ready-to-night' }));
     } else {
+        let round = {
+            nominees: nominees,
+            next: 0,
+            voted: []
+        }
+        room.game.days[curDay].rounds.push(round)
+        room.game.stage = "voting"
+        roomState = await updateRoom(ROOM_ID, room)
+        console.log("WS 354", roomState.game.days[curDay].rounds)
+        nominees =  roomState.game.days[curDay].rounds[curRound].nominees
+        await broadcastRoom(ROOM_ID, JSON.stringify({ type: 'start-voting', nominees: nominees }));
+        await host(ROOM_ID, JSON.stringify({ type: 'voting-round-ready', round: 0, candidate: nominees[0] }));
+    }
+})
+
+const startVotingRound = onlyHost(async (ws, data, ROOM_ID, room) => {
+// async function startVotingRound(ws, data) {
+
         let curDay = "D"+room.game.day
         let rounds =  room.game.days[curDay].rounds
         let roundN = Object.keys(rounds).length - 1
@@ -369,7 +377,7 @@ async function startVotingRound(ws, data) {
                 ) {
                     votes.push(slot)
                     curRound.voted.push(slot)
-                    broadcastRoom(ws.roomID, JSON.stringify({
+                    await broadcastRoom(ROOM_ID, JSON.stringify({
                         type: 'player-vote',
                         player: slot,
                         candidate: candidateSlot
@@ -381,9 +389,9 @@ async function startVotingRound(ws, data) {
                 slot: candidateSlot,
                 votes: votes
             }
-            room = await updateRoom(ws.roomID, room)
+            room = await updateRoom(ROOM_ID, room)
 
-            broadcastRoom(ws.roomID, JSON.stringify({
+            await broadcastRoom(ws.roomID, JSON.stringify({
                 type: 'voting-round-result',
                 round: (roundN + 1),
                 candidate: candidateSlot,
@@ -409,11 +417,11 @@ async function startVotingRound(ws, data) {
                 }
             };
             room.game.days[curDay].rounds[roundN] = curRound
-            room = await updateRoom(ws.roomID, room)
+            room = await updateRoom(ROOM_ID, room)
             curRound = room.game.days[curDay].rounds[roundN]
             if (curRound.winners.length === 1) {
                 // one player has been voted out
-                ws.send(JSON.stringify({ type: 'last-speech-voted', candidate: curRound.winners[0], action: 'voted' }));
+                await host(ROOM_ID, JSON.stringify({ type: 'last-speech-voted', candidate: curRound.winners[0], action: 'voted' }));
             } else {
                 if (
                     (roundN === 0) ||
@@ -422,11 +430,11 @@ async function startVotingRound(ws, data) {
                 ) {
                     curRound.split = []
                     room.game.days[curDay].rounds[roundN] = curRound
-                    room = await updateRoom(ws.roomID, room)
+                    room = await updateRoom(ROOM_ID, room)
                     curRound = room.game.days[curDay].rounds[roundN]
-                    ws.send(JSON.stringify({ type: 'split-speech', winners: curRound.winners, split: curRound.split }));
+                    await host(ROOM_ID, JSON.stringify({ type: 'split-speech', winners: curRound.winners, split: curRound.split }));
                 } else {
-                    ws.send(JSON.stringify({ type: 'lock-all-winners', winners: curRound.winners, split: curRound.split }));
+                    await host(ROOM_ID, JSON.stringify({ type: 'lock-all-winners', winners: curRound.winners, split: curRound.split }));
                 }
             }
         } else {
@@ -440,7 +448,7 @@ async function startVotingRound(ws, data) {
 
 
             room = await updateRoom(ws.roomID, room)
-            broadcastRoom(ws.roomID, JSON.stringify({
+            await broadcastRoom(ws.roomID, JSON.stringify({
                 type: 'voting-round',
                 round: (roundN+1),
                 candidate: candidateSlot
@@ -453,7 +461,7 @@ async function startVotingRound(ws, data) {
                 // console.log('WS 398', curRound, ' | ', room.game.days[curDay].rounds)
                 nextCandidate = room.game.days[curDay].rounds[roundN].nominees[room.game.days[curDay].rounds[roundN].next]
                 if (nextCandidate !== undefined) {
-                    broadcastRoom(ws.roomID, JSON.stringify({
+                    await broadcastRoom(ws.roomID, JSON.stringify({
                         type: 'voting-round-result',
                         round: (roundN + 1),
                         candidate: candidateSlot,
@@ -461,14 +469,14 @@ async function startVotingRound(ws, data) {
                     }));
                     nextCandidate = room.game.days[curDay].rounds[roundN].nominees[room.game.days[curDay].rounds[roundN].next]
                     if (nextCandidate !== undefined) {
-                        ws.send(JSON.stringify({
+                        await host(ROOM_ID, JSON.stringify({
                             type: 'voting-round-ready',
                             round: roundN,
                             candidate: nextCandidate
                         }));
                     }
                 } else {
-                    broadcastRoom(ws.roomID, JSON.stringify({
+                    await broadcastRoom(ws.roomID, JSON.stringify({
                         type: 'voting-round-result',
                         round: (roundN + 1),
                         candidate: candidateSlot,
@@ -480,15 +488,11 @@ async function startVotingRound(ws, data) {
         }
 
 
-    }
-}
 
-async function lockWinners(ws, data) {
-    let room = await getRoom(ws.roomID);
-    if (ws.uid !== room.gameHost.uid) {
-        console.log('Attempt to start voting round when not a host!', ws.uid, ws.roomID)
-        return
-    } else {
+})
+
+const lockWinners = onlyHost(async (ws, data, ROOM_ID, room) => {
+// async function lockWinners(ws, data) {
 
         let curDay = "D"+room.game.day
         let rounds =  room.game.days[curDay].rounds
@@ -501,15 +505,15 @@ async function lockWinners(ws, data) {
                 votes: []
             }
             room.game.days[curDay].rounds[roundN] = curRound
-            room = await updateRoom(ws.roomID, room)
-            broadcastRoom(ws.roomID, JSON.stringify({
+            room = await updateRoom(ROOM_ID, room)
+            await broadcastRoom(ROOM_ID, JSON.stringify({
                 type: 'lock-winners-vote',
                 winners: curRound.winners
             }));
             setTimeout(async () => {
-                room = await getRoom(ws.roomID);
+                room = await getRoom(ROOM_ID);
                 room.game.days[curDay].rounds[roundN]['lock-winners'].state = 'END'
-                room = await updateRoom(ws.roomID, room)
+                room = await updateRoom(ROOM_ID, room)
                 curRound = room.game.days[curDay].rounds[roundN]
                 alivePlayers = 0
                 for (const [slot, player] of Object.entries(room.slot)) {
@@ -519,24 +523,18 @@ async function lockWinners(ws, data) {
                 }
                 lockBoth = (curRound['lock-winners'].votes.length > (alivePlayers/2))
                 if (lockBoth) {
-                    ws.send(JSON.stringify({ type: 'last-speech-voted', candidate: curRound.winners[0], action: 'voted' }));
+                    await host(ROOM_ID, JSON.stringify({ type: 'last-speech-voted', candidate: curRound.winners[0], action: 'voted' }));
 
                 } else {
-                    ws.send(JSON.stringify({ type: 'ready-to-night' }));
+                    await host(ROOM_ID, JSON.stringify({ type: 'ready-to-night' }));
                 }
 
             }, 5000)
+})
 
+const nextSpeaker = onlyHost(async (ws, data, ROOM_ID, room) => {
+// async function nextSpeaker(ws, data) {
 
-    }
-}
-
-async function nextSpeaker(ws, data) {
-    let room = await getRoom(ws.roomID);
-    if (ws.uid !== room.gameHost.uid) {
-        console.log('Attempt to act as host ('+room.gameHost.uid+') when not a host!', ws.uid, ws.roomID)
-        return
-    } else {
         let activeSpeaker = 0;
         let lastAlive = 0;
         let curDay = "D"+room.game.day
@@ -557,7 +555,7 @@ async function nextSpeaker(ws, data) {
                     if ((player.mic === 'off') &&  (player.uid !== 'empty')) {
                         let user = clients[player.uid]
                         if (user !== undefined) {
-                            user.send(JSON.stringify({ type: 'unmute-mic' }));
+                            await user.send(JSON.stringify({ type: 'unmute-mic' }));
                         }
                     }
                     // console.log('slot', slot, 'player.status', player.status, 'room.game.day', room.game.day, 'room.game.lastSlot', room.game.lastSlot, 'room.game.speakers', room.game.speakers)
@@ -573,7 +571,7 @@ async function nextSpeaker(ws, data) {
                     if ((player.mic === 'on') &&  (player.uid !== 'empty')) {
                         let user = clients[player.uid]
                         if (user !== undefined) {
-                            user.send(JSON.stringify({ type: 'mute-mic' }));
+                            await user.send(JSON.stringify({ type: 'mute-mic' }));
                         }
                     }
                 }
@@ -600,7 +598,7 @@ async function nextSpeaker(ws, data) {
                         if ((player.mic === 'off') &&  (player.uid !== 'empty')) {
                             let user = clients[player.uid]
                             if (user !== undefined) {
-                                user.send(JSON.stringify({ type: 'unmute-mic' }));
+                                await user.send(JSON.stringify({ type: 'unmute-mic' }));
                             }
                         }
 
@@ -610,7 +608,7 @@ async function nextSpeaker(ws, data) {
                             if ((player.mic === 'on') &&  (player.uid !== 'empty')) {
                                 let user = clients[player.uid]
                                 if (user !== undefined) {
-                                    user.send(JSON.stringify({ type: 'mute-mic' }));
+                                    await user.send(JSON.stringify({ type: 'mute-mic' }));
                                 }
                             }
                             if (!room.game.speakers.includes(slot)) {
@@ -626,24 +624,29 @@ async function nextSpeaker(ws, data) {
 
         if (activeSpeaker > 0) {
             room.game.days[curDay].currentSpeaker = activeSpeaker
-            room = await updateRoom(ws.roomID, room)
-            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'active-speaker', slot: room.game.days[curDay].currentSpeaker, duration: 60 }));
+            room = await updateRoom(ROOM_ID, room)
+            await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'active-speaker', slot: room.game.days[curDay].currentSpeaker, duration: 60 }));
         } else {
             for (const [slot, player] of Object.entries(room.slot)) {
                 if ((player.mic === 'on') &&  (player.uid !== 'empty')) {
                     let user = clients[player.uid]
                     if (user !== undefined) {
-                        user.send(JSON.stringify({ type: 'mute-mic' }));
+                        await user.send(JSON.stringify({ type: 'mute-mic' }));
                     }
                 }
             }
-            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'active-speaker', slot: 0, duration: 0 }));
-            let nominees =  room.game.days[curDay].nominees
-            ws.send(JSON.stringify({ type: 'ready-to-vote', nominees: nominees }));
-        }
+            await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'active-speaker', slot: 0, duration: 0 }));
 
-    }
-}
+
+            if (room.game.days[curDay].victims.length === 0) {
+                let nominees =  room.game.days[curDay].nominees
+                await host(ROOM_ID, JSON.stringify({ type: 'ready-to-vote', nominees: nominees }));
+            } else {
+                await host(ROOM_ID, JSON.stringify({ type: 'ready-to-night' }));
+            }
+
+        }
+})
 
 async function lastSpeech(ws, data) {
     let room = await getRoom(ws.roomID);
@@ -659,7 +662,7 @@ async function lastSpeech(ws, data) {
                 ) {
                     let user = clients[player.uid]
                     if (user !== undefined) {
-                        user.send(JSON.stringify({ type: 'mute-mic' }));
+                        await user.send(JSON.stringify({ type: 'mute-mic' }));
                     }
                 } else if ((player.mic === 'off')
                     &&  (player.uid !== 'empty')
@@ -667,13 +670,13 @@ async function lastSpeech(ws, data) {
                 ) {
                     let user = clients[player.uid]
                     if (user !== undefined) {
-                        user.send(JSON.stringify({type: 'unmute-mic'}));
+                        await user.send(JSON.stringify({type: 'unmute-mic'}));
                     }
                 }
 
             }
         }
-        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'active-speaker', slot: data.candidate, duration: 60, "action": data.action }));
+        await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'active-speaker', slot: data.candidate, duration: 60, "action": data.action }));
     }
 }
 
@@ -692,7 +695,7 @@ async function defenseSpeech(ws, data) {
                 ) {
                     let user = clients[player.uid]
                     if (user !== undefined) {
-                        user.send(JSON.stringify({ type: 'mute-mic' }));
+                        await user.send(JSON.stringify({ type: 'mute-mic' }));
                     }
                 } else if ((player.mic === 'off')
                     &&  (player.uid !== 'empty')
@@ -700,19 +703,20 @@ async function defenseSpeech(ws, data) {
                 ) {
                     let user = clients[player.uid]
                     if (user !== undefined) {
-                        user.send(JSON.stringify({type: 'unmute-mic'}));
+                        await user.send(JSON.stringify({type: 'unmute-mic'}));
                     }
                 }
 
             }
         }
-        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'active-speaker', slot: data.candidate, duration: 30, "action": 'defense' }));
+        await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'active-speaker', slot: data.candidate, duration: 30, "action": 'defense' }));
         let curDay = "D"+room.game.day
         let rounds =  room.game.days[curDay].rounds
         let roundN = Object.keys(rounds).length - 1
         let curRound = rounds[roundN]
         curRound.split.push(data.candidate)
         room.game.days[curDay].rounds[roundN] = curRound
+        room.game.stage = "defense-speech"
         room = await updateRoom(ws.roomID, room)
         curRound = room.game.days[curDay].rounds[roundN]
         ws.send(JSON.stringify({ type: 'split-speech', winners: curRound.winners, split: curRound.split }));
@@ -734,10 +738,12 @@ async function warnAdd(ws, data) {
             }
             if ((player.warn > 3) && (player.status === 'alive')) {
                 player.status = 'disqualified'
+                let curDay = "D"+room.game.day
+                room.game.days[curDay].victims[data.slot] = data.slot
             }
             room = await updateRoom(ws.roomID, room)
             warn = room.slot[data.slot].warn
-            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'player-warn', slot: data.slot, warn: warn, status: player.status }));
+            await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'player-warn', slot: data.slot, warn: warn, status: player.status }));
             if (player.status === 'disqualified') {
                 checkGameOver(ws)
             }
@@ -756,7 +762,7 @@ async function playerKill(ws, data) {
             player.status = 'killed'
             room = await updateRoom(ws.roomID, room)
             player = room.slot[data.slot]
-            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'player-kill', slot: data.slot, status: player.status }));
+            await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'player-kill', slot: data.slot, status: player.status }));
             checkGameOver(ws)
         }
     }
@@ -808,13 +814,13 @@ async function playerLock(ws, data) {
             ) {
                 let user = clients[player.uid]
                 if (user !== undefined) {
-                    user.send(JSON.stringify({ type: 'mute-mic' }));
+                    await user.send(JSON.stringify({ type: 'mute-mic' }));
                 }
             }
 
             room = await updateRoom(ws.roomID, room)
             player = room.slot[data.slot]
-            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'player-lock', slot: data.slot, status: player.status }));
+            await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'player-lock', slot: data.slot, status: player.status }));
             if ((curRound !== undefined) && curRound.hasOwnProperty('winners') && (curRound.winners !== undefined)) {
                 if (Number(curRound.winners[curRound.winners.length - 1]) === Number(data.slot)) {
                     ws.send(JSON.stringify({ type: 'ready-to-night' }));
@@ -844,7 +850,7 @@ async function playerRestore(ws, data) {
             player.status = 'alive'
             room = await updateRoom(ws.roomID, room)
             player = room.slot[data.slot]
-            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'player-alive', slot: data.slot, status: player.status }));
+            await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'player-alive', slot: data.slot, status: player.status }));
         }
     }
 }
@@ -868,7 +874,7 @@ async function warnRemove(ws, data) {
             }
             room = await updateRoom(ws.roomID, room)
             warn = room.slot[data.slot].warn
-            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'player-warn', slot: data.slot, warn: warn, status: player.status }));
+            await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'player-warn', slot: data.slot, warn: warn, status: player.status }));
         }
     }
 }
@@ -893,17 +899,19 @@ async function nominate(ws, data) {
             room.game.days[curDay].nominees = nominees
             room = await updateRoom(ws.roomID, room)
             nominees = room.game.days[curDay].nominees
-            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'nominees', nominees: nominees }));
+            await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'nominees', nominees: nominees }));
         }
     }
 }
 
 
 async function gameStart(ws, data) {
+    const ROOM_ID = ws.roomID
+    let room = await getRoom(ROOM_ID);
 
-    let room = await getRoom(ws.roomID);
+    console.log('925', 'Room not found:', ROOM_ID, room)
     if (ws.uid !== room.gameHost.uid) {
-        console.log('Attempt to start game when not a host!', ws.uid, ws.roomID)
+        console.log('Attempt to start game when not a host!', ws.uid, ROOM_ID)
         return
     } else {
         ready = true;
@@ -924,7 +932,7 @@ async function gameStart(ws, data) {
             if ((player.mic === 'on') &&  (room.slot[slot].uid !== 'empty')) {
                 user = clients[player.uid]
                 if (user !== undefined) {
-                    user.send(JSON.stringify({ type: 'mute-mic' }));
+                    await user.send(JSON.stringify({ type: 'mute-mic' }));
                 } else {
                     player.mic === 'off'
                     room.slot[slot].uid = 'empty';
@@ -934,31 +942,33 @@ async function gameStart(ws, data) {
             }
         }
 
-        room = await updateRoom(ws.roomID, room)
+        room = await updateRoom(ROOM_ID, room)
         if (!ready) {
-            ws.send(JSON.stringify({ type: 'error', message: "Some users are not ready yet..." }));
-            ws.send(JSON.stringify({ type: 'mainButton', message: "game-start" }));
+            await host(ROOM_ID, JSON.stringify({ type: 'error', message: "Some users are not ready yet..." }));
+            await host(ROOM_ID, JSON.stringify({ type: 'mainButton', message: "game-start" }));
             return;
         }
 
-        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-start' }));
+        await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-start' }));
+        console.log('967', room)
         room.game.phase = 'shuffle';
+        room.game.stage = "shuffle-slots"
         room.game.availableSlots = [1,2,3,4,5,6,7,8,9,10]
-        room = await updateRoom(ws.roomID, room);
+        room = await updateRoom(ROOM_ID, room);
 
-        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'shuffle' }));
+        await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-phase', phase: 'shuffle', stage: "shuffle-slots" }));
 
         for (let i= 1; i<=10; i++) {
-            roomState = await getRoom(ws.roomID)
+            roomState = await getRoom(ROOM_ID)
             if (i>1) {
                 prevPlayer = roomState.slot[i-1]
                 if (prevPlayer.slot === 'none') {
                     prevPlayer.slot = 'any'
                     roomState.slot[i-1] = prevPlayer;
-                    roomState = await updateRoom(ws.roomID, roomState)
+                    roomState = await updateRoom(ROOM_ID, roomState)
                     let prevUser = clients[prevPlayer.uid]
                     if (prevUser !== undefined) {
-                        prevUser.send(JSON.stringify({ type: 'game-phase', phase: 'shuffle' }));
+                        await prevUser.send(JSON.stringify({ type: 'game-phase', phase: 'shuffle', stage: "shuffle-slots" }));
                     }
                 }
             }
@@ -970,12 +980,11 @@ async function gameStart(ws, data) {
                 user = clients[curPlayer.uid]
                 if (user !== undefined) {
                     sleepTime = 5000
-                    user.send(JSON.stringify({ type: 'select-slot', slots: roomState.game.availableSlots }));
-
+                    await user.send(JSON.stringify({ type: 'select-slot', slots: roomState.game.availableSlots }));
                 }
 
             }
-            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase-slot', slot: i }));
+            await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-phase-slot', slot: i }));
             await sleep(sleepTime);
         }
         //await sleep(3000);
@@ -995,55 +1004,61 @@ async function gameStart(ws, data) {
             roomState.slot = correctOrder;
         }
         roomState = await updateRoom(ws.roomID, roomState)
-        broadcastRoom(ws.roomID,JSON.stringify({ type: 'game-order', slots: roomState.slot }));
-        ws.send(JSON.stringify({ type: 'shuffle-roles-ready' }));
+        await broadcastRoom(ws.roomID,JSON.stringify({ type: 'game-order', slots: roomState.slot }));
+        await host(ROOM_ID, JSON.stringify({ type: 'shuffle-roles-ready' }));
 
     }
 }
 
 async function shuffleRoles(ws, data) {
-    let room = await getRoom(ws.roomID);
+    const ROOM_ID = ws.roomID
+    let room = await getRoom(ROOM_ID);
     if (ws.uid !== room.gameHost.uid) {
-        console.log('Attempt to start game when not a host!', ws.uid, ws.roomID)
+        console.log('Attempt to start game when not a host!', ws.uid, ROOM_ID)
         return
     } else {
         ready = true;
         room.game.availableRoles = shuffleArray(['R','D','B','S','R','B','R','R','R','R']);
         room.game.availableCards = [1,2,3,4,5,6,7,8,9,10];
-        room = await updateRoom(ws.roomID, room)
-        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'shuffle-roles' }));
+        room.game.stage = "shuffle-roles"
+        room = await updateRoom(ROOM_ID, room)
+        await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'shuffle-roles' }));
 
         for (let i= 1; i<=10; i++) {
-            roomState = await getRoom(ws.roomID)
+            roomState = await getRoom(ROOM_ID)
             if (i>1) {
                 prevPlayer = roomState.slot[i-1]
                 if (prevPlayer.role === 'none') {
                     roomState.slot[i-1].role = roomState.game.availableRoles.shift()
-                    roomState.game.availableCards.shift()
+                    let cardId = roomState.game.availableCards.shift()
                     console.log('350 :', roomState.game.availableRoles)
-                    roomState = await updateRoom(ws.roomID, roomState)
+                    roomState = await updateRoom(ROOM_ID, roomState)
                     let prevUser = clients[prevPlayer.uid]
                     if (prevUser !== undefined) {
-                        prevUser.send(JSON.stringify({ type: 'game-role', role: roomState.slot[i-1].role }));
-                        prevUser.send(JSON.stringify({ type: 'game-phase', phase: 'shuffle' }));
+                        await prevUser.send(JSON.stringify({ type: 'game-role', role: roomState.slot[i-1].role }));
+                        await prevUser.send(JSON.stringify({ type: 'game-phase', phase: 'shuffle', stage: "shuffle-roles"  }));
                     }
-                    broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-role-taken', card: 'any' }));
+                    await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-role-taken', card: cardId }));
                 }
             }
 
-            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase-role', slot: i }));
+            await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-phase-role', slot: i }));
             if (i===10) {
                 curPlayer = roomState.slot[i]
                 sleepTime = 300; // skip empty slots
                 if ((roomState.game.phase === 'shuffle')
                     && (curPlayer.role === 'none')) {
-                    curPlayer.role = roomState.game.availableRoles.shift()
-                    roomState = await updateRoom(ws.roomID, roomState)
+                    // curPlayer.role = roomState.game.availableRoles.shift()
+                    roomState.slot[i].role = roomState.game.availableRoles.shift()
+                    let cardId = roomState.game.availableCards.shift()
+                    roomState = await updateRoom(ROOM_ID, roomState)
                     curPlayer = roomState.slot[i]
                     user = clients[curPlayer.uid]
                     if (user !== undefined) {
-                        user.send(JSON.stringify({ type: 'game-role', role: roomState.slot[i].role }));
+                        await user.send(JSON.stringify({ type: 'game-role', role: roomState.slot[i].role }));
+                        await user.send(JSON.stringify({ type: 'game-phase', phase: 'shuffle', stage: "shuffle-roles"  }));
                     }
+                    await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-role-taken', card: cardId }));
                 }
             } else {
 
@@ -1054,7 +1069,7 @@ async function shuffleRoles(ws, data) {
                     user = clients[curPlayer.uid]
                     if (user !== undefined) {
                         sleepTime = 5000
-                        user.send(JSON.stringify({ type: 'select-role' }));
+                        await user.send(JSON.stringify({ type: 'select-role' }));
                     }
 
                 }
@@ -1063,21 +1078,29 @@ async function shuffleRoles(ws, data) {
             }
         }
         //await sleep(3000);
-        roomState = await getRoom(ws.roomID)
+        roomState = await getRoom(ROOM_ID)
         if (roomState.game.availableRoles.length > 0) {
-            for (const [slot, player] of Object.entries(roomState.slot)) {
-                if (player.role === 'none') {
-                    roomState.slot[slot].role = roomState.game.availableRoles.shift()
+            for (let i= 1; i<=10; i++) {
+            // for (const [slot, player] of Object.entries(roomState.slot)) {
+                let player = roomState.slot[i];
+                if ((player.role === 'none') && (roomState.game.availableRoles.length > 0)) {
+                    roomState.slot[i].role = roomState.game.availableRoles.shift()
+                    let cardId = roomState.game.availableCards.shift()
+                    roomState = await updateRoom(ROOM_ID, roomState)
+                    user = clients[player.uid]
+                    if (user !== undefined) {
+                        await user.send(JSON.stringify({ type: 'game-role', role: roomState.slot[i].role }));
+                        await user.send(JSON.stringify({ type: 'game-phase', phase: 'shuffle', stage: "shuffle-roles"  }));
+                    }
 
-                    broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-role-taken', card: 'any' }));
+                    await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-role-taken', card: cardId }));
                 }
             }
         }
-        roomState = await updateRoom(ws.roomID, roomState)
-        ws.send(JSON.stringify({ type: 'roles-ready' }));
-        broadcastRoom(ws.roomID,JSON.stringify({ type: 'game-ready', slots: roomState.slot }));
 
-
+        roomState = await updateRoom(ROOM_ID, roomState)
+        await host(ROOM_ID, JSON.stringify({ type: 'roles-ready' }));
+        await broadcastRoom(ROOM_ID,JSON.stringify({ type: 'game-ready', slots: roomState.slot }));
     }
 }
 function shuffleArray(array) {
@@ -1097,20 +1120,21 @@ async function gameStop(ws, data) {
         return
     } else {
         room.game.phase = 'lobby';
+        room.game.stage = ""
         for (const [slot, player] of Object.entries(room.slot)) {
             room.slot[slot].slot = 'none';
             room.slot[slot].role = 'none';
             room.slot[slot].status = 'unknown';
             room.slot[slot].mic === 'off';
 
-            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-player-status', uid: player.uid, status: 'unknown' }));
+            await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-player-status', uid: player.uid, status: 'unknown' }));
         }
         room.game.lastSlot = 0
         room.game.day = 0
         room.game.days = {}
         room.game.speakers = []
         room = await updateRoom(ws.roomID, room)
-        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: room.game.phase }));
+        await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: room.game.phase }));
     }
 }
 

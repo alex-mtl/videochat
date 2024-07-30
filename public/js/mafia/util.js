@@ -1,18 +1,26 @@
 const configuration = {
     iceServers: [
         {urls: 'stun:stun.l.google.com:19302'},
+        // {urls: 'stun:stun1.l.google.com:19302'},
+        // {urls: 'stun:stun2.l.google.com:19302'},
+        // {urls: 'stun:stun.sipnet.ru:3478'},
+        // {urls: 'stun:stun.skylink.ru:3478'},
+        // {urls: 'stun:stun.voys.nl:3478'},
+        {urls: 'stun:mao-dao.com:3478'},
         {
             urls: "turn:194.26.138.209:3478?transport=udp",
             username: "turnuser",
             credential: "turnpassword",
         }
+        ,
+        {
+            urls: "turn:mao-dao.com:3478?transport=udp",
+            username: "maodao",
+            credential: "coturn",
+        }
     ]
 };
-// const configuration = {iceServers: [{
-//         urls: "turn:194.26.138.209:3478?transport=udp",
-//         username: "turnuser",
-//         credential: "turnpassword",
-//     },]};
+
 const constraints = {
     video: {
         width: { ideal: 240, max: 240 },
@@ -71,7 +79,12 @@ function createPeerConnection(peerId, hostID, participant = true) {
                 }
 
             } else {
-                bindRemoteVideo(peerId, event.streams[0], slot);
+                if (slot.classList.contains('vbox-game-host')) {
+                    bindHostVideo(peerId, event.streams[0], slot);
+                } else {
+                    bindRemoteVideo(peerId, event.streams[0], slot);
+                }
+
             }
         }
     };
@@ -165,6 +178,12 @@ function toggleVideo(elem) {
 
 function showSettings() {
     document.querySelector('div#mediaSourcePopup').classList.add('show')
+}
+
+function peerRefresh(elem) {
+    slot = elem.parentElement;
+    showPopupAlert(slot.getAttribute('data-uid'))
+
 }
 
 function changeUserStatus(elem) {
@@ -339,7 +358,7 @@ function bindRemoteVideo(videoID, srcObject, slot) {
 
     let name = slot.querySelector('span.game-user');
     name.textContent = slot.getAttribute('data-name');
-    if(slot.getAttribute('data-player-status') === 'disqualified') {
+    if(['killed', 'disqualified', 'locked'].includes(slot.getAttribute('data-player-status'))) {
         remoteVideo.origSrcObject = remoteVideo.srcObject
         remoteVideo.srcObject = null
     }
@@ -355,6 +374,18 @@ function bindHostVideo(videoID, srcObject, slot) {
     slot.setAttribute('data-uid', videoID)
     slot.id = 'video-' + videoID;
     slot.setAttribute('alt', videoID);
+
+    if (remoteVideo.getAttribute('host-video-trigger', 'on') === 'off'){
+        stream = remoteVideo.srcObject;
+
+        tracks = stream.getTracks();
+        tracks.forEach((track) => {
+            if (track.kind === 'video') {
+                track.enabled = false;
+            }
+        });
+        // remoteVideo.setAttribute('host-video-trigger', 'on')
+    }
     // remoteVideoFrame.appendChild(remoteVideo);
     // remoteVideoFrame.classList.add("videobox");
 
@@ -923,6 +954,10 @@ function handleGameRoleTaken(data) {
 }
 
 function handleGameRole(data) {
+    deck = document.querySelector('div.deck-container')
+    if (!deck.classList.contains('locked')) {
+        deck.classList.add('locked')
+    }
     roleSpan = document.querySelector('div.game-deck span.game-role')
     roleSpan.classList.remove('role-show')
 
@@ -942,6 +977,7 @@ function handleGameRole(data) {
     roleSpan.classList.add('role-show')
     setTimeout(() => {
         roleSpan.classList.remove('role-show')
+
     }, 5000);
 
 }
@@ -1087,12 +1123,17 @@ function hideHostVideo() {
     if (selfID !== roomEnv.gameHost.uid) {
         hostVideo = document.querySelector('div.videobox.vbox-game-host video')
         stream = hostVideo.srcObject;
-        tracks = stream.getTracks();
-        tracks.forEach((track) => {
-            if (track.kind === 'video') {
-                track.enabled = false;
-            }
-        });
+        if (stream !== null) {
+            tracks = stream.getTracks();
+            tracks.forEach((track) => {
+                if (track.kind === 'video') {
+                    track.enabled = false;
+                }
+            });
+
+        }
+        hostVideo.setAttribute('host-video-trigger', 'off')
+
 
         vBox = document.querySelector('div.videobox.vbox-game-host')
         vBox.setAttribute('data-player-status', 'host-off')
@@ -1108,6 +1149,7 @@ function showHostVideo() {
             track.enabled = true;
         }
     });
+    hostVideo.setAttribute('host-video-trigger', 'on')
     vBox = document.querySelector('div.videobox.vbox-game-host')
     vBox.setAttribute('data-player-status',null)
 }
@@ -1613,40 +1655,6 @@ function handleVotingRoundResult(data) {
 /* media source settings */
 let videoSelect, audioSelect;
 
-
-
-// function getStream() {
-//     if (window.localStorage) {
-//         const videoSource = localStorage.getItem('selectedVideoSource');
-//         const audioSource = localStorage.getItem('selectedAudioSource');
-//
-//         const constraints = {
-//             video: { deviceId: videoSource ? { exact: videoSource } : undefined },
-//             audio: { deviceId: audioSource ? { exact: audioSource } : undefined }
-//         };
-//
-//         navigator.mediaDevices.getUserMedia(constraints)
-//             .then(stream => {
-//                 localStream = stream;
-//                 localVideo.srcObject = stream;
-//                 startSignaling();
-//             })
-//             .catch(error => {
-//                 console.error('Error accessing media devices:', error);
-//             });
-//     }
-// }
-
-/* TEST VIDEO SOURCE
-// document.getElementById('startButton').addEventListener('click', () => {
-//     localStorage.setItem('selectedVideoSource', videoSelect.value);
-//     localStorage.setItem('selectedAudioSource', audioSelect.value);
-//     // getStream();
-//     location.reload()
-//
-// });
-*/
-
 // document.getElementById('startButton').addEventListener('click', async () => {
 async function saveMediaSettings() {
     const videoSource = videoSelect.value;
@@ -1668,6 +1676,10 @@ async function saveMediaSettings() {
     // Get the existing video and audio tracks from the localStream
     const existingVideoTrack = localStream.getVideoTracks()[0];
     const existingAudioTrack = localStream.getAudioTracks()[0];
+
+    videoTrack.enabled = existingVideoTrack.enabled
+    audioTrack.enabled = existingAudioTrack.enabled
+
 
     // Replace the existing tracks with the new tracks
     localStream.removeTrack(existingVideoTrack);
@@ -1696,27 +1708,6 @@ async function saveMediaSettings() {
 function closeMediaSettings() {
     document.querySelector('div#mediaSourcePopup').classList.remove('show')
 }
-document.addEventListener('DOMContentLoaded', () => {
-    videoSelect = document.querySelector('select#videoSource');
-    audioSelect = document.querySelector('select#audioSource');
-    //
-    // getStream();
-
-    navigator.mediaDevices.enumerateDevices()
-        .then(devices => {
-            devices.forEach(device => {
-                const option = document.createElement('option');
-                option.value = device.deviceId;
-                if (device.kind === 'videoinput') {
-                    option.text = device.label || `Camera ${videoSelect.length + 1}`;
-                    videoSelect.appendChild(option);
-                } else if (device.kind === 'audioinput') {
-                    option.text = device.label || `Microphone ${audioSelect.length + 1}`;
-                    audioSelect.appendChild(option);
-                }
-            });
-        });
-});
 
 
 

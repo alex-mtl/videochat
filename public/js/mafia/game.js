@@ -38,12 +38,12 @@ let sfx = {
     warn : new Howl({
         src: '/static/sfx/warn.mp3',
         loop: false,
-        volume: 0.1
+        volume: 0.05
     }),
     nominate : new Howl({
         src: '/static/sfx/nominate.mp3',
         loop: false,
-        volume: 0.1
+        volume: 0.05
     }),
     shot : new Howl({
         src: '/static/sfx/shot.mp3',
@@ -127,7 +127,7 @@ function selfSlotDetection(selfID) {
                 slot.insertBefore(localVideo, slot.firstChild);
 
                 slot.setAttribute('data-uid', selfID)
-                if(slot.getAttribute('data-player-status') === 'disqualified') {
+                if(['killed', 'disqualified', 'locked'].includes(slot.getAttribute('data-player-status'))) {
                     localVideo.origSrcObject = localVideo.srcObject
                     localVideo.srcObject = null
                 }
@@ -208,24 +208,27 @@ function startSignaling() {
                 playerPanel.remove()
 
                 // Set the source attribute to your player.js file
-                script.src = '/static/js/mafia/host.js';
-                document.head.appendChild(script);
-                script.onload = () => {
+                // script.src = '/static/js/mafia/host.js';
+                // document.head.appendChild(script);
+                // script.onload = () => {
                     detectGameState()
                     // handleGamePhase(roomEnv.game)
-                };
+                // };
 
             }
-
+            const peersPromises = [];
             for (const uid in data.room.users) {
                 if (uid !== sessionID) {
-                    peerConnection = createPeerConnection(uid, hostID, participant);
-                    peerConnection.onicecandidate = event => {
-                        if (event.candidate) {
-                            sendIceCandidate(sessionID, uid, event.candidate);
-                        }
-                    };
-                    sendOffer(ws, clientId, uid, peerConnection);
+                    const promise = (async () => {
+                        peerConnection = createPeerConnection(uid, hostID, participant);
+                        peerConnection.onicecandidate = event => {
+                            if (event.candidate) {
+                                sendIceCandidate(sessionID, uid, event.candidate);
+                            }
+                        };
+                        await  sendOffer(ws, clientId, uid, peerConnection);
+                    })();
+                    peersPromises.push(promise);
                 }
             }
             handleGamePhase(roomEnv.game)

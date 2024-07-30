@@ -3,6 +3,7 @@
     span.toggle-audio.muted.g-mask.material-symbols-outlined(onclick="toggleAudio(this)")
     span.toggle-video.g-mask.material-symbols-outlined(onclick="toggleVideo(this)")
     span.settings.g-mask.material-symbols-outlined(onclick="showSettings()")
+    span.refresh.g-mask.material-symbols-outlined(onclick="peerRefresh(this)")
     .slot.g-mask= slot
     span.game-user.g-mask= player.name
     input.game-user.g-mask(type="text", minlength="15", value=player.name, onblur="setPlayerName(this)")
