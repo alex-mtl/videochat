@@ -43,7 +43,9 @@ function handleChatMessage(data) {
 
 function handleIceCandidate(candidate) {
     const peerConnection = peerConnections[candidate.from];
-    peerConnection.addIceCandidate(new RTCIceCandidate(candidate.candidate));
+    if (peerConnection.remoteDescription) {
+        peerConnection.addIceCandidate(new RTCIceCandidate(candidate.candidate));
+    }
 }
 
 async function sendOffer(ws, from, to, peerConnection) {

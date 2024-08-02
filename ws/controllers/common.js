@@ -140,6 +140,91 @@ function onlyHost(handler) {
         }
     };
 }
+function onlyPlayer(handler) {
+    return async (ws, data) => {
+        try {
+            const ROOM_ID = ws.roomID;
+            const room = await getRoom(ROOM_ID);
+            let PLAYER = {}
+            valid = false
+            for (const [slot, player] of Object.entries(room.slot)) {
+                if (player.uid !== 'empty' && player.uid === ws.uid) {
+                    valid = true
+                    PLAYER = player
+                    break
+                }
+            }
+            if (!valid) {
+                console.log('Attempt to execute action when not a player!', ws.uid, ROOM_ID);
+                throw new Error('Not a player');
+            }
+            await handler(ws, data, ROOM_ID, room, PLAYER);
+        } catch (error) {
+            // Handle the error (e.g., notify the user or log the attempt)
+            console.error(error.message);
+        }
+    };
+}
+
+function onlyMafTeam(handler) {
+    return async (ws, data) => {
+        try {
+            const ROOM_ID = ws.roomID;
+            const room = await getRoom(ROOM_ID);
+            let PLAYER = {}
+            const TEAM = Object.fromEntries(
+                Object.entries(room.slot)
+                    .filter(([key, value]) => ['B', 'D'].includes(value.role))
+            );
+            valid = false
+            for (const [slot, player] of Object.entries(TEAM)) {
+                if (player.uid !== 'empty' && player.uid === ws.uid) {
+                    valid = true
+                    PLAYER = player
+                    break
+                }
+            }
+            if (!valid) {
+                console.log('Attempt to execute action when not a black!', ws.uid, ROOM_ID);
+                throw new Error('Not a mafia player');
+            }
+            await handler(ws, data, ROOM_ID, room, PLAYER, TEAM);
+        } catch (error) {
+            // Handle the error (e.g., notify the user or log the attempt)
+            console.error(error.message);
+        }
+    };
+}
+
+function onlySheriff(handler) {
+    return async (ws, data) => {
+        try {
+            const ROOM_ID = ws.roomID;
+            const room = await getRoom(ROOM_ID);
+            let PLAYER = {}
+            const TEAM = Object.fromEntries(
+                Object.entries(room.slot)
+                    .filter(([key, value]) => ['S'].includes(value.role))
+            );
+            valid = false
+            for (const [slot, player] of Object.entries(TEAM)) {
+                if (player.uid !== 'empty' && player.uid === ws.uid) {
+                    valid = true
+                    PLAYER = player
+                    break
+                }
+            }
+            if (!valid) {
+                console.log('Attempt to execute action when not a black!', ws.uid, ROOM_ID);
+                throw new Error('Not a sheriff');
+            }
+            await handler(ws, data, ROOM_ID, room, PLAYER, TEAM);
+        } catch (error) {
+            // Handle the error (e.g., notify the user or log the attempt)
+            console.error(error.message);
+        }
+    };
+}
 
 async function checkUserConnection(ws, data) {
     let room = await getRoom(ws.roomID);
@@ -189,6 +274,9 @@ module.exports = {
     broadcastRoom,
     host,
     onlyHost,
+    onlyPlayer,
+    onlyMafTeam,
+    onlySheriff,
     checkUserConnection,
     sleep,
     globalContext,

@@ -40,6 +40,7 @@ const peerConnections = {};
 var ws = null;
 let countdown;
 let remainingSeconds = -1;
+const pendingRequests = {};
 
 function escapeHtml(unsafe)
 {
@@ -49,6 +50,22 @@ function escapeHtml(unsafe)
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+}
+
+// Utility function to generate unique IDs
+function generateUniqueId() {
+    return Math.random().toString(36).substr(2, 9);
+}
+
+// Function to send a request and return a Promise
+function sendRequest(ws, data) {
+    return new Promise((resolve, reject) => {
+        const requestId = generateUniqueId();
+        // Store the resolve and reject functions
+        pendingRequests[requestId] = { resolve, reject };
+        // Send the request with the unique ID
+        ws.send(JSON.stringify({ ...data, requestId }));
+    });
 }
 function createPeerConnection(peerId, hostID, participant = true) {
     const peerConnection = new RTCPeerConnection(configuration);
@@ -187,6 +204,8 @@ function peerRefresh(elem) {
 }
 
 function changeUserStatus(elem) {
+    var audioContext = new AudioContext();
+    audioContext.resume()
     videoBox = elem.parentElement;
 
     if ((videoBox.getAttribute('data-uid') === sessionID)
@@ -219,6 +238,23 @@ function vote(elem) {
 function voteLockWinners(elem) {
 
     ws.send(JSON.stringify({type: 'vote-lock-winners'}));
+}
+
+
+async function getSelfRole() {
+    const response = await sendRequest(ws, { type: 'get-self-role' });
+    return response.role;
+}
+
+async function getMafTeam() {
+    const response = await sendRequest(ws, { type: 'get-maf-team' });
+    return response.mafTeam;
+}
+
+
+async function getSheriff() {
+    const response = await sendRequest(ws, { type: 'get-sheriff' });
+    return response.team;
 }
 
 
@@ -690,9 +726,10 @@ function stopCountdown() {
     }
 }
 
-function handleGamePhase(data) {
+async function handleGamePhase(data, mode = 'normal') {
     game = document.querySelector('div.game.videos')
     game.setAttribute('data-phase', data.phase)
+    game.setAttribute('data-stage', data.stage)
     if (data.phase === 'shuffle') {
         resetDisableButtons()
         hideHostVideo()
@@ -724,28 +761,66 @@ function handleGamePhase(data) {
         }
 
     } else if (data.phase === 'sitdown') {
-        startCountdown(60)
+        if (mode === 'normal') {
+            startCountdown(60)
+        } else {
+            resetDisableButtons()
+        }
+
         sfx.sitdown.play()
         if (selfID !== roomEnv.gameHost.uid) {
             // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot button,'+
+            resetDisableButtons()
             showPlaceholders()
             hideHostVideo()
+            if (mode !== 'normal') {
+
+                let selfRole = await getSelfRole()
+
+                if (['B','D'].includes(selfRole)) {
+
+                    let mafTeam = await getMafTeam()
+                    handleMafiaSitdown({ team: mafTeam })
+                }
+            }
+
         } else {
+            if (mode !== 'normal') {
+                ws.send(JSON.stringify({type: 'show-roles'}));
+            }
             showDonWatch()
         }
         gameMessage('Mafia')
         gameMessage('cahoot sitdown', 2)
 
+
     } else if (data.phase === 'don-watch') {
-        stopCountdown()
-        muteAllSfx()
-        startCountdown(20)
+        if (mode === 'normal') {
+            stopCountdown()
+            muteAllSfx()
+            startCountdown(20)
+        } else {
+            resetDisableButtons()
+        }
+
         sfx.godfather.play()
         if (selfID !== roomEnv.gameHost.uid) {
             // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot button,'+
             hideAllRolesAndVideos()
             showPlaceholders()
+
+            if (mode !== 'normal') {
+                let selfRole = await getSelfRole()
+
+                if ('D' === selfRole) {
+                    let mafTeam = await getMafTeam()
+                    handleDonWatch({type: 'don-watch', team: mafTeam})
+                }
+            }
         } else {
+            if (mode !== 'normal') {
+                ws.send(JSON.stringify({type: 'show-roles'}));
+            }
             showSheriffWatch()
         }
         gameMessage('Don watch...')
@@ -760,6 +835,17 @@ function handleGamePhase(data) {
             hideAllRolesAndVideos()
             resetDisableButtons()
             showPlaceholders()
+
+            if (mode !== 'normal') {
+
+                let selfRole = await getSelfRole()
+
+                if (['B','D'].includes(selfRole)) {
+
+                    let mafTeam = await getMafTeam()
+                    handleMafiaSitdown({ team: mafTeam })
+                }
+            }
         } else {
             showSheriffCheck()
         }
@@ -782,16 +868,32 @@ function handleGamePhase(data) {
             gameMessage('', 2)
 
     } else if (data.phase === 'sheriff-watch') {
-        stopCountdown()
-        muteAllSfx()
-        startCountdown(20)
+        if (mode === 'normal') {
+            stopCountdown()
+            muteAllSfx()
+            startCountdown(20)
+        } else {
+            resetDisableButtons()
+        }
+
         sfx.sheriff.play()
         if (selfID !== roomEnv.gameHost.uid) {
             // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot button,'+
             hideAllRolesAndVideos()
             showPlaceholders()
+            if (mode !== 'normal') {
+                let selfRole = await getSelfRole()
+
+                if ('S' === selfRole) {
+                    let sheriff = await getSheriff()
+                    handleSheriffWatch({type: 'sheriff-watch', team: sheriff})
+                }
+            }
 
         } else {
+            if (mode !== 'normal') {
+                ws.send(JSON.stringify({type: 'show-roles'}));
+            }
             showStartDay1()
         }
         gameMessage('Sheriff watch...')
@@ -1143,12 +1245,16 @@ function hideHostVideo() {
 function showHostVideo() {
     hostVideo = document.querySelector('div.videobox.vbox-game-host video')
     stream = hostVideo.srcObject;
-    tracks = stream.getTracks();
-    tracks.forEach((track) => {
-        if (track.kind === 'video') {
-            track.enabled = true;
-        }
-    });
+    if (stream !== null) {
+        tracks = stream.getTracks();
+        tracks.forEach((track) => {
+            if (track.kind === 'video') {
+                track.enabled = true;
+            }
+        });
+    }
+
+
     hostVideo.setAttribute('host-video-trigger', 'on')
     vBox = document.querySelector('div.videobox.vbox-game-host')
     vBox.setAttribute('data-player-status',null)
@@ -1197,7 +1303,8 @@ function handleMafiaSitdown(data) {
     videoElems.forEach( elem => {
         elem.classList.remove('night')
     })
-    handleGamePhase({phase: 'show-roles'});
+    // handleGamePhase({phase: 'show-roles'});
+    game.setAttribute('data-stage', 'show-roles')
 }
 function handleMafiaShooting(data) {
     for (const [slotN, player] of Object.entries(data.team)) {
@@ -1269,8 +1376,10 @@ function handleDonWatch(data) {
     videoElems.forEach( elem => {
         elem.classList.remove('night')
     })
-    handleGamePhase({phase: 'show-roles'});
+    // handleGamePhase({phase: 'show-roles'});
+    game.setAttribute('data-stage', 'show-roles')
 }
+
 
 function handleDonCheck(data) {
     for (const [slotN, player] of Object.entries(data.team)) {
@@ -1298,7 +1407,8 @@ function handleDonCheck(data) {
     videoElems.forEach( elem => {
         elem.classList.remove('night')
     })
-    handleGamePhase({phase: 'show-roles'});
+    // handleGamePhase({phase: 'show-roles'});
+    game.setAttribute('data-stage', 'show-roles')
 }
 
 function handleSheriffWatch(data) {
@@ -1325,7 +1435,8 @@ function handleSheriffWatch(data) {
     videoElems.forEach( elem => {
         elem.classList.remove('night')
     })
-    handleGamePhase({phase: 'show-roles'});
+    // handleGamePhase({phase: 'show-roles'});
+    game.setAttribute('data-stage', 'show-roles')
 }
 
 function handleSheriffCheck(data) {
@@ -1352,7 +1463,8 @@ function handleSheriffCheck(data) {
     videoElems.forEach( elem => {
         elem.classList.remove('night')
     })
-    handleGamePhase({phase: 'show-roles'});
+    // handleGamePhase({phase: 'show-roles'});
+    game.setAttribute('data-stage', 'show-roles')
 }
 
 function removeActiveSpeaker() {

@@ -154,6 +154,7 @@ function showPlayerKilled(slot) {
 }
 
 
+
 function startDaySend() {
     ws.send(JSON.stringify({type: 'start-day-one'}));
 }
@@ -230,7 +231,7 @@ function handleGameRoles(data) {
     videoElems.forEach( elem => {
         elem.classList.remove('night')
     })
-    handleGamePhase({phase: 'show-roles'});
+    game.setAttribute('data-stage', 'show-roles')
     if (data.phase === 'night') {
 
     }

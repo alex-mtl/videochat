@@ -231,7 +231,7 @@ function startSignaling() {
                     peersPromises.push(promise);
                 }
             }
-            handleGamePhase(roomEnv.game)
+            handleGamePhase(roomEnv.game, 'reload')
 
         } else if (data.type === 'participant-joined') {
             // Handle new participant joined
@@ -244,6 +244,15 @@ function startSignaling() {
                         sendIceCandidate(sessionID, clientId, event.candidate);
                     }
                 };
+            }
+
+        } else if (data.type === 'request-response') {
+            if (pendingRequests.hasOwnProperty(data.requestId)) {
+                pendingRequests[data.requestId].resolve(data);
+                // Remove the entry from the dictionary
+                delete pendingRequests[data.requestId];
+            } else {
+                handleError({ message: 'Undefined request:'+data.requestId }, 'error');
             }
 
         } else if (data.type === 'participant-left') {

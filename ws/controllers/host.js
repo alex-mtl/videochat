@@ -6,7 +6,9 @@ const {getRoom,
     broadcastRoom,
     host,
     checkUserConnection,
-    sleep, onlyHost
+    sleep,
+    onlyHost,
+    onlyPlayer
 } = require("./common");
 
 async function showRoles(ws, data) {
@@ -44,9 +46,9 @@ async function startSitdown(ws, data) {
                 .filter(([key, value]) => ['B', 'D'].includes(value.role))
         );
         console.log(mafTeam)
-        room.game.phase = 'night';
-        room.game.stage = "night-sitdown"
-        room = await updateRoom(ROOM_ID, room)
+        room.game.phase = 'sitdown';
+        room.game.stage = ""
+        await updateRoom(ROOM_ID, room)
         await host(ROOM_ID, JSON.stringify({type: 'sitdown-started', team: mafTeam}));
         await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'sitdown' }));
         await sleep(300);
@@ -136,19 +138,16 @@ async function startShooting(ws, data) {
     }
 }
 
-async function donWatch(ws, data) {
-    const ROOM_ID = ws.roomID
-    let room = await getRoom(ROOM_ID);
-    if (ws.uid !== room.gameHost.uid) {
-        console.log('Attempt to start game when not a host!', ws.uid, ws.roomID)
-        return
-    } else {
+const donWatch = onlyHost(async (ws, data, ROOM_ID, room) => {
+
+        room.game.phase = 'don-watch';
+        room.game.stage = ""
+        room = await updateRoom(ROOM_ID, room)
         const mafTeam = Object.fromEntries(
             Object.entries(room.slot)
                 .filter(([key, value]) => ['B', 'D'].includes(value.role))
         );
         await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'don-watch' }));
-        await sleep(300);
         for (const [slot, player] of Object.entries(mafTeam)) {
             if (player.uid !== 'empty' && player.role === 'D') {
                 user = clients[player.uid]
@@ -160,8 +159,8 @@ async function donWatch(ws, data) {
                 }
             }
         }
-    }
-}
+
+})
 
 async function startDonCheck(ws, data) {
     const ROOM_ID = ws.roomID
@@ -234,32 +233,29 @@ async function startSheriffCheck(ws, data) {
     }
 }
 
-async function sheriffWatch(ws, data) {
-    const ROOM_ID = ws.roomID
-    let room = await getRoom(ROOM_ID);
-    if (ws.uid !== room.gameHost.uid) {
-        console.log('Attempt to start game when not a host!', ws.uid, ROOM_ID)
-        return
-    } else {
-        const sheriff = Object.fromEntries(
-            Object.entries(room.slot)
-                .filter(([key, value]) => ['S'].includes(value.role))
-        );
-        await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-phase', phase: 'sheriff-watch' }));
-        await sleep(300);
-        for (const [slot, player] of Object.entries(sheriff)) {
-            if (player.uid !== 'empty' && player.role === 'S') {
-                user = clients[player.uid]
-                if (user !== undefined) {
-                    await user.send(JSON.stringify({type: 'sheriff-watch', team: sheriff}));
-                } else {
-                    await host(ROOM_ID, JSON.stringify({type: 'sheriff-not-ready', slot: slot}));
-                    return
-                }
+const sheriffWatch = onlyHost(async (ws, data, ROOM_ID, room) => {
+
+    room.game.phase = 'sheriff-watch';
+    room.game.stage = ""
+    room = await updateRoom(ROOM_ID, room)
+    const sheriff = Object.fromEntries(
+        Object.entries(room.slot)
+            .filter(([key, value]) => ['S'].includes(value.role))
+    );
+    await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-phase', phase: 'sheriff-watch' }));
+    await sleep(300);
+    for (const [slot, player] of Object.entries(sheriff)) {
+        if (player.uid !== 'empty' && player.role === 'S') {
+            user = clients[player.uid]
+            if (user !== undefined) {
+                await user.send(JSON.stringify({type: 'sheriff-watch', team: sheriff}));
+            } else {
+                await host(ROOM_ID, JSON.stringify({type: 'sheriff-not-ready', slot: slot}));
+                return
             }
         }
     }
-}
+})
 
 async function startDayOne(ws, data) {
     const ROOM_ID = ws.roomID

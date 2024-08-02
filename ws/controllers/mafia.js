@@ -16,6 +16,16 @@ const common = require('./common')
 common.globalContext(global)
 
 const host = require('./host');
+const {
+    getRoom,
+    broadcastRoom,
+    sleep,
+    onlyHost,
+    onlyPlayer,
+    onlyMafTeam,
+    onlySheriff
+} = require("./common");
+
 function validateString(str) {
     const re = XRegExp("^[\\pL\\-_0-9]+$");
     if(!re.test(str)) {
@@ -395,6 +405,24 @@ async function shoutOut(ws, data) {
     }
 }
 
+
+const getSelfRole = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
+    let response = {type: 'request-response', requestId: data.requestId, role: PLAYER.role}
+    await ws.send(JSON.stringify(response));
+});
+
+
+const getMafTeam = onlyMafTeam(async (ws, data, ROOM_ID, room, PLAYER, TEAM) => {
+    let response = {type: 'request-response', requestId: data.requestId, mafTeam: TEAM}
+    await ws.send(JSON.stringify(response));
+});
+
+const getSheriff = onlySheriff(async (ws, data, ROOM_ID, room, PLAYER, TEAM) => {
+    let response = {type: 'request-response', requestId: data.requestId, team: TEAM}
+    await ws.send(JSON.stringify(response));
+});
+
+
 async function setPlayerName(ws, data) {
     let room = await getRoom(ws.roomID);
     if (data.slot === 'game-host') {
@@ -588,6 +616,9 @@ module.exports = common.addExports(
     gamePlayerMic,
     gameReserveSlot,
     gameReserveRole,
+    getSelfRole,
+    getMafTeam,
+    getSheriff,
     shoutOut,
     setPlayerName,
     playerVote,
