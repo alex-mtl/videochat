@@ -205,6 +205,7 @@ function startNight() {
 
 function startVoteSend() {
     ws.send(JSON.stringify({type: 'start-voting-round'}));
+    hideMainButton()
 }
 
 function handleGameRoles(data) {
@@ -297,6 +298,8 @@ function handleMafiaShoot(data) {
     mafiaShoot.setAttribute('data-victim', data.victim)
     if (Number(data.victim) < 10) {
         mafiaShoot.style.setProperty('--shootVictim', '"counter_'+data.victim+'"');
+    } else {
+        style.removeProperty('--shootVictim')
     }
 
 

@@ -1,6 +1,6 @@
 .videobox.no-video(data-slot=slot, data-uid=player.uid, id=vbID, class="vbox-"+slot, data-name=player.name, data-player-status=player.status)
     video.g-mask.play.material-symbols-outlined(autoplay, id=vID, muted, playsinline)
-    span.toggle-audio.muted.g-mask.material-symbols-outlined(onclick="toggleAudio(this)")
+    span.toggle-audio.muted.g-mask.material-symbols-outlined(onclick="toggleAudio(this, 'toggle')")
     span.toggle-video.g-mask.material-symbols-outlined(onclick="toggleVideo(this)")
     span.settings.g-mask.material-symbols-outlined(onclick="showSettings()")
     span.refresh.g-mask.material-symbols-outlined(onclick="peerRefresh(this)")

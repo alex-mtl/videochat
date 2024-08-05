@@ -118,8 +118,17 @@ async function host(roomID, message, log = true) {
                 room.log.push(message)
                 room = await updateRoom(roomID, room);
             }
-            await hostWS.send(message);
+            await hostWS.send(JSON.stringify(message));
         }
+    }
+    return room
+};
+
+async function slotSend(roomID, slot, message) {
+    let room = await getRoom(roomID);
+    slotWS = clients[ room.slot[slot].uid ];
+    if (slotWS !== undefined) {
+        await slotWS.send(JSON.stringify(message));
     }
     return room
 };
@@ -148,7 +157,7 @@ function onlyPlayer(handler) {
             let PLAYER = {}
             valid = false
             for (const [slot, player] of Object.entries(room.slot)) {
-                if (player.uid !== 'empty' && player.uid === ws.uid) {
+                if (player.uid !== 'empty' && (player.uid === ws.uid) && (player.status === 'alive')) {
                     valid = true
                     PLAYER = player
                     break
@@ -178,7 +187,10 @@ function onlyMafTeam(handler) {
             );
             valid = false
             for (const [slot, player] of Object.entries(TEAM)) {
-                if (player.uid !== 'empty' && player.uid === ws.uid) {
+                if ((player.uid !== 'empty')
+                    && (player.uid === ws.uid)
+                    && (player.status === 'alive')
+                ) {
                     valid = true
                     PLAYER = player
                     break
@@ -273,6 +285,7 @@ module.exports = {
     updateSession,
     broadcastRoom,
     host,
+    slotSend,
     onlyHost,
     onlyPlayer,
     onlyMafTeam,

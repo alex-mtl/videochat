@@ -115,19 +115,19 @@ function selfMic(micElem) {
     if (phase === 'lobby') {
         if (micElem.parentElement.classList.contains('self-view')) {
             toggler = micElem.parentElement.querySelector('span.toggle-audio')
-            toggleAudio(toggler)
+            toggleAudio(toggler, 'toggle')
         }
     }
 }
-function toggleAudio(elem, mode = 'self', ) {
+function toggleAudio(elem, mute = 'toggle', mode = 'self' ) {
     if (elem.parentElement.classList.contains('self-view')) {
         const audioTracks =  elem.parentElement.querySelector('video').srcObject.getAudioTracks();
         audioTracks.forEach(track => {
-            if((mode==='self') || (mode === 'shout-out')) {
+            if(mute === 'toggle') {
                 track.enabled = !track.enabled;
-            } else if (mode === 'mute') {
+            } else if (mute === 'mute') {
                 track.enabled = false;
-            } else if (mode === 'unmute') {
+            } else if (mute === 'unmute') {
                 track.enabled = true;
             }
             muted = (!track.enabled)
@@ -159,14 +159,14 @@ function toggleAudio(elem, mode = 'self', ) {
 function muteMic(data) {
 
     button = document.querySelector('div.videobox.self-view span.toggle-audio');
-    toggleAudio(button, (data.mode === undefined) ? 'mute' : data.mode)
+    toggleAudio(button, 'mute', (data.mode === undefined) ? 'mute' : data.mode)
 
 }
 
 function unmuteMic(data) {
 
     button = document.querySelector('div.videobox.self-view span.toggle-audio');
-    toggleAudio(button, (data.mode === undefined) ? 'unmute' : data.mode)
+    toggleAudio(button, 'unmute', (data.mode === undefined) ? 'mute' : data.mode)
 
 }
 
@@ -924,6 +924,7 @@ async function handleGamePhase(data, mode = 'normal') {
         let videos = document.querySelectorAll('video.active-speaker')
         videos.forEach(video => {
             video.classList.remove('active-speaker')
+            video.classList.remove('active-speaker-penalized')
         })
         let eBars = document.querySelectorAll('div.e-bar')
         eBars.forEach(eBar => {
@@ -1122,6 +1123,7 @@ function handleGameOver(data) {
         slotStatus.setAttribute('data-player-status', 'alive')
         slotVideo = document.querySelector('div.videobox[data-slot="'+slotN+'"] video')
         slotVideo.classList.remove('active-speaker')
+        slotVideo.classList.remove('active-speaker-penalized')
         if (slotVideo.origSrcObject !== undefined) {
             slotVideo.srcObject = slotVideo.origSrcObject
         }
@@ -1316,6 +1318,7 @@ function handleMafiaShooting(data) {
         }
         span = document.querySelector('div.videobox[data-slot="'+slotN+'"] span.slot-role')
         span.setAttribute('data-role', role)
+        span.parentElement.querySelector('span.video-target').setAttribute('data-role', role)
     }
     citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-role:not([data-role="mafia"]):not([data-role="don"])')
     citizens.forEach(citizen => {
@@ -1471,6 +1474,7 @@ function removeActiveSpeaker() {
     let videos = document.querySelectorAll('video.active-speaker')
     videos.forEach(video => {
         video.classList.remove('active-speaker')
+        video.classList.remove('active-speaker-penalized')
     })
     let eBars = document.querySelectorAll('div.e-bar')
     eBars.forEach(eBar => {
@@ -1498,6 +1502,10 @@ function handleActiveSpeaker(data) {
     if ((data.slot !== 0) && (data.duration > 0)) {
         let speaker = document.querySelector('div.videobox[data-slot="' + data.slot + '"] video')
         speaker.classList.add('active-speaker')
+        if (data.duration === 10) {
+            speaker.classList.add('active-speaker-penalized')
+        }
+
         let eBar = document.querySelector('div.e-bar[data-slot="' + data.slot + '"]')
         eBar.classList.add('active-speaker')
         startCountdown(data.duration)
@@ -1517,12 +1525,14 @@ function handleActiveSpeaker(data) {
 function handleShoutOut(data) {
     let vBox = document.querySelector('div.videobox[data-slot="'+data.slot+'"]')
     vBox.classList.add('shout-out')
+    vBox.setAttribute('shout-out-ttl', Date.now()+4900)
     let eBar  = document.querySelector('div.e-bar[data-slot="'+data.slot+'"]')
     eBar.classList.add('shout-out')
     setTimeout(() => {
-        vBox.classList.remove('shout-out')
-        eBar.classList.remove('shout-out')
-
+        if (vBox.getAttribute('shout-out-ttl', 0) <= Date.now()) {
+            vBox.classList.remove('shout-out')
+            eBar.classList.remove('shout-out')
+        }
     }, 5000)
 }
 
@@ -1539,6 +1549,7 @@ function handleSetHostName(data) {
 
 function handleNominate(data) {
     sfx.nominate.play()
+    gameMessage('Nominees: '+data.nominees.join(', '),2)
     if (data.nominees.length === 0) {
         let vBoxes = document.querySelectorAll('div.videobox[data-slot="'+data.slot+'"]')
         vBoxes.forEach( vBox => {
@@ -1605,6 +1616,9 @@ function handlePlayerStatus(data) {
             video.srcObject = video.origSrcObject
         }
     }
+    if ((selfID === roomEnv.gameHost.uid) && (data.status === 'killed')) {
+        mainButton('Next speaker', nextSpeakerSend)
+    }
 }
 
 
@@ -1621,30 +1635,36 @@ function playerButtonDisable() {
 }
 function handleVotingRound(data) {
     if (selfID !== roomEnv.gameHost.uid) {
-        let vBox = document.querySelector('div.videobox[data-slot="' + data.candidate + '"]')
-        let slotCandidate = vBox.querySelector('span.slot-candidate')
-        slotCandidate.classList.add('active')
-        slotCandidate.setAttribute('tabindex', '0');
-        slotCandidate.focus();
+        let selfPlayer = document.querySelector('div.videobox.self-view[data-player-status="alive"]')
+        if (selfPlayer !== null) {
+            let selfSlot = selfPlayer.getAttribute('data-slot')
+            if (!data.voted.includes(selfSlot)) {
+                let vBox = document.querySelector('div.videobox[data-slot="' + data.candidate + '"]')
+                let slotCandidate = vBox.querySelector('span.slot-candidate')
+                slotCandidate.classList.add('active')
+                slotCandidate.setAttribute('tabindex', '0');
+                slotCandidate.focus();
 
-        playerButton("Vote", () => { vote(data.candidate) });
+                playerButton("Vote "+data.candidate, () => { vote(data.candidate) });
 
+                function handleKeyDown(event) {
+                    if (event.keyCode === 13 || event.keyCode === 32) {
+                        event.preventDefault();
 
-        function handleKeyDown(event) {
-            if (event.keyCode === 13 || event.keyCode === 32) {
-                event.preventDefault();
+                        slotCandidate.click();
+                    }
+                }
 
-                slotCandidate.click();
+                slotCandidate.addEventListener('keydown', handleKeyDown);
+
+                setTimeout(() => {
+                    slotCandidate.classList.remove('active')
+                    slotCandidate.removeEventListener('keydown', handleKeyDown);
+                    playerButtonDisable()
+                }, 5000)
             }
         }
 
-        slotCandidate.addEventListener('keydown', handleKeyDown);
-
-        setTimeout(() => {
-            slotCandidate.classList.remove('active')
-            slotCandidate.removeEventListener('keydown', handleKeyDown);
-            playerButtonDisable()
-        }, 5000)
     }
 }
 
@@ -1745,21 +1765,14 @@ function handlePlayerShoot(data) {
 
 function handleVotingRoundResult(data) {
     let candidate = document.querySelector('div.videobox[data-slot="' + data.candidate + '"]')
-    if (data.votes.length > 0) {
-        let likes = ''
-        data.votes.forEach( vote => {
-            likes += '\u{1F44D}'
-        })
+    // if (data.votes.length > 0) {
+        // let likes = ''
+        // data.votes.forEach( vote => {
+        //     likes += '\u{1F44D}'
+        // })
         span = candidate.querySelector('span.slot-vote')
         span.classList.add('voted')
         span.classList.add('votes-'+data.votes.length)
-
-
-        //span.textContent = likes
-        // setTimeout(() => {
-        //     fromSlot.querySelector('span.slot-vote').classList.remove('active')
-        // }, 2000);
-    }
 
     // fly(fromSlot, toSlot)
 }

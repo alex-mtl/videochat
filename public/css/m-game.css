@@ -48,6 +48,18 @@ video.active-speaker {
     box-shadow: 0 0 1.25vw darkgreen;
 }
 
+video.active-speaker.active-speaker-penalized {
+    border: 0.25vw solid var(--g-red);
+    box-shadow: 0 0 1vw var(--g-red);
+}
+
+video.active-speaker.active-speaker-penalized ~ span.slot-warn
+/*.videobox.shout-out span.slot-mic[data-mic="on"]:before*/
+{
+    animation: blinker 1s linear infinite;
+}
+
+
 .videobox.shout-out video {
     border: none;
     box-shadow: 0 0 1vw red;
@@ -296,6 +308,7 @@ div.videobox span.slot-role {
     background-color: var(--g-grey);
     font-size: 4vw;
     font-weight: bold; /* Bold font */
+    text-shadow: 0 0 0.3vw var(--g-grey);
     /*border: 0.3vw solid var(--g-grey);*/
     /*border-radius: 1vw;*/
     visibility: hidden;
@@ -543,6 +556,7 @@ button#player-button {
 
 button.active#player-button {
     visibility: visible;
+    font-size: 3vw;
 }
 
 
