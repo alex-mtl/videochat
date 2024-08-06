@@ -443,6 +443,56 @@ function shoutOut(elem) {
     ws.send(JSON.stringify({type: 'shout-out', slot: slot, uid: uid}));
 }
 
+
+function showNumPad(elem) {
+    let videobox = elem.parentElement
+    if (videobox.querySelector('div.number-pad')) {
+        videobox.querySelector('div.number-pad').remove()
+    } else {
+        let numPad = document.querySelector('div.number-pad#num-pad').cloneNode(true)
+        numPad.removeAttribute('id')
+        checkPad = videobox.querySelector('div.number-pad')
+        if (checkPad === null) {
+            videobox.insertBefore(numPad,elem)
+        }
+    }
+}
+
+function numPadClick(elem) {
+    let videobox = elem.closest('div.videobox');
+    let padType = elem.getAttribute('data-pad-type')
+    let padValue = elem.getAttribute('data-pad-value')
+    if (padType === 'num') {
+        videobox.querySelectorAll('span.pad.selected[data-pad-type="num"]:not([data-pad-value="'+padValue+'"])').forEach(span =>  {
+            span.classList.remove('selected')
+        });
+        elem.classList.toggle('selected')
+    } else if (padType === 'color') {
+        videobox.querySelectorAll('span.pad.selected[data-pad-type="color"]:not([data-pad-value="'+padValue+'"])').forEach(span =>  {
+            span.classList.remove('selected')
+        });
+        elem.classList.toggle('selected')
+    } else {
+        if (padValue === 'send') {
+            let padNumber = 0
+            let padColor = 'grey'
+            let padNumSelected = videobox.querySelector('span.pad.selected[data-pad-type="num"]')
+            if (padNumSelected) {
+                padNumber = padNumSelected.getAttribute('data-pad-value')
+            }
+            let padColorSelected = videobox.querySelector('span.pad.selected[data-pad-type="color"]')
+            if (padColorSelected) {
+                padColor = padColorSelected.getAttribute('data-pad-value')
+            }
+            let padSlot = parseInt(videobox.getAttribute('data-slot'), 10);
+            ws.send(JSON.stringify({type: 'send-player-comm', 'slot': padSlot, 'pad-number': padNumber, 'pad-color': padColor }));
+        }
+        videobox.querySelector('div.number-pad').remove()
+    }
+
+
+}
+
 function removePeerConnection(id) {
     delete peerConnections[id];
     video = document.getElementById('video-'+id);
@@ -1052,7 +1102,11 @@ function handleGameRoleTaken(data) {
         card.classList.add('taken')
     } else {
         card = document.querySelector('div.game-card[data-card="'+data.card+'"]:not(.taken)')
-        card.classList.add('taken')
+        if(card) {
+            card.classList.add('taken')
+        } else {
+            console.log('1108 Card not found: ', data.card)
+        }
     }
 }
 
@@ -1532,6 +1586,30 @@ function handleShoutOut(data) {
         if (vBox.getAttribute('shout-out-ttl', 0) <= Date.now()) {
             vBox.classList.remove('shout-out')
             eBar.classList.remove('shout-out')
+        }
+    }, 5000)
+}
+
+function handlePlayerComm(data) {
+    if (data.slot > 0) {
+        playTimes(sfx.knock, data.slot)
+        let victimEye = document.querySelector('div.videobox[data-slot="'+data.slot+'"] span.slot-eye-role')
+        victimEye.classList.add('active')
+        victimEye.setAttribute('data-color', data.color)
+    } else {
+        sfx.knock.play();
+    }
+    let slotEye = document.querySelector('div.videobox[data-slot="'+data.from+'"] span.slot-eye')
+    slotEye.classList.add('active')
+    slotEye.setAttribute('data-color', data.color)
+
+    setTimeout(() => {
+        slotEye.classList.remove('active')
+        slotEye.removeAttribute('data-color')
+        if (data.slot > 0) {
+            let victimEye = document.querySelector('div.videobox[data-slot="'+data.slot+'"] span.slot-eye-role')
+            victimEye.classList.remove('active')
+            victimEye.removeAttribute('data-color')
         }
     }, 5000)
 }

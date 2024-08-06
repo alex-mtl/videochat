@@ -412,6 +412,16 @@ const shoutOut = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
     }
 })
 
+const sendPlayerComm = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
+    let receiver = room.slot[data.slot]
+    if (receiver.status === 'alive') {
+        userWS = clients[receiver.uid]
+        if (userWS !== undefined) {
+            await userWS.send(JSON.stringify({ type: 'player-comm', from: PLAYER.slot, slot: data['pad-number'], color: data['pad-color'] }));
+        }
+    }
+})
+
 
 const getSelfRole = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
     let response = {type: 'request-response', requestId: data.requestId, role: PLAYER.role}
@@ -630,6 +640,7 @@ module.exports = common.addExports(
     getMafTeam,
     getSheriff,
     shoutOut,
+    sendPlayerComm,
     setPlayerName,
     playerVote,
     voteLockWinners,

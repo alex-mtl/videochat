@@ -404,6 +404,39 @@ div.game.videos:not([data-phase='lobby']) .self-view video.active-speaker ~ .slo
 
 /*** END SHOUT OUT ***/
 
+/*** SLOT COMM ***/
+span.slot-comm {
+    position: absolute;
+    bottom: 0.7vw;
+    right: 0.7vw;
+    background-color: transparent;
+    color: rgba(211, 211, 211, 0.5); /* Text color */
+    padding: 0;
+    font-size: 3vw;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+
+div.game.videos[data-phase='day']:not([data-mode="host"]) .videobox[data-player-status='alive']:not(.self-view):not(.vbox-game-host):hover .slot-comm:before {
+    content: "leak_add";
+    visibility: visible;
+    cursor: pointer; /* Change mouse pointer to hand on hover */
+    color: var(--g-green);
+}
+
+/*div.game.videos:not([data-phase='lobby']) .shout-out .slot-comm:before {*/
+/*    visibility: visible;*/
+/*    color: var(--g-red);*/
+/*}*/
+
+
+/*div.game.videos:not([data-phase='lobby']) .self-view video.active-speaker ~ .slot-shout:before {*/
+/*    visibility: hidden;*/
+/*}*/
+
+/*** END SLOT COMM ***/
+
 video.active-speaker ~ span.slot-mic[data-mic="on"]:before,
 .videobox.shout-out span.slot-mic[data-mic="on"]:before
 {
@@ -1456,3 +1489,236 @@ div.game:not([data-phase="day"]) span.mafia-shoot[data-victim] {
 .settings-popup button:hover {
     background-color: var(--g-success-hover);
 }
+
+/* NUMBER PAD START*/
+div.number-pad#num-pad {
+    visibility: hidden;
+}
+ div.videobox:hover div.number-pad {
+    visibility: visible;
+
+    /*border: solid red 1px;*/
+    width: 18vw;
+    height: 11vw;
+    position: absolute;
+    top: 1.5vw;
+    /* bottom: 15%; */
+    left: 3vw;
+    /* right: 15%;*/
+}
+
+div.videobox:hover div.number-pad span {
+    visibility: visible;
+}
+
+div.number-pad div.row-one,
+div.number-pad div.row-two,
+div.number-pad div.row-three {
+    left: 0vw;
+    width: 18vw;
+    height: 3vw;
+    position: absolute;
+}
+
+
+div.number-pad div.row-one {
+    top: 0vw;
+}
+div.number-pad div.row-two {
+    top: 3.7vw;
+}
+
+div.number-pad div.row-three {
+    top: 7.4vw;
+}
+
+div.number-pad span.pad {
+    position:absolute;
+    width: 3.5vw;
+    height: 3.5vw;
+    color: var(--g-grey);
+    background: var(--g-dark-grey);
+    /*color: var(--g-green);*/
+    /*border: 1px solid var(--g-green);*/
+    border-radius: 0.5vw;
+    font-size: 3.5vw;
+}
+
+span.pad:hover {
+    cursor: pointer;
+}
+
+div.number-pad span.pad.selected {
+    background: var(--g-green);
+    color: var(--g-dark-grey);
+}
+
+
+span.pad.one,
+span.pad.six,
+span.pad.grey {
+    left: 0vw;
+}
+
+
+span.pad.two,
+span.pad.seven,
+span.pad.red
+{
+    left: 3.6vw;
+}
+
+
+span.pad.three,
+span.pad.eight,
+span.pad.black
+{
+    left: 7.2vw;
+}
+
+
+span.pad.four,
+span.pad.nine,
+span.pad.send
+{
+    left: 10.8vw;
+}
+
+
+span.pad.five,
+span.pad.ten,
+span.pad.cancel
+{
+    left: 14.4vw;
+}
+
+
+span.pad.one:before {
+    content: "counter_1";
+}
+
+span.pad.two:before {
+    content: "counter_2";
+}
+
+span.pad.three:before {
+    content: "counter_3";
+}
+
+span.pad.four:before {
+    content: "counter_4";
+}
+
+span.pad.five:before {
+    content: "counter_5";
+}
+
+span.pad.six:before {
+    content: "counter_6";
+}
+
+span.pad.seven:before {
+    content: "counter_7";
+}
+
+span.pad.eight:before {
+    content: "counter_8";
+}
+
+span.pad.nine:before {
+    content: "counter_9";
+}
+
+span.pad.ten:before {
+    content: "timer_10";
+}
+
+
+span.pad.grey:before {
+    content: "check_circle";
+}
+
+
+span.pad.red:before {
+    content: "check_circle";
+    color: var(--g-red);
+}
+
+
+span.pad.black:before {
+    content: "check_circle";
+    color: black;
+}
+
+
+span.pad.send:before {
+    content: "play_circle";
+    color: var(--g-success);
+}
+
+
+span.pad.cancel:before {
+    content: "cancel";
+    color: var(--g-failure)
+}
+
+/* NUMBER PAD END*/
+
+/* EYE BLINK */
+
+span.slot-eye {
+    visibility: hidden;
+    display: flex;
+    position: absolute;
+}
+
+span.slot-eye {
+    position: absolute;
+    right: 0.7vw;
+    top: 0.7vw;
+    background-color: transparent;
+    color: var(--g-green);
+    font-size: 4vw;
+    padding: 0;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+div.videos.game[data-phase="day"]:not([data-mode="host"])  .slot-eye.active:before
+{
+    content: "eye_tracking";
+    visibility: visible;
+    animation: blinker 1s linear infinite;
+}
+
+div.videos.game[data-phase="day"]:not([data-mode="host"])  .slot-eye.active[data-color="red"],
+div.videos.game[data-phase="day"]:not([data-mode="host"])  .slot-eye-role.active[data-color="red"]
+{
+    color: var(--g-red);
+}
+
+div.videos.game[data-phase="day"]:not([data-mode="host"])  .slot-eye.active[data-color="black"],
+div.videos.game[data-phase="day"]:not([data-mode="host"])  .slot-eye-role.active[data-color="black"]
+{
+    color: black;
+}
+
+span.slot-eye-role {
+    position: absolute;
+    left: 7vw;
+    top: 2vw;
+    font-size: 10vw;
+    background-color: transparent;
+    color: var(--g-grey);
+    padding: 0;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+div.videos.game[data-phase="day"]:not([data-mode="host"])  .slot-eye-role.active:before
+{
+    content: "frame_person";
+    visibility: visible;
+    animation: blinker 1s linear infinite;
+}
+/* EYE BLINK */

@@ -1,17 +1,17 @@
 module.exports = {
     apps: [
         {
-            name: "mao-dao-ws",
+            name: "mtest-ws",
             script: "./ws.js",
             // Additional configuration options
         },
         {
-            name: "mao-dao-vc",
+            name: "test-vc",
             script: "./videochat.js",
             // Additional configuration options
         },
         {
-            name: "mao-dao-cron-60",
+            name: "test-cron-60",
             script: "./cron-60.js",
             cron_restart: "*/15 * * * *",
             // Additional configuration options

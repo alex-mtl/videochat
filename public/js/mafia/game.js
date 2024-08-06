@@ -60,8 +60,25 @@ let sfx = {
         loop: false,
         volume: 0.01
     }),
+    knock : new Howl({
+        src: '/static/sfx/knock.mp3',
+        loop: false,
+        volume: 0.05
+    }),
 }
 
+function playTimes(sound, times) {
+    let count = 0;
+
+    sound.on('end', function() {
+        count++;
+        if (count < times) {
+            sound.play();
+        }
+    });
+
+    sound.play();
+}
 
 
 // Retrieve stored sources from localStorage
@@ -323,6 +340,8 @@ function startSignaling() {
             handleActiveSpeaker(data);
         } else if (data.type === 'shout-out') {
             handleShoutOut(data);
+        } else if (data.type === 'player-comm') {
+            handlePlayerComm(data);
         } else if (data.type === 'set-player-name') {
             handleSetPlayerName(data);
         } else if (data.type === 'set-host-name') {
