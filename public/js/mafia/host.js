@@ -154,6 +154,7 @@ function showPlayerKilled(slot) {
 }
 
 
+
 function startDaySend() {
     ws.send(JSON.stringify({type: 'start-day-one'}));
 }
@@ -204,6 +205,7 @@ function startNight() {
 
 function startVoteSend() {
     ws.send(JSON.stringify({type: 'start-voting-round'}));
+    hideMainButton()
 }
 
 function handleGameRoles(data) {
@@ -230,7 +232,7 @@ function handleGameRoles(data) {
     videoElems.forEach( elem => {
         elem.classList.remove('night')
     })
-    handleGamePhase({phase: 'show-roles'});
+    game.setAttribute('data-stage', 'show-roles')
     if (data.phase === 'night') {
 
     }
@@ -296,6 +298,8 @@ function handleMafiaShoot(data) {
     mafiaShoot.setAttribute('data-victim', data.victim)
     if (Number(data.victim) < 10) {
         mafiaShoot.style.setProperty('--shootVictim', '"counter_'+data.victim+'"');
+    } else {
+        style.removeProperty('--shootVictim')
     }
 
 

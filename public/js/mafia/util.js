@@ -1,18 +1,26 @@
 const configuration = {
     iceServers: [
         {urls: 'stun:stun.l.google.com:19302'},
+        // {urls: 'stun:stun1.l.google.com:19302'},
+        // {urls: 'stun:stun2.l.google.com:19302'},
+        // {urls: 'stun:stun.sipnet.ru:3478'},
+        // {urls: 'stun:stun.skylink.ru:3478'},
+        // {urls: 'stun:stun.voys.nl:3478'},
+        {urls: 'stun:mao-dao.com:3478'},
         {
             urls: "turn:194.26.138.209:3478?transport=udp",
             username: "turnuser",
             credential: "turnpassword",
         }
+        ,
+        {
+            urls: "turn:mao-dao.com:3478?transport=udp",
+            username: "maodao",
+            credential: "coturn",
+        }
     ]
 };
-// const configuration = {iceServers: [{
-//         urls: "turn:194.26.138.209:3478?transport=udp",
-//         username: "turnuser",
-//         credential: "turnpassword",
-//     },]};
+
 const constraints = {
     video: {
         width: { ideal: 240, max: 240 },
@@ -32,6 +40,7 @@ const peerConnections = {};
 var ws = null;
 let countdown;
 let remainingSeconds = -1;
+const pendingRequests = {};
 
 function escapeHtml(unsafe)
 {
@@ -41,6 +50,22 @@ function escapeHtml(unsafe)
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+}
+
+// Utility function to generate unique IDs
+function generateUniqueId() {
+    return Math.random().toString(36).substr(2, 9);
+}
+
+// Function to send a request and return a Promise
+function sendRequest(ws, data) {
+    return new Promise((resolve, reject) => {
+        const requestId = generateUniqueId();
+        // Store the resolve and reject functions
+        pendingRequests[requestId] = { resolve, reject };
+        // Send the request with the unique ID
+        ws.send(JSON.stringify({ ...data, requestId }));
+    });
 }
 function createPeerConnection(peerId, hostID, participant = true) {
     const peerConnection = new RTCPeerConnection(configuration);
@@ -71,7 +96,12 @@ function createPeerConnection(peerId, hostID, participant = true) {
                 }
 
             } else {
-                bindRemoteVideo(peerId, event.streams[0], slot);
+                if (slot.classList.contains('vbox-game-host')) {
+                    bindHostVideo(peerId, event.streams[0], slot);
+                } else {
+                    bindRemoteVideo(peerId, event.streams[0], slot);
+                }
+
             }
         }
     };
@@ -85,19 +115,19 @@ function selfMic(micElem) {
     if (phase === 'lobby') {
         if (micElem.parentElement.classList.contains('self-view')) {
             toggler = micElem.parentElement.querySelector('span.toggle-audio')
-            toggleAudio(toggler)
+            toggleAudio(toggler, 'toggle')
         }
     }
 }
-function toggleAudio(elem, mode = 'self', ) {
+function toggleAudio(elem, mute = 'toggle', mode = 'self' ) {
     if (elem.parentElement.classList.contains('self-view')) {
         const audioTracks =  elem.parentElement.querySelector('video').srcObject.getAudioTracks();
         audioTracks.forEach(track => {
-            if((mode==='self') || (mode === 'shout-out')) {
+            if(mute === 'toggle') {
                 track.enabled = !track.enabled;
-            } else if (mode === 'mute') {
+            } else if (mute === 'mute') {
                 track.enabled = false;
-            } else if (mode === 'unmute') {
+            } else if (mute === 'unmute') {
                 track.enabled = true;
             }
             muted = (!track.enabled)
@@ -129,14 +159,14 @@ function toggleAudio(elem, mode = 'self', ) {
 function muteMic(data) {
 
     button = document.querySelector('div.videobox.self-view span.toggle-audio');
-    toggleAudio(button, (data.mode === undefined) ? 'mute' : data.mode)
+    toggleAudio(button, 'mute', (data.mode === undefined) ? 'mute' : data.mode)
 
 }
 
 function unmuteMic(data) {
 
     button = document.querySelector('div.videobox.self-view span.toggle-audio');
-    toggleAudio(button, (data.mode === undefined) ? 'unmute' : data.mode)
+    toggleAudio(button, 'unmute', (data.mode === undefined) ? 'mute' : data.mode)
 
 }
 
@@ -167,7 +197,15 @@ function showSettings() {
     document.querySelector('div#mediaSourcePopup').classList.add('show')
 }
 
+function peerRefresh(elem) {
+    slot = elem.parentElement;
+    showPopupAlert(slot.getAttribute('data-uid'))
+
+}
+
 function changeUserStatus(elem) {
+    var audioContext = new AudioContext();
+    audioContext.resume()
     videoBox = elem.parentElement;
 
     if ((videoBox.getAttribute('data-uid') === sessionID)
@@ -200,6 +238,23 @@ function vote(elem) {
 function voteLockWinners(elem) {
 
     ws.send(JSON.stringify({type: 'vote-lock-winners'}));
+}
+
+
+async function getSelfRole() {
+    const response = await sendRequest(ws, { type: 'get-self-role' });
+    return response.role;
+}
+
+async function getMafTeam() {
+    const response = await sendRequest(ws, { type: 'get-maf-team' });
+    return response.mafTeam;
+}
+
+
+async function getSheriff() {
+    const response = await sendRequest(ws, { type: 'get-sheriff' });
+    return response.team;
 }
 
 
@@ -339,7 +394,7 @@ function bindRemoteVideo(videoID, srcObject, slot) {
 
     let name = slot.querySelector('span.game-user');
     name.textContent = slot.getAttribute('data-name');
-    if(slot.getAttribute('data-player-status') === 'disqualified') {
+    if(['killed', 'disqualified', 'locked'].includes(slot.getAttribute('data-player-status'))) {
         remoteVideo.origSrcObject = remoteVideo.srcObject
         remoteVideo.srcObject = null
     }
@@ -355,6 +410,18 @@ function bindHostVideo(videoID, srcObject, slot) {
     slot.setAttribute('data-uid', videoID)
     slot.id = 'video-' + videoID;
     slot.setAttribute('alt', videoID);
+
+    if (remoteVideo.getAttribute('host-video-trigger', 'on') === 'off'){
+        stream = remoteVideo.srcObject;
+
+        tracks = stream.getTracks();
+        tracks.forEach((track) => {
+            if (track.kind === 'video') {
+                track.enabled = false;
+            }
+        });
+        // remoteVideo.setAttribute('host-video-trigger', 'on')
+    }
     // remoteVideoFrame.appendChild(remoteVideo);
     // remoteVideoFrame.classList.add("videobox");
 
@@ -374,6 +441,56 @@ function shoutOut(elem) {
     let slot = elem.parentElement.getAttribute('data-slot')
     let uid = elem.parentElement.getAttribute('data-uid')
     ws.send(JSON.stringify({type: 'shout-out', slot: slot, uid: uid}));
+}
+
+
+function showNumPad(elem) {
+    let videobox = elem.parentElement
+    if (videobox.querySelector('div.number-pad')) {
+        videobox.querySelector('div.number-pad').remove()
+    } else {
+        let numPad = document.querySelector('div.number-pad#num-pad').cloneNode(true)
+        numPad.removeAttribute('id')
+        checkPad = videobox.querySelector('div.number-pad')
+        if (checkPad === null) {
+            videobox.insertBefore(numPad,elem)
+        }
+    }
+}
+
+function numPadClick(elem) {
+    let videobox = elem.closest('div.videobox');
+    let padType = elem.getAttribute('data-pad-type')
+    let padValue = elem.getAttribute('data-pad-value')
+    if (padType === 'num') {
+        videobox.querySelectorAll('span.pad.selected[data-pad-type="num"]:not([data-pad-value="'+padValue+'"])').forEach(span =>  {
+            span.classList.remove('selected')
+        });
+        elem.classList.toggle('selected')
+    } else if (padType === 'color') {
+        videobox.querySelectorAll('span.pad.selected[data-pad-type="color"]:not([data-pad-value="'+padValue+'"])').forEach(span =>  {
+            span.classList.remove('selected')
+        });
+        elem.classList.toggle('selected')
+    } else {
+        if (padValue === 'send') {
+            let padNumber = 0
+            let padColor = 'grey'
+            let padNumSelected = videobox.querySelector('span.pad.selected[data-pad-type="num"]')
+            if (padNumSelected) {
+                padNumber = padNumSelected.getAttribute('data-pad-value')
+            }
+            let padColorSelected = videobox.querySelector('span.pad.selected[data-pad-type="color"]')
+            if (padColorSelected) {
+                padColor = padColorSelected.getAttribute('data-pad-value')
+            }
+            let padSlot = parseInt(videobox.getAttribute('data-slot'), 10);
+            ws.send(JSON.stringify({type: 'send-player-comm', 'slot': padSlot, 'pad-number': padNumber, 'pad-color': padColor }));
+        }
+        videobox.querySelector('div.number-pad').remove()
+    }
+
+
 }
 
 function removePeerConnection(id) {
@@ -659,9 +776,10 @@ function stopCountdown() {
     }
 }
 
-function handleGamePhase(data) {
+async function handleGamePhase(data, mode = 'normal') {
     game = document.querySelector('div.game.videos')
     game.setAttribute('data-phase', data.phase)
+    game.setAttribute('data-stage', data.stage)
     if (data.phase === 'shuffle') {
         resetDisableButtons()
         hideHostVideo()
@@ -693,28 +811,66 @@ function handleGamePhase(data) {
         }
 
     } else if (data.phase === 'sitdown') {
-        startCountdown(60)
+        if (mode === 'normal') {
+            startCountdown(60)
+        } else {
+            resetDisableButtons()
+        }
+
         sfx.sitdown.play()
         if (selfID !== roomEnv.gameHost.uid) {
             // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot button,'+
+            resetDisableButtons()
             showPlaceholders()
             hideHostVideo()
+            if (mode !== 'normal') {
+
+                let selfRole = await getSelfRole()
+
+                if (['B','D'].includes(selfRole)) {
+
+                    let mafTeam = await getMafTeam()
+                    handleMafiaSitdown({ team: mafTeam })
+                }
+            }
+
         } else {
+            if (mode !== 'normal') {
+                ws.send(JSON.stringify({type: 'show-roles'}));
+            }
             showDonWatch()
         }
         gameMessage('Mafia')
         gameMessage('cahoot sitdown', 2)
 
+
     } else if (data.phase === 'don-watch') {
-        stopCountdown()
-        muteAllSfx()
-        startCountdown(20)
+        if (mode === 'normal') {
+            stopCountdown()
+            muteAllSfx()
+            startCountdown(20)
+        } else {
+            resetDisableButtons()
+        }
+
         sfx.godfather.play()
         if (selfID !== roomEnv.gameHost.uid) {
             // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot button,'+
             hideAllRolesAndVideos()
             showPlaceholders()
+
+            if (mode !== 'normal') {
+                let selfRole = await getSelfRole()
+
+                if ('D' === selfRole) {
+                    let mafTeam = await getMafTeam()
+                    handleDonWatch({type: 'don-watch', team: mafTeam})
+                }
+            }
         } else {
+            if (mode !== 'normal') {
+                ws.send(JSON.stringify({type: 'show-roles'}));
+            }
             showSheriffWatch()
         }
         gameMessage('Don watch...')
@@ -729,6 +885,17 @@ function handleGamePhase(data) {
             hideAllRolesAndVideos()
             resetDisableButtons()
             showPlaceholders()
+
+            if (mode !== 'normal') {
+
+                let selfRole = await getSelfRole()
+
+                if (['B','D'].includes(selfRole)) {
+
+                    let mafTeam = await getMafTeam()
+                    handleMafiaSitdown({ team: mafTeam })
+                }
+            }
         } else {
             showSheriffCheck()
         }
@@ -751,16 +918,32 @@ function handleGamePhase(data) {
             gameMessage('', 2)
 
     } else if (data.phase === 'sheriff-watch') {
-        stopCountdown()
-        muteAllSfx()
-        startCountdown(20)
+        if (mode === 'normal') {
+            stopCountdown()
+            muteAllSfx()
+            startCountdown(20)
+        } else {
+            resetDisableButtons()
+        }
+
         sfx.sheriff.play()
         if (selfID !== roomEnv.gameHost.uid) {
             // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot button,'+
             hideAllRolesAndVideos()
             showPlaceholders()
+            if (mode !== 'normal') {
+                let selfRole = await getSelfRole()
+
+                if ('S' === selfRole) {
+                    let sheriff = await getSheriff()
+                    handleSheriffWatch({type: 'sheriff-watch', team: sheriff})
+                }
+            }
 
         } else {
+            if (mode !== 'normal') {
+                ws.send(JSON.stringify({type: 'show-roles'}));
+            }
             showStartDay1()
         }
         gameMessage('Sheriff watch...')
@@ -791,6 +974,7 @@ function handleGamePhase(data) {
         let videos = document.querySelectorAll('video.active-speaker')
         videos.forEach(video => {
             video.classList.remove('active-speaker')
+            video.classList.remove('active-speaker-penalized')
         })
         let eBars = document.querySelectorAll('div.e-bar')
         eBars.forEach(eBar => {
@@ -918,11 +1102,19 @@ function handleGameRoleTaken(data) {
         card.classList.add('taken')
     } else {
         card = document.querySelector('div.game-card[data-card="'+data.card+'"]:not(.taken)')
-        card.classList.add('taken')
+        if(card) {
+            card.classList.add('taken')
+        } else {
+            console.log('1108 Card not found: ', data.card)
+        }
     }
 }
 
 function handleGameRole(data) {
+    deck = document.querySelector('div.deck-container')
+    if (!deck.classList.contains('locked')) {
+        deck.classList.add('locked')
+    }
     roleSpan = document.querySelector('div.game-deck span.game-role')
     roleSpan.classList.remove('role-show')
 
@@ -942,6 +1134,7 @@ function handleGameRole(data) {
     roleSpan.classList.add('role-show')
     setTimeout(() => {
         roleSpan.classList.remove('role-show')
+
     }, 5000);
 
 }
@@ -984,6 +1177,7 @@ function handleGameOver(data) {
         slotStatus.setAttribute('data-player-status', 'alive')
         slotVideo = document.querySelector('div.videobox[data-slot="'+slotN+'"] video')
         slotVideo.classList.remove('active-speaker')
+        slotVideo.classList.remove('active-speaker-penalized')
         if (slotVideo.origSrcObject !== undefined) {
             slotVideo.srcObject = slotVideo.origSrcObject
         }
@@ -1087,12 +1281,17 @@ function hideHostVideo() {
     if (selfID !== roomEnv.gameHost.uid) {
         hostVideo = document.querySelector('div.videobox.vbox-game-host video')
         stream = hostVideo.srcObject;
-        tracks = stream.getTracks();
-        tracks.forEach((track) => {
-            if (track.kind === 'video') {
-                track.enabled = false;
-            }
-        });
+        if (stream !== null) {
+            tracks = stream.getTracks();
+            tracks.forEach((track) => {
+                if (track.kind === 'video') {
+                    track.enabled = false;
+                }
+            });
+
+        }
+        hostVideo.setAttribute('host-video-trigger', 'off')
+
 
         vBox = document.querySelector('div.videobox.vbox-game-host')
         vBox.setAttribute('data-player-status', 'host-off')
@@ -1102,12 +1301,17 @@ function hideHostVideo() {
 function showHostVideo() {
     hostVideo = document.querySelector('div.videobox.vbox-game-host video')
     stream = hostVideo.srcObject;
-    tracks = stream.getTracks();
-    tracks.forEach((track) => {
-        if (track.kind === 'video') {
-            track.enabled = true;
-        }
-    });
+    if (stream !== null) {
+        tracks = stream.getTracks();
+        tracks.forEach((track) => {
+            if (track.kind === 'video') {
+                track.enabled = true;
+            }
+        });
+    }
+
+
+    hostVideo.setAttribute('host-video-trigger', 'on')
     vBox = document.querySelector('div.videobox.vbox-game-host')
     vBox.setAttribute('data-player-status',null)
 }
@@ -1155,7 +1359,8 @@ function handleMafiaSitdown(data) {
     videoElems.forEach( elem => {
         elem.classList.remove('night')
     })
-    handleGamePhase({phase: 'show-roles'});
+    // handleGamePhase({phase: 'show-roles'});
+    game.setAttribute('data-stage', 'show-roles')
 }
 function handleMafiaShooting(data) {
     for (const [slotN, player] of Object.entries(data.team)) {
@@ -1167,6 +1372,7 @@ function handleMafiaShooting(data) {
         }
         span = document.querySelector('div.videobox[data-slot="'+slotN+'"] span.slot-role')
         span.setAttribute('data-role', role)
+        span.parentElement.querySelector('span.video-target').setAttribute('data-role', role)
     }
     citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-role:not([data-role="mafia"]):not([data-role="don"])')
     citizens.forEach(citizen => {
@@ -1227,8 +1433,10 @@ function handleDonWatch(data) {
     videoElems.forEach( elem => {
         elem.classList.remove('night')
     })
-    handleGamePhase({phase: 'show-roles'});
+    // handleGamePhase({phase: 'show-roles'});
+    game.setAttribute('data-stage', 'show-roles')
 }
+
 
 function handleDonCheck(data) {
     for (const [slotN, player] of Object.entries(data.team)) {
@@ -1256,7 +1464,8 @@ function handleDonCheck(data) {
     videoElems.forEach( elem => {
         elem.classList.remove('night')
     })
-    handleGamePhase({phase: 'show-roles'});
+    // handleGamePhase({phase: 'show-roles'});
+    game.setAttribute('data-stage', 'show-roles')
 }
 
 function handleSheriffWatch(data) {
@@ -1283,7 +1492,8 @@ function handleSheriffWatch(data) {
     videoElems.forEach( elem => {
         elem.classList.remove('night')
     })
-    handleGamePhase({phase: 'show-roles'});
+    // handleGamePhase({phase: 'show-roles'});
+    game.setAttribute('data-stage', 'show-roles')
 }
 
 function handleSheriffCheck(data) {
@@ -1310,13 +1520,15 @@ function handleSheriffCheck(data) {
     videoElems.forEach( elem => {
         elem.classList.remove('night')
     })
-    handleGamePhase({phase: 'show-roles'});
+    // handleGamePhase({phase: 'show-roles'});
+    game.setAttribute('data-stage', 'show-roles')
 }
 
 function removeActiveSpeaker() {
     let videos = document.querySelectorAll('video.active-speaker')
     videos.forEach(video => {
         video.classList.remove('active-speaker')
+        video.classList.remove('active-speaker-penalized')
     })
     let eBars = document.querySelectorAll('div.e-bar')
     eBars.forEach(eBar => {
@@ -1344,6 +1556,10 @@ function handleActiveSpeaker(data) {
     if ((data.slot !== 0) && (data.duration > 0)) {
         let speaker = document.querySelector('div.videobox[data-slot="' + data.slot + '"] video')
         speaker.classList.add('active-speaker')
+        if (data.duration === 10) {
+            speaker.classList.add('active-speaker-penalized')
+        }
+
         let eBar = document.querySelector('div.e-bar[data-slot="' + data.slot + '"]')
         eBar.classList.add('active-speaker')
         startCountdown(data.duration)
@@ -1363,12 +1579,38 @@ function handleActiveSpeaker(data) {
 function handleShoutOut(data) {
     let vBox = document.querySelector('div.videobox[data-slot="'+data.slot+'"]')
     vBox.classList.add('shout-out')
+    vBox.setAttribute('shout-out-ttl', Date.now()+4900)
     let eBar  = document.querySelector('div.e-bar[data-slot="'+data.slot+'"]')
     eBar.classList.add('shout-out')
     setTimeout(() => {
-        vBox.classList.remove('shout-out')
-        eBar.classList.remove('shout-out')
+        if (vBox.getAttribute('shout-out-ttl', 0) <= Date.now()) {
+            vBox.classList.remove('shout-out')
+            eBar.classList.remove('shout-out')
+        }
+    }, 5000)
+}
 
+function handlePlayerComm(data) {
+    if (data.slot > 0) {
+        playTimes(sfx.knock, data.slot)
+        let victimEye = document.querySelector('div.videobox[data-slot="'+data.slot+'"] span.slot-eye-role')
+        victimEye.classList.add('active')
+        victimEye.setAttribute('data-color', data.color)
+    } else {
+        sfx.knock.play();
+    }
+    let slotEye = document.querySelector('div.videobox[data-slot="'+data.from+'"] span.slot-eye')
+    slotEye.classList.add('active')
+    slotEye.setAttribute('data-color', data.color)
+
+    setTimeout(() => {
+        slotEye.classList.remove('active')
+        slotEye.removeAttribute('data-color')
+        if (data.slot > 0) {
+            let victimEye = document.querySelector('div.videobox[data-slot="'+data.slot+'"] span.slot-eye-role')
+            victimEye.classList.remove('active')
+            victimEye.removeAttribute('data-color')
+        }
     }, 5000)
 }
 
@@ -1385,6 +1627,7 @@ function handleSetHostName(data) {
 
 function handleNominate(data) {
     sfx.nominate.play()
+    gameMessage('Nominees: '+data.nominees.join(', '),2)
     if (data.nominees.length === 0) {
         let vBoxes = document.querySelectorAll('div.videobox[data-slot="'+data.slot+'"]')
         vBoxes.forEach( vBox => {
@@ -1451,6 +1694,9 @@ function handlePlayerStatus(data) {
             video.srcObject = video.origSrcObject
         }
     }
+    if ((selfID === roomEnv.gameHost.uid) && (data.status === 'killed')) {
+        mainButton('Next speaker', nextSpeakerSend)
+    }
 }
 
 
@@ -1467,30 +1713,36 @@ function playerButtonDisable() {
 }
 function handleVotingRound(data) {
     if (selfID !== roomEnv.gameHost.uid) {
-        let vBox = document.querySelector('div.videobox[data-slot="' + data.candidate + '"]')
-        let slotCandidate = vBox.querySelector('span.slot-candidate')
-        slotCandidate.classList.add('active')
-        slotCandidate.setAttribute('tabindex', '0');
-        slotCandidate.focus();
+        let selfPlayer = document.querySelector('div.videobox.self-view[data-player-status="alive"]')
+        if (selfPlayer !== null) {
+            let selfSlot = selfPlayer.getAttribute('data-slot')
+            if (!data.voted.includes(selfSlot)) {
+                let vBox = document.querySelector('div.videobox[data-slot="' + data.candidate + '"]')
+                let slotCandidate = vBox.querySelector('span.slot-candidate')
+                slotCandidate.classList.add('active')
+                slotCandidate.setAttribute('tabindex', '0');
+                slotCandidate.focus();
 
-        playerButton("Vote", () => { vote(data.candidate) });
+                playerButton("Vote "+data.candidate, () => { vote(data.candidate) });
 
+                function handleKeyDown(event) {
+                    if (event.keyCode === 13 || event.keyCode === 32) {
+                        event.preventDefault();
 
-        function handleKeyDown(event) {
-            if (event.keyCode === 13 || event.keyCode === 32) {
-                event.preventDefault();
+                        slotCandidate.click();
+                    }
+                }
 
-                slotCandidate.click();
+                slotCandidate.addEventListener('keydown', handleKeyDown);
+
+                setTimeout(() => {
+                    slotCandidate.classList.remove('active')
+                    slotCandidate.removeEventListener('keydown', handleKeyDown);
+                    playerButtonDisable()
+                }, 5000)
             }
         }
 
-        slotCandidate.addEventListener('keydown', handleKeyDown);
-
-        setTimeout(() => {
-            slotCandidate.classList.remove('active')
-            slotCandidate.removeEventListener('keydown', handleKeyDown);
-            playerButtonDisable()
-        }, 5000)
     }
 }
 
@@ -1591,61 +1843,20 @@ function handlePlayerShoot(data) {
 
 function handleVotingRoundResult(data) {
     let candidate = document.querySelector('div.videobox[data-slot="' + data.candidate + '"]')
-    if (data.votes.length > 0) {
-        let likes = ''
-        data.votes.forEach( vote => {
-            likes += '\u{1F44D}'
-        })
+    // if (data.votes.length > 0) {
+        // let likes = ''
+        // data.votes.forEach( vote => {
+        //     likes += '\u{1F44D}'
+        // })
         span = candidate.querySelector('span.slot-vote')
         span.classList.add('voted')
         span.classList.add('votes-'+data.votes.length)
-
-
-        //span.textContent = likes
-        // setTimeout(() => {
-        //     fromSlot.querySelector('span.slot-vote').classList.remove('active')
-        // }, 2000);
-    }
 
     // fly(fromSlot, toSlot)
 }
 
 /* media source settings */
 let videoSelect, audioSelect;
-
-
-
-// function getStream() {
-//     if (window.localStorage) {
-//         const videoSource = localStorage.getItem('selectedVideoSource');
-//         const audioSource = localStorage.getItem('selectedAudioSource');
-//
-//         const constraints = {
-//             video: { deviceId: videoSource ? { exact: videoSource } : undefined },
-//             audio: { deviceId: audioSource ? { exact: audioSource } : undefined }
-//         };
-//
-//         navigator.mediaDevices.getUserMedia(constraints)
-//             .then(stream => {
-//                 localStream = stream;
-//                 localVideo.srcObject = stream;
-//                 startSignaling();
-//             })
-//             .catch(error => {
-//                 console.error('Error accessing media devices:', error);
-//             });
-//     }
-// }
-
-/* TEST VIDEO SOURCE
-// document.getElementById('startButton').addEventListener('click', () => {
-//     localStorage.setItem('selectedVideoSource', videoSelect.value);
-//     localStorage.setItem('selectedAudioSource', audioSelect.value);
-//     // getStream();
-//     location.reload()
-//
-// });
-*/
 
 // document.getElementById('startButton').addEventListener('click', async () => {
 async function saveMediaSettings() {
@@ -1668,6 +1879,10 @@ async function saveMediaSettings() {
     // Get the existing video and audio tracks from the localStream
     const existingVideoTrack = localStream.getVideoTracks()[0];
     const existingAudioTrack = localStream.getAudioTracks()[0];
+
+    videoTrack.enabled = existingVideoTrack.enabled
+    audioTrack.enabled = existingAudioTrack.enabled
+
 
     // Replace the existing tracks with the new tracks
     localStream.removeTrack(existingVideoTrack);
@@ -1696,27 +1911,6 @@ async function saveMediaSettings() {
 function closeMediaSettings() {
     document.querySelector('div#mediaSourcePopup').classList.remove('show')
 }
-document.addEventListener('DOMContentLoaded', () => {
-    videoSelect = document.querySelector('select#videoSource');
-    audioSelect = document.querySelector('select#audioSource');
-    //
-    // getStream();
-
-    navigator.mediaDevices.enumerateDevices()
-        .then(devices => {
-            devices.forEach(device => {
-                const option = document.createElement('option');
-                option.value = device.deviceId;
-                if (device.kind === 'videoinput') {
-                    option.text = device.label || `Camera ${videoSelect.length + 1}`;
-                    videoSelect.appendChild(option);
-                } else if (device.kind === 'audioinput') {
-                    option.text = device.label || `Microphone ${audioSelect.length + 1}`;
-                    audioSelect.appendChild(option);
-                }
-            });
-        });
-});
 
 
 

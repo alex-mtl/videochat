@@ -15,7 +15,19 @@ const common = require('./common')
 
 common.globalContext(global)
 
-const host = require('./host');
+const hostModule = require('./host');
+const {
+    getRoom,
+    broadcastRoom,
+    sleep,
+    onlyHost,
+    host,
+    slotSend,
+    onlyPlayer,
+    onlyMafTeam,
+    onlySheriff, updateRoom
+} = require("./common");
+
 function validateString(str) {
     const re = XRegExp("^[\\pL\\-_0-9]+$");
     if(!re.test(str)) {
@@ -30,14 +42,14 @@ function joinGame(ws, data) {
     sessionID = (data.chatSessionID === undefined) ? data.sessionID : data.chatSessionID;
     var roomFile = config.roomsFolder+'/'+roomID+'.json';
     var room = {};
-    fs.readFile(roomFile, 'utf8', function (err, data) {
+    fs.readFile(roomFile, 'utf8', async function (err, data) {
         if (err) {
-            ws.send(JSON.stringify({ type: 'error', message: 'There is no game '+roomID }));
+            await ws.send(JSON.stringify({type: 'error', message: 'There is no game ' + roomID}));
             return;
         } else {
             room = JSON.parse(data);
             if (room.type !== 'mafia') {
-                ws.send(JSON.stringify({type: 'error', message: 'There is no game in "' + roomID + '" room.'}));
+                await ws.send(JSON.stringify({type: 'error', message: 'There is no game in "' + roomID + '" room.'}));
                 return;
             }
             if (room.type === 'mafia') {
@@ -47,15 +59,15 @@ function joinGame(ws, data) {
                 if (sessionID === room.gameHost.sessionID) {
                     let conn = clients[room.gameHost.uid]
                     if (conn === undefined) {
-                        console.log('41 GameHost',clientId)
-                        clientId = room.host.uid ;
+                        console.log('41 GameHost', clientId)
+                        clientId = room.host.uid;
 
                     } else {
                         console.log('WS 51 conn: ', typeof conn)
                     }
                     pass = true;
                 } else {
-                    console.log('48 WARN: ',sess.uid,room.host.uid)
+                    console.log('48 WARN: ', sess.uid, room.host.uid)
                 }
 
             } else {
@@ -83,26 +95,27 @@ function joinGame(ws, data) {
                     }
                 }
 
-            };
+            }
+            ;
 
             // if (!pass) {
             room.users[clientId] = {uid: clientId};
             room.size = room.users.length;
             // }
         }
-        console.log("WS order 117",clientId)
+        console.log("WS order 117", clientId)
         clients[clientId] = ws;
         ws.uid = clientId;
         ws.roomID = roomID;
         rooms[roomID] = room;
 
         // Send the new client their ID
-        ws.send(JSON.stringify({ type: 'id', id: clientId, room: room }));
-        console.log('wsid: ',ws.uid,clientId, 'room :',  JSON.stringify(room));
+        await ws.send(JSON.stringify({type: 'id', id: clientId, room: room}));
+        // console.log('wsid: ', ws.uid, clientId, 'room :', JSON.stringify(room));
 
-        fs.writeFileSync(roomFile, JSON.stringify(room) , 'utf-8');
+        fs.writeFileSync(roomFile, JSON.stringify(room), 'utf-8');
 
-        broadcastRoom(roomID, JSON.stringify({ type: 'participant-joined', id: clientId, room: room }), ws);
+        await broadcastRoom(roomID, JSON.stringify({type: 'participant-joined', id: clientId, room: room}), ws);
     });
 
 }
@@ -118,7 +131,7 @@ async function gamePlayerStatus(ws, data) {
             slotRes = data.slot
             userWS = clients[player.uid]
             if (userWS !== undefined) {
-                userWS.send(JSON.stringify({ type: 'reset' }));
+                await userws.send(JSON.stringify({ type: 'reset' }));
                 checkUserConnection(userWS, player)
             }
             delete room.users[player.uid]
@@ -128,7 +141,7 @@ async function gamePlayerStatus(ws, data) {
             // console.log('roomPlayer',room.slot[data.slot])
             room = await updateRoom(ws.roomID, room)
 
-            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'set-player-name', slot: data.slot, name: 'unknown' }));
+            await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'set-player-name', slot: data.slot, name: 'unknown' }));
         } else {
             // console.log(131)
             room.gameHost.status = data.status
@@ -147,9 +160,9 @@ async function gamePlayerStatus(ws, data) {
     }
     if (valid) {
         await updateRoom(ws.roomID, room)
-        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-player-status', uid: ws.uid, status: data.status, slot: slotRes }));
+        await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-player-status', uid: ws.uid, status: data.status, slot: slotRes }));
     } else {
-        ws.send(JSON.stringify({ type: 'error', message: "Something went wrong. Can't change your status..." }));
+        await ws.send(JSON.stringify({ type: 'error', message: "Something went wrong. Can't change your status..." }));
     }
 }
 
@@ -175,16 +188,16 @@ async function gamePlayerMic(ws, data) {
     }
     if (valid) {
         await updateRoom(ws.roomID, room)
-        broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-player-mic', uid: ws.uid, mic: data.mic }));
+        await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-player-mic', uid: ws.uid, mic: data.mic }));
     } else {
-        ws.send(JSON.stringify({ type: 'error', message: "Can't change your microphone status..." }));
+        await ws.send(JSON.stringify({ type: 'error', message: "Can't change your microphone status..." }));
     }
 }
 
 async function gameReserveSlot(ws, data) {
     let room = await getRoom(ws.roomID);
     if (!room.game.availableSlots.includes(data.slotID)) {
-        ws.send(JSON.stringify({ type: 'error', message: "Slot "+data.slotID+" is not available..." }));
+        await ws.send(JSON.stringify({ type: 'error', message: "Slot "+data.slotID+" is not available..." }));
         return
     }
 
@@ -204,7 +217,7 @@ async function gameReserveRole(ws, data) {
     let room = await getRoom(ws.roomID);
     if (!room.game.availableCards.includes(parseInt(data.cardID))) {
         console.log('242 ',room.game.availableCards)
-        ws.send(JSON.stringify({ type: 'error', message: "Card "+data.cardID+" is not available...", availabe: room.game.availableCards }));
+        await ws.send(JSON.stringify({ type: 'error', message: "Card "+data.cardID+" is not available...", availabe: room.game.availableCards }));
         return
     }
     for (const [slot, player] of Object.entries(room.slot)) {
@@ -217,9 +230,9 @@ async function gameReserveRole(ws, data) {
                 room.game.availableRoles =  room.game.availableRoles.filter(role => role !== null);
                 room.game.availableCards = room.game.availableCards.filter(cardID => cardID !== data.cardID);
                 room = await updateRoom(ws.roomID, room)
-                broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-role-taken', card: data.cardID }));
-                ws.send(JSON.stringify({ type: 'game-role', role: room.slot[slot].role }));
-                ws.send(JSON.stringify({ type: 'game-phase', phase: 'shuffle' }));
+                await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-role-taken', card: data.cardID }));
+                await ws.send(JSON.stringify({ type: 'game-role', role: room.slot[slot].role }));
+                await ws.send(JSON.stringify({ type: 'game-phase', phase: 'shuffle' }));
 
                 break
             }
@@ -267,7 +280,7 @@ async function playerVote(ws, data) {
                 curRound.voted.push(playerSlot)
                 room.game.days[curDay].rounds[roundN] = curRound
                 room = await updateRoom(ws.roomID, room)
-                broadcastRoom(ws.roomID, JSON.stringify({
+                await broadcastRoom(ws.roomID, JSON.stringify({
                     type: 'player-vote',
                     player: playerSlot,
                     candidate: candidateSlot
@@ -315,7 +328,7 @@ async function voteLockWinners(ws, data) {
                 room.game.days[curDay].rounds[roundN] = curRound
                 room = await updateRoom(ws.roomID, room)
                 let votes = room.game.days[curDay].rounds[roundN]['lock-winners']['votes']
-                broadcastRoom(ws.roomID, JSON.stringify({
+                await broadcastRoom(ws.roomID, JSON.stringify({
                     type: 'lock-winners-player-vote',
                     player: votes[votes.length-1]
                 }));
@@ -326,73 +339,106 @@ async function voteLockWinners(ws, data) {
     }
 }
 
-async function shoot(ws, data) {
-    let room = await getRoom(ws.roomID);
-    // if (ws.uid === room.gameHost.uid) {
-    //     console.log('Attempt to shoot when a host!', ws.uid, ws.roomID)
-    //     return
-    // } else {
-        let playerSlot = 0
-        for (const [slot, player] of Object.entries(room.slot)) {
-            if ((player.uid === ws.uid)
-                && (player.status === 'alive')
-                && ((player.role === 'D') || (player.role === 'B'))
-            ) {
-                playerSlot = slot
-                broadcastRoom(ws.roomID, JSON.stringify({
-                    type: 'player-shoot'
-                }));
-                break
-            }
-        }
-        if (playerSlot === 0) {
-            // player not alive, so can't vote
-            console.log('Not alive mafia attempt to shoot!', ws.uid, room.game.slot)
-            return
-        } else {
-            let curDay = room.game.days["D"+room.game.day]
+const shoot = onlyMafTeam(async (ws, data, ROOM_ID, room, PLAYER, TEAM) => {
+    let playerSlot = PLAYER.slot
+    // await broadcastRoom(ROOM_ID, JSON.stringify({
+    //     type: 'player-shoot'
+    // }));
 
-            if (curDay.shooters.includes(playerSlot)) {
-                //
-                console.log('Player already shoot this night!', playerSlot, curRound)
-                return
-            } else {
-                curDay.shooters.push(playerSlot)
-                curDay.victims[playerSlot] = data.slot
-                curDay.shoot[playerSlot] = data.slot
-                room = await updateRoom(ws.roomID, room)
-                let hostWS = clients[room.gameHost.uid]
-                if (hostWS !== undefined) {
-                    hostWS.send(JSON.stringify({ type: 'mafia-shoot', mafia: playerSlot, victim: data.slot }));
-                }
+    let curDay = room.game.days["D"+room.game.day]
 
-            }
-            broadcastRoom(ws.roomID, JSON.stringify({
-                type: 'player-shoot'
-            }));
-        }
-    // }
-}
+    if (curDay.shooters.includes(playerSlot)) {
+        //
+        console.log('Player already shoot this night!', playerSlot, curRound)
+        return
+    } else {
+        curDay.shooters.push(playerSlot)
+        curDay.victims[playerSlot] = data.slot
+        curDay.shoot[playerSlot] = data.slot
+        room = await updateRoom(ws.roomID, room)
+        await host(ROOM_ID, { type: 'mafia-shoot', mafia: playerSlot, victim: data.slot })
+        await broadcastRoom(ws.roomID, JSON.stringify({
+            type: 'player-shoot'
+        }));
+    }
+})
 
 
-async function shoutOut(ws, data) {
-    let room = await getRoom(ws.roomID);
+const shoutOut = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
     if ((ws.uid !== data.uid)
         || (ws.uid !== room.slot[data.slot].uid)) {
         console.log('Attempt to shout out with incorrect uid!', ws.uid, data.uid, room.slot[data.slot].uid)
         return
     } else {
-        let player = room.slot[data.slot]
+        if (PLAYER.mic === 'off') {
+            let soId = randStr()
+            let ts = Date.now()
+            PLAYER.so = []
+            PLAYER.so.push({ id:soId, start: ts, end: (ts+5000)})
+            room.slot[PLAYER.slot] = PLAYER
+            room = await updateRoom(ROOM_ID, room)
+            await ws.send(JSON.stringify({type: 'unmute-mic', mode: 'shout-out'}));
+            await broadcastRoom(ws.roomID, JSON.stringify({type: 'shout-out', slot: data.slot}));
+            setTimeout(async () => {
+                room = await getRoom(ROOM_ID)
+                player = room.slot[PLAYER.slot]
+                so = player.so[0]
+                if (so.end <= Date.now()) {
+                    await slotSend(ROOM_ID, data.slot, {type: 'mute-mic', mode: 'shout-out'});
+                }
+            }, 5000);
+        } else {
+            room = await getRoom(ROOM_ID)
 
-        if ((player.mic === 'off')) {
-            ws.send(JSON.stringify({ type: 'unmute-mic', mode: 'shout-out' }));
-            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'shout-out', slot: data.slot }));
-            setTimeout(() => {
-                ws.send(JSON.stringify({ type: 'mute-mic', mode: 'shout-out' }));
+            let player = room.slot[PLAYER.slot]
+            console.log('393', player.so[0])
+            player.so[0].end = Date.now() + 4900
+            room = await updateRoom(ROOM_ID, room)
+            console.log('395', room.slot[PLAYER.slot].so[0])
+            await broadcastRoom(ws.roomID, JSON.stringify({type: 'shout-out', slot: data.slot}));
+            setTimeout(async () => {
+                let now = Date.now()
+                room = await getRoom(ROOM_ID)
+                console.log('400', room.slot[PLAYER.slot].so[0], now)
+                let player = room.slot[PLAYER.slot]
+                let so = player.so[0]
+                console.log('404', so, now)
+                if (so.end <= now) {
+                    await slotSend(ROOM_ID, data.slot, {type: 'mute-mic', mode: 'shout-out'});
+                }
+                // await slotSend(ROOM_ID, data.slot, {type: 'mute-mic', mode: 'shout-out'});
             }, 5000);
         }
     }
-}
+})
+
+const sendPlayerComm = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
+    let receiver = room.slot[data.slot]
+    if (receiver.status === 'alive') {
+        userWS = clients[receiver.uid]
+        if (userWS !== undefined) {
+            await userWS.send(JSON.stringify({ type: 'player-comm', from: PLAYER.slot, slot: data['pad-number'], color: data['pad-color'] }));
+        }
+    }
+})
+
+
+const getSelfRole = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
+    let response = {type: 'request-response', requestId: data.requestId, role: PLAYER.role}
+    await ws.send(JSON.stringify(response));
+});
+
+
+const getMafTeam = onlyMafTeam(async (ws, data, ROOM_ID, room, PLAYER, TEAM) => {
+    let response = {type: 'request-response', requestId: data.requestId, mafTeam: TEAM}
+    await ws.send(JSON.stringify(response));
+});
+
+const getSheriff = onlySheriff(async (ws, data, ROOM_ID, room, PLAYER, TEAM) => {
+    let response = {type: 'request-response', requestId: data.requestId, team: TEAM}
+    await ws.send(JSON.stringify(response));
+});
+
 
 async function setPlayerName(ws, data) {
     let room = await getRoom(ws.roomID);
@@ -404,7 +450,7 @@ async function setPlayerName(ws, data) {
             ws.name = data.name
             room.gameHost.name = data.name
             room = await updateRoom(ws.roomID, room);
-            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'set-host-name', slot: data.slot, name: room.gameHost.name }));
+            await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'set-host-name', slot: data.slot, name: room.gameHost.name }));
         }
     } else {
         if ( (ws.uid !== room.slot[data.slot].uid)) {
@@ -414,7 +460,7 @@ async function setPlayerName(ws, data) {
             ws.name = data.name
             room.slot[data.slot].name = data.name
             room = await updateRoom(ws.roomID, room);
-            broadcastRoom(ws.roomID,  JSON.stringify({ type: 'set-player-name', slot: data.slot, name: room.slot[data.slot].name }));
+            await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'set-player-name', slot: data.slot, name: room.slot[data.slot].name }));
 
         }
     }
@@ -456,6 +502,7 @@ function createGame(sender, data) {
         room.users = {}
         room.users[clientId] = {uid: clientId};
         room.slot = {};
+        room.log = [];
         room.game.phase = 'lobby'
 
         for (let i=0; i<10; i++) {
@@ -565,6 +612,9 @@ function joinRoomGame(sender, data) {
 }
 
 
+function randStr(l = 10) {
+    return Math.random().toString(36).substr(2, l);
+}
 
 function generateClientId() {
     return Math.random().toString(36).substr(2, 9);
@@ -577,7 +627,7 @@ function getHandler(str) {
 }
 
 module.exports = common.addExports(
-                 host.addExports({
+    hostModule.addExports({
     getHandler,
     joinGame,
     createGame,
@@ -586,7 +636,11 @@ module.exports = common.addExports(
     gamePlayerMic,
     gameReserveSlot,
     gameReserveRole,
+    getSelfRole,
+    getMafTeam,
+    getSheriff,
     shoutOut,
+    sendPlayerComm,
     setPlayerName,
     playerVote,
     voteLockWinners,
