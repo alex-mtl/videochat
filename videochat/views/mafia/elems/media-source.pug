@@ -1,0 +1,11 @@
+div.settings-popup#mediaSourcePopup
+    h2 Select Media Sources
+    label(for="videoSource") Video source:
+    select#videoSource
+    br
+    label(for="audioSource") Audio source:
+    select#audioSource
+    button#closeButton(onclick="closeMediaSettings()") Close
+    button#startButton(onclick="saveMediaSettings()") Start
+    include media-source.js.pug
+

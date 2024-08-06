@@ -20,13 +20,13 @@ function join(ws, data) {
     console.log('109 session ID', sessionID);
     var roomFile = 'rooms/'+roomID+'.json';
     var obj = {};
-    fs.readFile(roomFile, 'utf8', function (err, data) {
+    fs.readFile(roomFile, 'utf8', async function (err, data) {
         if (err) {
-            obj['host'] = { uid: clientId };
+            obj['host'] = {uid: clientId};
             obj['size'] = 1;
             obj['name'] = roomID;
             obj['type'] = 'public';
-            obj['link'] = config.chatHost+'p/'+roomID;
+            obj['link'] = config.chatHost + 'p/' + roomID;
             obj['password'] = false;
         } else {
             obj = JSON.parse(data);
@@ -36,18 +36,24 @@ function join(ws, data) {
                 console.log('97 ', obj.type);
                 sess = getSession(sessionID);
                 pass = false;
-                if ((sess !== undefined) && (sess.hasOwnProperty('room-'+roomID))) {
-                    if (obj.password === sess['room-'+roomID].password
-                        && (sess['room-'+roomID].ttl >= new Date().getTime())
+                if ((sess !== undefined) && (sess.hasOwnProperty('room-' + roomID))) {
+                    if (obj.password === sess['room-' + roomID].password
+                        && (sess['room-' + roomID].ttl >= new Date().getTime())
                     ) {
                         pass = true;
                     } else {
-                        ws.send(JSON.stringify({ type: 'error', message: "Failed to join room: "+roomID+" Password is wrong..." }));
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            message: "Failed to join room: " + roomID + " Password is wrong..."
+                        }));
                         return;
                     }
                 }
                 if (!pass) {
-                    ws.send(JSON.stringify({ type: 'error', message: "Failed to join room: "+roomID+" Password is wrong or session expired" }));
+                    ws.send(JSON.stringify({
+                        type: 'error',
+                        message: "Failed to join room: " + roomID + " Password is wrong or session expired"
+                    }));
                     return;
                 }
             } else if (obj.type === 'master') {
@@ -58,22 +64,28 @@ function join(ws, data) {
                 if (sess.newRoom === obj.name) {
                     pass = true;
                     obj.host.uid = ws.uid = clientId;
-                } else if ((sess.hasOwnProperty('room-'+roomID))) {
+                } else if ((sess.hasOwnProperty('room-' + roomID))) {
                     console.log('143 ', sessionID, obj.host.sessionID);
                     // TODO tut po idee mojno budet proveryat esli allowed to pass in
                     if (sessionID === obj.host.sessionID || (obj.hasOwnProperty('allowed') && obj.allowed.includes(sessionID))) {
                         pass = true;
-                    } else if (obj.password === sess['room-'+roomID].password
-                        && (sess['room-'+roomID].ttl >= new Date().getTime())
+                    } else if (obj.password === sess['room-' + roomID].password
+                        && (sess['room-' + roomID].ttl >= new Date().getTime())
                     ) {
                         pass = true;
                     } else {
-                        ws.send(JSON.stringify({ type: 'error', message: "Failed to join room: "+roomID+" Password is wrong..." }));
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            message: "Failed to join room: " + roomID + " Password is wrong..."
+                        }));
                         return;
                     }
                 }
                 if (!pass) {
-                    ws.send(JSON.stringify({ type: 'error', message: "Failed to join room: "+roomID+" Password is wrong or session expired" }));
+                    ws.send(JSON.stringify({
+                        type: 'error',
+                        message: "Failed to join room: " + roomID + " Password is wrong or session expired"
+                    }));
                     return;
                 }
             } else if (obj.type === 'stream') {
@@ -84,19 +96,22 @@ function join(ws, data) {
                 if ((sess.newRoom === obj.name)
                     && (sess.uid === obj.host.uid)
                 ) {
-                    clientId = obj.host.uid ;
+                    clientId = obj.host.uid;
                     pass = true;
                     stream = true;
-                } else if ((sess.hasOwnProperty('room-'+roomID))) {
+                } else if ((sess.hasOwnProperty('room-' + roomID))) {
                     console.log('143 ', sessionID, obj.host.sessionID);
                     if (sessionID === obj.host.sessionID) {
                         pass = true;
-                    } else if (obj.password === sess['room-'+roomID].password
-                        && (sess['room-'+roomID].ttl >= new Date().getTime())
+                    } else if (obj.password === sess['room-' + roomID].password
+                        && (sess['room-' + roomID].ttl >= new Date().getTime())
                     ) {
                         pass = true;
                     } else {
-                        ws.send(JSON.stringify({ type: 'error', message: "Failed to join room: "+roomID+" Password is wrong..." }));
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            message: "Failed to join room: " + roomID + " Password is wrong..."
+                        }));
                         return;
                     }
                 } else {
@@ -110,12 +125,15 @@ function join(ws, data) {
                     pass = true;
                 }
                 if (!pass) {
-                    ws.send(JSON.stringify({ type: 'error', message: "Failed to join room: "+roomID+" Password is wrong or session expired" }));
+                    ws.send(JSON.stringify({
+                        type: 'error',
+                        message: "Failed to join room: " + roomID + " Password is wrong or session expired"
+                    }));
                     return;
                 }
             }
             if (!stream) {
-                obj['u'+obj.size] = { uid: clientId };
+                obj['u' + obj.size] = {uid: clientId};
                 obj.size = obj.size + 1;
             }
 
@@ -127,42 +145,51 @@ function join(ws, data) {
         rooms[roomID] = obj;
 
         // Send the new client their ID
-        ws.send(JSON.stringify({ type: 'id', id: clientId, room: obj }));
-        console.log('wsid: ',ws.uid,clientId, 'obj :',  JSON.stringify(obj));
+        ws.send(JSON.stringify({type: 'id', id: clientId, room: obj}));
+        console.log('wsid: ', ws.uid, clientId, 'obj :', JSON.stringify(obj));
 
-        fs.writeFileSync(roomFile, JSON.stringify(obj) , 'utf-8');
+        fs.writeFileSync(roomFile, JSON.stringify(obj), 'utf-8');
 
-        broadcastRoom(roomID, JSON.stringify({ type: 'participant-joined', id: clientId, room: obj }), ws);
+        await broadcastRoom(roomID, JSON.stringify({type: 'participant-joined', id: clientId, room: obj}), ws);
     });
 
 }
 
-function broadcastRoom(roomID, message, ws = null) {
+async function broadcastRoom(roomID, message, ws = null) {
     room = rooms[roomID];
     if (room !== undefined) {
         if (ws === null || room.host.uid !== ws.uid) {
             hostConn = clients[room.host.uid];
             if (hostConn !== undefined) {
-                hostConn.send((message));
+                await hostConn.send((message));
             }
         }
-        for (let i= 1; i <= 10; i++) {
-            if (room.hasOwnProperty('u'+i)) {
-                if (ws === null || room['u'+i].uid !==  ws.uid) {
-                    userConn = clients[room['u'+i].uid ];
+        if (room.type === 'mafia') {
+            for (const uid in room.users) {
+                if (ws === null || uid !==  ws.uid) {
+                    userConn = clients[ uid ];
                     if (userConn !== undefined) {
-                        userConn.send(message);
+                        await userConn.send(message);
                     } else {
-                        console.log("Can't connect to ",room['u'+i].uid);
-                        //delete(room['u'+i]);
-                        //room.size = room.size - 1;
-
+                        console.log("Can't connect to ", uid)
+                    }
+                }
+            }
+        } else {
+            for (let i= 1; i <= 10; i++) {
+                if (room.hasOwnProperty('u'+i)) {
+                    if (ws === null || room['u'+i].uid !==  ws.uid) {
+                        userConn = clients[room['u'+i].uid ];
+                        if (userConn !== undefined) {
+                            await userConn.send(message);
+                        } else {
+                            console.log("Can't connect to ",room['u'+i].uid);
+                        }
                     }
                 }
             }
         }
     }
-    //rooms[roomID] = room;
 }
 
 function shareScreen(ws, data) {
@@ -223,6 +250,8 @@ function offer(sender, data) {
     console.log('Offer from : ',sender.uid, ' to: ',data.to);
     if (recipient) {
         recipient.send(JSON.stringify({ type: 'participant-offer', from: data.from, description: data.offer }));
+    } else {
+        sender.send(JSON.stringify({ type: 'error', message: "Failed to send offer! Recipient: `"+data.to+"` not found..." }));
     }
 }
 
@@ -276,6 +305,7 @@ function createRoom(sender, data) {
         room.host = { uid: clientId, userName: room.host, sessionID: room.chatSessionID };
         room.link = config.chatHost+'p/'+room.name;
         room.size = 1;
+        room.log = []
         console.log('302',room);
         if (room.stream === 'On') {
             console.log('304', room.stream);
@@ -385,7 +415,7 @@ function joinRoom(sender, data) {
 }
 
 function createSession(sessionID, clientID = null, userName = null, roomID = null) {
-    sessionFile = config.sessionsFolder+sessionID.toString('base64')+'.json';
+    sessionFile = config.sessionsFolder+Buffer.from(sessionID).toString('base64')+'.json';
     sess = {
         chatSessionID: sessionID,
         uid: clientID,
@@ -418,6 +448,17 @@ function getSession(sessionID, clientID = null, userName = null, roomID = null) 
     return sess;
 }
 
+function getRoom(roomID) {
+    roomFile = config.roomsFolder+'/'+roomID+'.json';
+    if (fs.existsSync(roomFile)) {
+        fs.readFile(roomFile, 'utf8', function (err, roomData) {
+            room = JSON.parse(roomData);
+            return room;
+        })
+    }
+    return false;
+}
+
 function updateSession(sessionID, sess) {
     // sessionFile = 'sessions/'+sessionID.toString('base64')+'.json';
     const sessionFile = config.sessionsFolder + Buffer.from(sessionID).toString('base64') + '.json';
@@ -426,32 +467,45 @@ function updateSession(sessionID, sess) {
     return sess;
 }
 
-function sendChatMessage(sender, data) {
+async function sendChatMessage(sender, data) {
     ts = new Date();
     time = ts.toLocaleTimeString('it-IT');
     const now = Date.now();
-    roomFile = config.roomsFolder+'/'+sender.roomID+'.json';
-    console.log('473 ',sender.roomID);
+    roomFile = config.roomsFolder + '/' + sender.roomID + '.json';
+    console.log('473 ', sender.roomID);
     if (roomID === undefined) {
         return;
     }
     if (fs.existsSync(roomFile)) {
         fs.utimes(roomFile, now, now, (err) => {
             if (err) {
-                console.error('Error updating file '+roomFile+' timestamps:', err);
+                console.error('Error updating file ' + roomFile + ' timestamps:', err);
             }
         });
     }
-    broadcastRoom(sender.roomID, JSON.stringify({ type: 'chat-message', time: time, from: data.from, message: data.message }));
+    await broadcastRoom(sender.roomID, JSON.stringify({
+        type: 'chat-message',
+        time: time,
+        from: data.from,
+        message: data.message
+    }));
 
 }
 
 function answer(sender, data) {
     const recipient = clients[data.to];
+    roomFile = config.roomsFolder+'/'+roomID+'.json';
+    console.log('472',roomFile)
+    if (fs.existsSync(roomFile)) {
 
-
-    if (recipient) {
-        recipient.send(JSON.stringify({ type: 'answer', from: data.from, description: data.description }));
+        fs.readFile(roomFile, 'utf8', function (err, roomData) {
+            room = JSON.parse(roomData);
+            if (recipient) {
+                recipient.send(JSON.stringify({ type: 'answer', from: data.from, description: data.description, roomEnv: room }));
+            }
+        })
+    } else {
+        sender.send(JSON.stringify({ type: 'error', message: "Failed to send answer! Room: `"+roomID+"` not found..." }));
     }
 }
 
@@ -475,6 +529,7 @@ function broadcast(message) {
 function removeClient(ws) {
     const clientId = ws.uid;
     const roomID = ws.roomID;
+    console.log('WS : removeClient: ',ws.uid, ws.roomID)
     if (roomID === undefined) {
         return;
     }
@@ -483,54 +538,66 @@ function removeClient(ws) {
     if (!fs.existsSync(roomFile)) {
         console.log('Room ', roomFile, ' does not exist!');
     } else {
-        fs.readFile(roomFile, 'utf8', function (err, data) {
+        fs.readFile(roomFile, 'utf8', async function (err, data) {
 
-            obj = JSON.parse(data);
+            room = JSON.parse(data);
             if (clientId) {
                 delete clients[clientId];
                 removeId = 0;
-                if (obj.host.uid === clientId) {
-                    if (obj.hasOwnProperty('u1')
-                        && (obj.type === 'public')
+                if (room.host.uid === clientId) {
+                    if (room.hasOwnProperty('u1')
+                        && (room.type === 'public')
                     ) {
 
-                        obj.host = obj.u1;
+                        room.host = room.u1;
                         removeId = 1;
-                        obj.size = obj.size - 1;
-                        console.log('183 size:', obj.size);
-                    } else {
+                        room.size = room.size - 1;
+                    } else if (room.type !== 'mafia') {
                         removeId = 1;
-                        obj.host.uid = 'DISCONNECTED';
-                        obj.size = obj.size - 1;
+                        room.host.uid = 'DISCONNECTED';
+                        room.size = room.size - 1;
+                    } else if (room.type === 'mafia') {
+                        // if (room.users.hasOwnProperty(clientId)) {
+                        //     delete room.users[clientId];
+                        // }
                     }
                 } else {
+
                     for (let i = 1; i <= 10; i++) {
-                        if (obj.hasOwnProperty('u' + i)) {
-                            if (obj['u' + i].uid === clientId) {
-                                delete obj['u' + i];
+                        if (room.hasOwnProperty('u' + i)) {
+                            if (room['u' + i].uid === clientId) {
+                                delete room['u' + i];
                                 removeId = i;
-                                obj.size = obj.size - 1;
-                                console.log('192 size:', obj.size);
+                                room.size = room.size - 1;
                                 break;
                             }
                         }
                     }
-                }
-                for (let i = removeId; i <= 10; i++) {
-                    if (obj.hasOwnProperty('u' + (i + 1))) {
-                        obj['u' + i] = obj['u' + (i + 1)];
-                        delete obj['u' + (i + 1)];
-                        console.log('202 size:', obj.size, 'remove id: ', removeId);
-                        //obj.size = obj.size - 1;
+                    if ((removeId === 0) && room.hasOwnProperty('users')) {
+                        if (room.users.hasOwnProperty(clientId)) {
+                            delete room.users[clientId];
+                            room.size = room.size - 1;
+                        }
                     }
                 }
-                fs.writeFileSync(roomFile, JSON.stringify(obj), 'utf-8');
+                for (let i = removeId; i <= 10; i++) {
+                    if (room.hasOwnProperty('u' + (i + 1))) {
+                        room['u' + i] = room['u' + (i + 1)];
+                        delete room['u' + (i + 1)];
+                    }
+                }
+                fs.writeFileSync(roomFile, JSON.stringify(room), 'utf-8');
                 // Notify other clients about the departure
-                broadcastRoom(ws.roomID, JSON.stringify({type: 'participant-left', id: clientId, room: obj}, ws));
+                await broadcastRoom(ws.roomID, JSON.stringify({
+                    type: 'participant-left',
+                    id: clientId,
+                    room: room
+                }, ws));
             }
         });
     }
 
+    delete clients[clientId];
 }
 
 function getClientId(ws) {

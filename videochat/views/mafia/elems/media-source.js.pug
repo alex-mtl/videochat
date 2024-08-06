@@ -1,0 +1,23 @@
+// script.pug
+script.
+    document.addEventListener('DOMContentLoaded', () => {
+        videoSelect = document.querySelector('select#videoSource');
+        audioSelect = document.querySelector('select#audioSource');
+        //
+        // getStream();
+
+        navigator.mediaDevices.enumerateDevices()
+            .then(devices => {
+                devices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    if (device.kind === 'videoinput') {
+                        option.text = device.label || `Camera ${videoSelect.length + 1}`;
+                        videoSelect.appendChild(option);
+                    } else if (device.kind === 'audioinput') {
+                        option.text = device.label || `Microphone ${audioSelect.length + 1}`;
+                        audioSelect.appendChild(option);
+                    }
+                });
+            });
+    });

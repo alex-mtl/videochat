@@ -1,0 +1,55 @@
+
+:root {
+    --g-grey: rgba(211, 211, 211, 0.5);
+    --g-grey-solid: rgba(211, 211, 211);
+    --g-dark-grey: hsl(0, 0%, 40%);
+    --g-green: #72d972;
+    --g-success: #198754;
+    --g-success-hover: #157347;
+    --g-failure: #dc3545;
+    --g-alert: #f5c6cb;
+    --g-red: #e15754;
+    --g-ready: 7
+}
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+.header, .footer {
+    background-color: var(--g-dark-grey);
+    color: #fff;
+    padding: 10px;
+    position: fixed;
+    width: 100%;
+    text-align: center;
+}
+.header {
+    top: 0;
+}
+.footer {
+    bottom: 0;
+}
+.container {
+    /*max-width: 800px;*/
+    max-width: 90vw;
+    margin: 60px auto; /* Adjust margin to make space for header and footer */
+    padding: 10px;
+}
+form {
+    max-width: 600px;
+    margin: auto;
+}
+.form-control {
+    width: auto; /* Adjust input width */
+}
+.btn-create {
+    width: auto; /* Adjust button width */
+}
+.table-container {
+    max-height: calc(100vh - 4vw); /* Adjust maximum height for scroll */
+    overflow-y: auto; /* Enable vertical scrolling */
+    margin-top: 2vw; /* Adjust margin to avoid overlapping with header */
+    margin-bottom: 2vw; /* Adjust margin to avoid overlapping with footer */
+}

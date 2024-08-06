@@ -119,12 +119,3 @@ function showModal(message, yesBtn, noBtn, yesFunction, noFunction) {
     });
 }
 
-// Test function for "Yes" button
-function onYes() {
-    console.log('Yes');
-}
-
-// Test function for "No" button
-function onNo() {
-    console.log('No');
-}

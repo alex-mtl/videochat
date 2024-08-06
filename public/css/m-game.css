@@ -1,0 +1,1724 @@
+
+:root {
+    --columns: 4; /* Default number of columns */
+    --g-grey: rgba(211, 211, 211, 0.5);
+    --g-grey-solid: rgba(211, 211, 211);
+    --g-dark-grey: hsl(0, 0%, 40%);
+    --g-green: #72d972;
+    --g-success: #198754;
+    --g-success-hover: #157347;
+    --g-failure: #dc3545;
+    --g-alert: #f5c6cb;
+    --g-red: #e15754;
+    --g-ready: 7;
+    --shootVictim: 'timer_10'
+}
+
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(4 , 1fr);
+    grid-template-rows: repeat(3, auto);
+    /*height: 100vh;*/
+    grid-gap: 5px;
+}
+
+.game {
+    width: 99%;
+}
+
+/* any span invisible by default! */
+span {
+    visibility: hidden;
+}
+
+video.muted {
+    border: 0.25vw solid var(--g-red);
+}
+
+video {
+    border: 0.25vw solid var(--g-green);
+    margin: 0.1vw;
+    width: 100%;
+    aspect-ratio: 16/9;
+}
+
+video.active-speaker {
+    border: 0.25vw solid darkgreen;
+    border: none;
+    box-shadow: 0 0 1.25vw darkgreen;
+}
+
+video.active-speaker.active-speaker-penalized {
+    border: 0.25vw solid var(--g-red);
+    box-shadow: 0 0 1vw var(--g-red);
+}
+
+video.active-speaker.active-speaker-penalized ~ span.slot-warn
+/*.videobox.shout-out span.slot-mic[data-mic="on"]:before*/
+{
+    animation: blinker 1s linear infinite;
+}
+
+
+.videobox.shout-out video {
+    border: none;
+    box-shadow: 0 0 1vw red;
+}
+
+
+.e-bar.shout-out {
+    background-color: red;
+    animation: blinker 1s linear infinite;
+}
+
+.e-bar.active-speaker {
+    background-color: darkgreen;
+    animation: blinker 1s linear infinite;
+}
+
+div.videobox[data-uid="empty"] video {
+    border-color: var(--g-grey);
+}
+
+video:not(.play) {
+    opacity: 10%;
+}
+
+#localVideo {
+    object-fit:cover;
+    width:100%;
+}
+
+/* content: "background_replace"; */
+div.videobox {
+    position:relative;
+    background-image: url(/static/img/background_replace.svg);
+    /*background-color: var(--g-grey);*/
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: 50% auto;
+}
+
+[data-phase="shooting"] div.videobox,
+div.videobox:not([data-player-status="alive"]):not([data-player-status="unknown"]) {
+    background-image: none;
+}
+
+
+div.videobox span.toggle-audio,
+div.videobox span.toggle-video,
+div.videobox span.settings,
+div.videobox span.refresh
+
+{
+    position: absolute;
+    visibility: hidden;
+    position: absolute;
+    top: 0.7vw;
+    font-size: 3vw;
+    background-color: var(--g-dark-grey);
+    border-radius: 0.5vw;
+    border: solid 0.1vw var(--g-dark-grey);
+    opacity:70%;
+}
+
+div.videobox span.toggle-audio:hover,
+div.videobox span.toggle-video:hover,
+div.videobox span.settings:hover,
+div.videobox span.refresh:hover
+
+{
+    cursor:pointer;
+
+}
+
+div.videobox span.toggle-audio {
+    left: 4.5vw;
+}
+
+div.videobox span.settings {
+    left: 0.7vw;
+    top: 4.5vw;
+    color:var(--g-green);
+}
+
+div.videobox span.refresh {
+    left: 0.7vw;
+    top: 4.5vw;
+    color:var(--g-red);
+}
+
+div.videobox span.toggle-video {
+    left: 0.7vw;
+}
+
+div.videobox span.toggle-audio:before {
+    content: 'volume_up';
+}
+
+div.videobox span.toggle-video:before {
+    content: 'videocam';
+}
+
+div.videobox span.settings:before {
+    content: 'settings';
+}
+
+div.videobox span.refresh:before {
+    content: 'sync_problem';
+}
+
+
+div.videobox span.toggle-audio.muted,
+div.videobox span.toggle-video.muted
+{
+    color:var(--g-grey);
+}
+
+div.videobox span.toggle-audio:not(.muted),
+div.videobox span.toggle-video:not(.muted)
+{
+    color:var(--g-green);
+}
+
+
+.game.videos[data-phase="lobby"] div.videobox:not(.no-video):hover span.toggle-audio,
+.game.videos[data-phase="lobby"] div.videobox:not(.no-video):hover span.toggle-video,
+.game.videos[data-phase="lobby"] div.videobox.self-view:not(.no-video):hover span.settings,
+.game.videos[data-phase="lobby"] div.videobox:not(.self-view):not(.no-video):hover span.refresh
+{
+    visibility: visible;
+}
+
+div.videobox.self-view#game-host:not(.no-video):hover span.toggle-audio,
+div.videobox.self-view#game-host:not(.no-video):hover span.toggle-video,
+div.videobox.self-view#game-host:not(.no-video):hover span.settings,
+div.videobox:not(.self-view)#game-host:not(.no-video):hover span.refresh
+{
+    visibility: visible;
+}
+
+div .videobox input#volumeSlider{
+    visibility: hidden;
+    position: absolute;
+    top: 15%;
+    left: 35%;
+    width: 50%;
+}
+
+div.game.videos[data-phase]:not([data-phase='shuffle']) div.videobox:not(.no-video):hover input#volumeSlider {
+    visibility: visible;
+}
+
+div.slot {
+    position: absolute;
+    top: 5%; 
+    right: 3%; 
+    background-color: var(--g-grey); 
+    color: black; /* Text color */
+    padding-left: 7px; 
+    padding-right: 7px; 
+    font-size: 2vw; 
+    font-weight: bold; /* Bold font */
+}
+
+span.game-user {
+    position: absolute;
+    display: flex;
+    max-width:18vw;
+    max-height: 3vw;
+    bottom: 5%; 
+    left: 1%; 
+    background-color: rgba(30, 30, 30, 0.5); 
+    color: rgba(211, 211, 211, 0.5); /* Text color */
+    padding-left: 0.1vw;
+    padding-right: 0.1vw;
+    font-size: 2vw;
+    font-weight: bold; /* Bold font */
+    visibility: visible;
+    max-width: 20vw;
+    overflow: hidden;
+}
+
+input.game-user {
+    position: absolute;
+    max-width:16vw;
+    /*bottom: 0.7vw;*/
+    /*left: 0.7vw;*/
+    bottom: 5%;
+    left: 1%;
+    background-color: white;
+    color: var(--g-dark-grey); /* Text color */
+    padding-left: 0.1vw;
+    padding-right: 0.1vw;
+    font-size: 2vw;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+    z-index: 3;
+}
+.game.videos[data-phase="lobby"] div.videobox.self-view:not(.no-video):hover input.game-user {
+    visibility: visible;
+}
+
+
+div.videobox.self-view span.game-user {
+    color: var(--g-green)
+}
+
+span.slot-status {
+    position: absolute;
+    bottom: 1vw;
+    right: 0.5vw;
+    background-color: transparent; 
+    color: rgba(211, 211, 211, 0.5); /* Text color */
+    padding: 0;
+    font-size: 3vw;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+div.game.videos[data-phase='lobby'] span.slot-status {
+    visibility: visible;
+}
+
+.self-view .slot-status {
+    cursor: pointer; /* Change mouse pointer to hand on hover */
+}
+
+.slot-status[data-status="ready"]:before {
+    content: "check_circle";
+    color: var(--g-green);
+}
+
+.slot-status[data-status="unknown"]:before {
+    content: "radio_button_unchecked"
+}
+
+[data-mode="host"][data-phase='lobby'] div.videobox:not([data-uid='empty']):not(.vbox-game-host) .slot-status[data-status]:hover:before {
+    content: "cancel";
+    color: var(--g-red);
+    cursor: pointer;
+}
+
+div.videobox span.slot-role {
+    position: absolute;
+    top: 0.3vw; 
+    left: 0.3vw; 
+    padding: 0;
+    background-color: var(--g-grey);
+    font-size: 4vw;
+    font-weight: bold; /* Bold font */
+    text-shadow: 0 0 0.3vw var(--g-grey);
+    /*border: 0.3vw solid var(--g-grey);*/
+    /*border-radius: 1vw;*/
+    visibility: hidden;
+}
+
+div.videobox .slot-role[data-role="sheriff"]:before {
+    content: "frame_inspect";
+    /*content: "✡";*/
+    /*content: "👍"; !* 👎 *!*/
+    color: orange;
+    visibility: visible;
+    /*text-shadow: 1px 1px 2px red;*/
+}
+div.videobox .slot-role[data-role="citizen"]:before {
+    content: "frame_person";
+    color: var(--g-failure);
+    visibility: visible;
+}
+div.videobox .slot-role[data-role="mafia"]:before {
+    /*content: "domino_mask";*/
+    content: "frame_person";
+    color: black;
+    visibility: visible;
+}
+div.videobox .slot-role[data-role="don"]:before {
+    /*content: "frame_person";*/
+    content: "diamond";
+    color: black;
+    visibility: visible;
+}
+
+.self-view .slot-status[data-status="unknown"]:before {
+    color: var(--g-green)
+}
+
+span.slot-mic {
+    position: absolute;
+    bottom: 0.7vw;
+    right: 3.7vw;
+    background-color: transparent; 
+    color: rgba(211, 211, 211, 0.5); /* Text color */
+    padding: 0;
+    font-size: 3vw;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+span.slot-mic[data-mic="off"]:before {
+    visibility: visible;
+    content: "mic_off";
+    color: var(--g-red);
+}
+
+[data-phase="lobby"] span.slot-mic[data-mic="on"]:before {
+    visibility: visible;
+    content: "mic";
+    color: var(--g-green);
+}
+
+/*** SHOUT OUT ***/
+span.slot-shout {
+    position: absolute;
+    bottom: 0.7vw;
+    right: 0.7vw;
+    background-color: transparent;
+    color: rgba(211, 211, 211, 0.5); /* Text color */
+    padding: 0;
+    font-size: 3vw;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+
+div.game.videos:not([data-phase='lobby']) .self-view[data-player-status='alive']:not(.vbox-game-host) .slot-shout:before {
+    visibility: visible;
+    cursor: pointer; /* Change mouse pointer to hand on hover */
+}
+
+div.game.videos:not([data-phase='lobby']) .shout-out .slot-shout:before {
+    visibility: visible;
+    color: var(--g-red);
+}
+
+
+.videobox:not(.vbox-game-host) span.slot-shout:before {
+    content: "record_voice_over";
+    color: var(--g-grey);
+}
+
+div.game.videos:not([data-phase='lobby']) .self-view video.active-speaker ~ .slot-shout:before {
+    visibility: hidden;
+}
+
+/*** END SHOUT OUT ***/
+
+/*** SLOT COMM ***/
+span.slot-comm {
+    position: absolute;
+    bottom: 0.7vw;
+    right: 0.7vw;
+    background-color: transparent;
+    color: rgba(211, 211, 211, 0.5); /* Text color */
+    padding: 0;
+    font-size: 3vw;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+
+div.game.videos[data-phase='day']:not([data-mode="host"]) .videobox[data-player-status='alive']:not(.self-view):not(.vbox-game-host):hover .slot-comm:before {
+    content: "leak_add";
+    visibility: visible;
+    cursor: pointer; /* Change mouse pointer to hand on hover */
+    color: var(--g-green);
+}
+
+/*div.game.videos:not([data-phase='lobby']) .shout-out .slot-comm:before {*/
+/*    visibility: visible;*/
+/*    color: var(--g-red);*/
+/*}*/
+
+
+/*div.game.videos:not([data-phase='lobby']) .self-view video.active-speaker ~ .slot-shout:before {*/
+/*    visibility: hidden;*/
+/*}*/
+
+/*** END SLOT COMM ***/
+
+video.active-speaker ~ span.slot-mic[data-mic="on"]:before,
+.videobox.shout-out span.slot-mic[data-mic="on"]:before
+{
+    visibility: visible;
+    right: 5px;
+    content: "mic";
+    color: var(--g-green);
+    animation: blinker 1s linear infinite;
+}
+
+@keyframes blinker {
+    50% {
+        opacity: 20%;
+    }
+}
+
+div.videobox[data-uid='empty']:not(.shout-out) .slot-mic[data-mic="off"]:before,
+div.videobox:not(.vbox-game-host) span.slot-mic.night[data-mic="off"]:before {
+    visibility: hidden;
+}
+
+div.videos {
+    /*display:inline-block;*/
+    /* float:left; */
+}
+#chat {
+    visibility: hidden;
+}
+body.g-mafia, html {
+    width: 100%;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    background-color: var(--g-dark-grey);
+}
+
+/*body {*/
+/*    margin: 0;*/
+/*    display: grid;*/
+/*    grid-template-rows: auto 1fr auto;*/
+/*    grid-template-columns: 100%;*/
+/*    height: 100vh;*/
+/*}*/
+
+.game-panel {
+    position: relative;
+}
+
+.equalizer {
+    position: absolute;
+    width: 20%;
+    height: 100%; 
+    right: 0;
+    top: 0;
+    border: 1px solid var(--g-grey);
+}
+
+.game-actions {
+    position: absolute;
+    width: 20%;
+    height: 100%; 
+    left: 0;
+    top: 0;
+    border: 1px var(--g-grey);
+}
+
+.g-action {
+    position: absolute;
+    height: 20%;
+    width: 100%;
+    border: 1px solid var(--g-grey);
+    background-color: var(--g-dark-grey);
+}
+
+div.game.videos[data-phase='lobby'] .player-panel .e-container,
+div.game.videos[data-phase='lobby'] .host-panel .e-container
+{
+    position: relative;
+    width:100%;
+    height: 100%;
+    background-image: url(/static/img/paypal_donate.png);
+    /*background-color: var(--g-grey);*/
+    background-repeat:no-repeat;
+    background-position: center center;
+    background-size: 50% auto;
+}
+
+.e-bar {
+    position: absolute;
+    height: 10%;
+    width: 100%;
+    border: 1px solid var(--g-grey);
+    background-color: var(--g-grey);
+}
+
+.e-bar[data-status='ready'] {
+    background-color: var(--g-green);
+}
+
+div.full-size {
+    position: relative;
+    height: 100%;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.e-bar span {
+    display:block;
+    margin: auto auto;
+}
+
+.player-panel, .host-panel {
+    visibility: hidden;
+    position: absolute;
+    width: 60%;
+    height: 100%; 
+    left: 20%;
+    top: 0;
+    border: 1px solid var(--g-grey);
+}
+
+span.gameMessage1,
+span.gameMessage2
+{
+    width: 100%;
+    position: absolute;
+    text-align: center;
+    color: var(--g-grey);
+    visibility: visible;
+    font-size: 1.5vw;
+}
+
+span.gameMessage1 {
+    top: 0.5vw;
+}
+span.gameMessage2 {
+    top: 2vw;
+}
+
+.player-panel div.middle {
+    bottom: 0.7vw;
+}
+button#player-button {
+    visibility: hidden;
+}
+
+button.active#player-button {
+    visibility: visible;
+    font-size: 3vw;
+}
+
+
+div.game-panel[data-mode="host"] .host-panel {
+    visibility: visible;
+}
+
+div.game-panel[data-mode="player"] .player-panel {
+    visibility: visible;
+}
+
+@keyframes blinkAnimation {
+
+    0% {
+        opacity: 100%;
+    }
+    25% {
+        opacity: 66%;
+    }
+    50% {
+        opacity: 33%;
+    }
+    75% {
+        opacity: 66%;
+    }
+    100% {
+        opacity: 100%;
+    }
+}
+
+.blink {
+    animation: blinkAnimation 3s linear infinite;
+}
+
+div.middle {
+    display: flex;
+    justify-content: center; /* Horizontally center */
+    align-items: center; /* Vertically center */
+    position: absolute;
+    width: 100%;
+    /*bottom: 10%;*/
+    left: 50%; /* Move to the center horizontally */
+    transform: translateX(-50%); /* Adjust horizontally centered content */
+    margin: auto;
+}
+
+.game-actions div.middle {
+    bottom: 0;
+    height: 100%;
+    width:100%;
+    background-color: var(--g-dark-grey);
+    border: 1px var(--g-grey);
+    font-size: 1vw;
+    line-height: 1.1vw;
+}
+.host-panel div.middle {
+    bottom: 0.7vw;
+}
+
+.game-actions div.middle button {
+    height: 94%;
+    width:100%;
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+
+button.g-panel-btn {
+ visibility: hidden;
+}
+
+button.g-panel-btn.active {
+    visibility: visible;
+    color: white;
+}
+
+button.g-panel-btn.active.g-btn-success {
+    background-color: var(--g-success)
+}
+
+button.g-panel-btn.active.g-btn-fail {
+    background-color: var(--g-failure)
+}
+
+button.g-panel-btn.active.g-btn-info {
+    background-color: var(--g-green)
+}
+
+
+div.select-slot {
+    position: absolute;
+    top: 0;
+    left: 0;
+    /*margin-left: 15px;*/
+    /*margin-right: 15px;*/
+    /*margin-top: 10px;*/
+    border: 3px solid var(--g-dark-grey);
+    background-color: var(--g-grey);
+    margin: 3px;
+    /*width: calc(100% - 30px);*/
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    visibility: hidden;
+    display: flex;
+    justify-content: center; /* Horizontally center */
+    align-items: center;
+}
+
+div.select-slot button {
+    font-size: 6vw;
+    font-weight: bold;
+    width: 80%;
+    height: 80%;
+    /*visibility: visible;*/
+}
+
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-game-host) div.select-slot button,
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-game-host) div.select-slot,
+div.videobox[data-slot]:not(.vbox-game-host) div.select-slot.show,
+div.videobox[data-slot]:not(.vbox-game-host) div.select-slot.show button
+{
+    visibility: visible;
+}
+
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-game-host) video,
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-game-host) span,
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-game-host) input[type="range"],
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-game-host) button,
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-game-host) div.slot,
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-game-host) span.slot-mic,
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-game-host) span.slot-mic[data-mic="off"]:before,
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-game-host) div.game-user {
+    visibility: hidden;
+}
+
+div.videobox .night {
+    visibility: hidden;
+}
+
+/* CARDS DECK */
+.deck-container {
+    left:0;
+    top:0;
+    width: 100%;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    visibility: hidden;
+}
+.deck-container.deck-active {
+    visibility: visible;
+}
+.game-deck {
+    width: 80vw;
+    height: 40vw;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    /*perspective: 1000px; !* Perspective for 3D effect *!*/
+}
+
+.game-card {
+    width: 15vw;
+    height: 20vw;
+    /*background-color: #fff;*/
+    border: 3px solid var(--g-grey);
+    position: absolute;
+    transition: transform 0.5s;
+    border-radius: 1vw;
+    z-index: 1;
+
+}
+
+.game-card span {
+    width: 100%;
+    font-size: 8vw;
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 6vw;
+    color: var(--g-alert);
+
+}
+@keyframes cardAnimation {
+
+    0% {
+        width: 17vw;
+        height: 22vw;
+        transform: rotateZ(-2deg);
+    }
+    25% {
+        width: 17vw;
+        height: 22vw;
+        transform: rotateZ(0deg);
+    }
+    50% {
+        width: 16vw;
+        height: 21vw;
+        transform: rotateZ(2deg);
+    }
+    75% {
+        width: 16vw;
+        height: 21vw;
+        transform: rotateZ(0deg);
+    }
+    100% {
+        width: 17vw;
+        height: 22vw;
+        transform: rotateZ(-2deg);
+    }
+}
+.game-card:hover {
+    z-index: 2; /* Set a higher z-index on hover */
+    animation: cardAnimation 1s infinite;
+    cursor: pointer;
+}
+
+.game-card:nth-child(odd) {
+    background: linear-gradient(70deg , red 50%, black 50%);
+}
+
+.game-card:nth-child(even) {
+    background: linear-gradient(70deg, black 50%, red 50%);
+}
+
+.locked .game-card:hover {
+    animation: none;
+}
+
+.locked .game-card:nth-child(odd) {
+    background: linear-gradient(70deg , var(--g-grey-solid) 50%, var(--g-dark-grey) 50%);
+}
+
+.locked .game-card:nth-child(even) {
+    background: linear-gradient(70deg, var(--g-dark-grey) 50%, var(--g-grey-solid) 50%);
+}
+
+/* Apply fan shape rotation */
+.game-card:nth-child(1) { transform: rotateZ(-32deg); left: 6vw;margin-top: 3vw;}
+.game-card:nth-child(2) { transform: rotateZ(-25deg); left: 12vw;}
+.game-card:nth-child(3) { transform: rotateZ(-17deg); left: 18vw;}
+.game-card:nth-child(4) { transform: rotateZ(-10deg); left: 24vw;}
+.game-card:nth-child(5) { transform: rotateZ(-32deg); left: 30vw; margin-top: 3vw;}
+.game-card:nth-child(6) { transform: rotateZ(-25deg); left: 36vw; margin-top: 0vw;}
+.game-card:nth-child(7) { transform: rotateZ(-17deg); left: 42vw;}
+.game-card:nth-child(8) { transform: rotateZ(-10deg); left: 48vw;margin-top: 0vw;}
+.game-card:nth-child(9) { transform: rotateZ(25deg); left: 52vw;margin-top: 4vw;}
+.game-card:nth-child(10) { transform: rotateZ(32deg); left: 57vw;margin-top: 7vw;}
+
+@keyframes cardTakenAnimation {
+
+    0% {
+        width: 17vw;
+        height: 22vw;
+        transform: rotateZ(-2deg);
+        opacity: 75%;
+    }
+    25% {
+        width: 17vw;
+        height: 22vw;
+        transform: rotateZ(0deg);
+        opacity: 50%;
+    }
+    50% {
+        width: 16vw;
+        height: 21vw;
+        transform: rotateZ(2deg);
+        opacity: 25%;
+    }
+    75% {
+        width: 16vw;
+        height: 21vw;
+        transform: rotateZ(0deg);
+        opacity: 100%;
+    }
+    100% {
+        width: 17vw;
+        height: 22vw;
+        transform: rotateZ(-2deg);
+        visibility: hidden;
+        z-index: -1;
+    }
+}
+
+.game-card.taken {
+    animation: cardTakenAnimation 1s forwards;
+    animation-iteration-count: 1;
+}
+
+span.game-role {
+    font-size: 16vw;
+    font-weight: bold;
+    text-align: center;
+    line-height: 16vw;
+    opacity: 90%;
+    z-index: 3;
+    text-shadow:
+            -2px -2px 0 white,
+            2px -2px 0 white,
+            -2px 2px 0 white,
+            2px 2px 0 white;
+
+}
+
+@keyframes roleShow {
+
+    0% {
+        visibility: visible;
+    }
+
+    100% {
+        visibility: hidden;
+    }
+}
+span.game-role.role-show {
+    visibility: visible;
+    /*animation: roleShow 5s forwards;*/
+    /*animation-iteration-count: 1;*/
+}
+
+span.game-role[data-role='RED'],
+span.game-role[data-role='CITIZEN'],
+span.game-role[data-role='SHERIFF'] {
+    color: red;
+}
+span.game-role[data-role='BLACK'],
+span.game-role[data-role='DON'],
+span.game-role[data-role='MAFIA'] {
+    color: black;
+}
+
+
+div.videobox span.video-lock {
+    position: absolute;
+    width: 100%;
+    top: 3vw;
+    left: 8.5vw;
+    font-size: 8vw;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+div.videobox:not([data-phase="lobby"]) .video-lock[data-role="citizen"]:before {
+    content: "visibility_lock";
+    color: var(--g-grey);
+    visibility: visible;
+}
+
+span.g-countdown {
+    font-size: 6vw;
+    width: 100%;
+    text-align: center;
+    position: absolute;
+    top: 3vw;
+    font-weight: bold;
+    color: white;
+}
+
+span.g-countdown[data-count="0"],
+span.g-countdown[data-count="1"],
+span.g-countdown[data-count="2"],
+span.g-countdown[data-count="3"] {
+    color: var(--g-red);
+    animation: blinker 0.5s linear infinite;
+}
+
+
+
+
+button#game-start,
+button#game-stop
+{
+    visibility: hidden;
+}
+button.g-show#game-start,
+button.g-show#game-stop
+{
+    visibility: visible;
+}
+
+/* WARN */
+
+.warn-1,
+.warn-2,
+.warn-3,
+.warn-4,
+.warn-5
+{
+    background: var(--g-failure);
+    padding: 2px;
+    width: 10%;
+    height: 100%;
+    position: absolute;
+    visibility: hidden;
+}
+
+.warn-1 {
+    right: 0;
+}
+
+.warn-2 {
+    right: 15%;
+}
+
+.warn-3 {
+    right: 15%;
+}
+
+/*** WARNINGS ***/
+span.slot-warn {
+    position: absolute;
+    left: 0.7vw;
+    top: 0.7vw;
+    background-color: transparent;
+    color: rgba(211, 211, 211, 0.5); /* Text color */
+    padding: 0;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+    letter-spacing: -1.3vw;
+}
+
+[data-mode="host"] .videobox:not(.vbox-game-host):hover span.slot-warn {
+    left: 3.5vw;
+}
+
+div.game.videos:not([data-phase="game-over"]) .videobox:not(.vbox-game-host) .slot-warn[class*="warn-"]:after {
+    content: "bolt";
+    font-size: 1.5vw;
+    visibility: visible;
+    vertical-align: top;
+    color: orange;
+}
+
+.videobox:not(.vbox-game-host) .slot-warn[class*="warn-4"]:after {
+    visibility: hidden;
+}
+
+/* "error" "do_not_disturb_on" "add_circle" */
+div.game.videos:not([data-phase="game-over"])  .videobox:not(.vbox-game-host) .slot-warn:before {
+    font-size: 3vw;
+    visibility: visible;
+    color: var(--g-red);
+    z-index: 2;
+}
+
+[data-mode="host"][data-phase="day"] .videobox:not(.vbox-game-host) .slot-warn:not([class*="warn-"]):before {
+    content: "counter_0";
+    font-size: 3vw;
+    visibility: visible;
+    color: var(--g-grey);
+}
+
+[data-mode="host"]:not([data-phase="lobby"]):not([data-phase="game-over"])  .videobox:not(.vbox-game-host) .slot-warn:before {
+    visibility: visible;
+}
+
+.slot-warn.warn-4:before {
+    content: "bolt";
+}
+
+.slot-warn.warn-1:before {
+    content: "counter_1";
+}
+
+.slot-warn.warn-2:before {
+    content: "counter_2";
+}
+
+.slot-warn.warn-3:before {
+    content: "counter_3";
+}
+
+/* HOST WARN ACTIONS */
+
+span.slot-warn-add {
+    position: absolute;
+    left: 6.3vw;
+    top: 0.7vw;
+    background-color: transparent;
+    color: var(--g-red);
+    padding: 0;
+    cursor: pointer;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+span.slot-warn-remove {
+    position: absolute;
+    left: 0.7vw;
+    top: 0.7vw;
+    background-color: transparent;
+    color: var(--g-green);
+    padding: 0;
+    cursor: pointer;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+/* "error" "do_not_disturb_on" "add_circle" */
+[data-mode="host"]:not([data-phase="lobby"]) .videobox:not(.vbox-game-host):hover .slot-warn-add:before {
+    content: "add_circle";
+    font-size: 3vw;
+    visibility: visible;
+}
+[data-mode="host"]:not([data-phase="lobby"]) .videobox:not(.vbox-game-host):hover .slot-warn-remove:before {
+    content: "do_not_disturb_on";
+    font-size: 3vw;
+    visibility: visible;
+}
+
+/*** END WARNINGS ***/
+
+/* HOST NOMINATE ACTION */
+
+span.slot-nominate {
+    visibility: hidden;
+    display: flex;
+    position: absolute;
+}
+
+span.slot-nominate {
+    position: absolute;
+    right: 0.7vw;
+    top: 0.7vw;
+    background-color: transparent;
+    color: var(--g-red);
+    font-size: 4vw;
+    padding: 0;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+[data-mode="host"][data-phase="day"] .videobox:not(.vbox-game-host):hover .slot-nominate:before {
+    content: "frame_person_mic";
+    visibility: visible;
+    color: var(--g-success);
+    cursor: pointer;
+}
+
+[data-phase="day"] .videobox.nominated:not(.vbox-game-host) .slot-nominate:before {
+    content: "frame_person_mic";
+    visibility: visible;
+    color: var(--g-green);
+    animation: blinker 1s linear infinite;
+}
+
+[data-mode="host"]:not([data-phase="lobby"]) .videobox:not(.vbox-game-host):hover .slot {
+    visibility: hidden;
+
+}
+
+/* END NOMINATE */
+
+/* CANDIDATE */
+
+span.slot-candidate {
+    position: absolute;
+    top: 0.3vw;
+    width: 100%;
+    text-align: center;
+    background-color: transparent;
+    color: var(--g-green);
+    font-size: 14vw;
+    font-weight: bold; /* Bold font */
+}
+
+:not([data-phase="lobby"]) .slot-candidate.active:before {
+    content: "crop_free";
+    visibility: visible;
+    cursor: pointer;
+    animation: blinker 2s linear infinite;
+}
+
+/* CANDIDATE */
+
+/* VOTE */
+
+span.slot-vote {
+    position: absolute;
+    top: 4vw;
+    width: 100%;
+    text-align: center;
+    background-color: transparent;
+    color: orange;
+    font-size: 7vw;
+    font-weight: bold; /* Bold font */
+    letter-spacing: -1vw;
+}
+
+span.slot-vote.voted {
+    visibility: visible;
+}
+
+.slot-vote.votes-1:before {
+    content: "counter_1";
+}
+
+.slot-vote.votes-0:before {
+    content: "counter_0";
+}
+
+.slot-vote.votes-2:before {
+    content: "counter_2";
+}
+
+.slot-vote.votes-3:before {
+    content: "counter_3";
+}
+
+.slot-vote.votes-4:before {
+    content: "counter_4";
+}
+
+.slot-vote.votes-5:before {
+    content: "counter_5";
+}
+
+.slot-vote.votes-6:before {
+    content: "counter_6";
+}
+
+.slot-vote.votes-7:before {
+    content: "counter_7";
+}
+
+.slot-vote.votes-8:before {
+    content: "counter_8";
+}
+
+.slot-vote.votes-9:before {
+    content: "counter_9";
+}
+
+.slot-vote.votes-10:before,
+.slot-vote.active:before
+{
+    content: "\1F44D";
+    visibility: visible;
+}
+
+.videobox:not(.vbox-game-host) .slot-vote[class*="votes-"]:not([class*="votes-10"]):after {
+    content: "\1F44D";
+    font-size: 2.5vw;
+    visibility: visible;
+    vertical-align: top;
+    margin-left: -1.7vw;
+}
+
+
+
+/* grid_4x4, lock_person */
+
+div.videobox span.video-target {
+    position: absolute;
+    top: 3vw;
+    left: 8.5vw;
+    font-size: 8vw;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+[data-phase="shooting"] div.videobox:not(.vbox-game-host) .video-target {
+    color: var(--g-grey);
+}
+
+[data-mode="player"][data-phase="shooting"] div.videobox:not(.vbox-game-host) .video-target:before {
+    content: "motion_sensor_active";
+    visibility: visible;
+}
+
+[data-phase="shooting"] div.videobox:not(.vbox-game-host) .video-target[data-role="none"]:before {
+    visibility: hidden;
+}
+
+[data-phase="shooting"] div.videobox:not(.vbox-game-host) .video-target:hover {
+    cursor: pointer;
+    color: var(--g-red);
+}
+
+/* player-status */
+div.videobox span.player-status {
+    position: absolute;
+    top: 3vw;
+    left: 8.5vw;
+    font-size: 8vw;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+    color: var(--g-grey);
+}
+
+[data-phase="game-over"] div.videobox span.player-status {
+    position: absolute;
+    top: 0.3vw;
+    left: 4.5vw;
+    font-size: 4vw;
+    font-weight: bold; /* Bold font */
+    color: var(--g-grey);
+}
+
+div.videobox[data-player-status='disqualified'] .player-status:before {
+    content: 'bolt';
+    visibility: visible;
+}
+
+div.videobox[data-player-status='host-off'] .player-status:before {
+    content: 'family_star';
+    color: var(--g-success);
+    visibility: visible;
+}
+
+/* player kill, lock,restore */
+
+span.player-kill {
+    position: absolute;
+    left: 3.5vw;
+    top: 4vw;
+    font-size: 8vw;
+    color: var(--g-grey);
+    padding: 0;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+[data-mode="host"] div.videobox[data-player-status='alive']:hover span.player-kill:before {
+    content:  "motion_sensor_active";
+    visibility: visible;
+}
+
+div.videobox[data-player-status='alive']:hover span.player-kill:hover {
+    color: var(--g-red);
+    cursor: pointer;
+}
+
+div.videobox[data-player-status='killed'] .player-status:before {
+    content: 'motion_sensor_active';
+    visibility: visible;
+}
+
+span.player-lock {
+    position: absolute;
+    right: 3.5vw;
+    top: 4vw;
+    font-size: 8vw;
+    color: var(--g-grey);
+    padding: 0;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+[data-mode="host"] div.videobox[data-player-status='alive']:hover span.player-lock:before {
+    content:  "grid_4x4";
+    visibility: visible;
+}
+
+div.videobox[data-player-status='alive']:hover span.player-lock:hover {
+    color: var(--g-red);
+    cursor: pointer;
+}
+
+div.videobox[data-player-status='locked'] .player-status:before {
+    content: 'grid_4x4';
+    visibility: visible;
+}
+
+span.player-restore {
+    position: absolute;
+    right: 8.5vw;
+    top: 4vw;
+    font-size: 8vw;
+    color: var(--g-grey);
+    padding: 0;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+[data-mode="host"] div.videobox[data-player-status='killed']:hover span.player-restore:before,
+[data-mode="host"] div.videobox[data-player-status='locked']:hover span.player-restore:before
+{
+    content:  "person";
+    visibility: visible;
+}
+
+div.videobox[data-player-status='killed']:hover span.player-restore:hover,
+div.videobox[data-player-status='locked']:hover span.player-restore:hover
+{
+    color: var(--g-green);
+    cursor: pointer;
+}
+
+/* SHOOT */
+
+span.mafia-shoot {
+    position: absolute;
+    top: 4vw;
+    width: 100%;
+    text-align: center;
+    background-color: transparent;
+    color: var(--g-red);
+    font-size: 7vw;
+    font-weight: bold; /* Bold font */
+    letter-spacing: -1vw;
+}
+
+
+span.mafia-shoot:after {
+    font-size: 2.5vw;
+    vertical-align: top;
+    color: black;
+    margin-left: -1.7vw;
+}
+
+/*.mafia-shoot.victim-0:after,*/
+/*.mafia-shoot.victim-1:after,*/
+/*.mafia-shoot.victim-2:after,*/
+/*.mafia-shoot.victim-3:after,*/
+/*.mafia-shoot.victim-4:after,*/
+/*.mafia-shoot.victim-5:after,*/
+/*.mafia-shoot.victim-6:after,*/
+/*.mafia-shoot.victim-7:after,*/
+/*.mafia-shoot.victim-8:after,*/
+/*.mafia-shoot.victim-9:after,*/
+/*.mafia-shoot.victim-10:after*/
+/*{*/
+/*    content: 'motion_sensor_active';*/
+/*}*/
+
+span.mafia-shoot:after {
+    content: 'motion_sensor_active';
+}
+div.game:not([data-phase="day"]) span.mafia-shoot[data-victim] {
+    visibility: visible;
+
+}
+
+.mafia-shoot[data-victim]:before {
+    content: var(--shootVictim);
+
+}
+
+
+/* video settings */
+
+.settings-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: var(--g-dark-grey);
+    color: var(--g-grey);
+    padding: 1em;
+    border: 1px solid var(--g-grey);
+    z-index: 1000;
+    visibility: hidden;
+}
+
+.settings-popup.show {
+    visibility: visible;
+}
+
+.settings-popup h2 {
+    margin: 0 0 1em 0;
+    text-align: center;
+}
+
+.settings-popup label {
+    width:8vw;
+    font-size: 1.2em;
+    margin-bottom: 0.5em;
+    display: inline-block;
+}
+
+.settings-popup select {
+    /*width: 100%;*/
+    padding: 0.5em;
+    margin-bottom: 1em;
+}
+
+.settings-popup button {
+    width: 45%;
+    padding: 0.5em;
+
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+.settings-popup button#startButton {
+    background-color: var(--g-success);
+}
+
+.settings-popup button#closeButton {
+    background-color: var(--g-failure);
+}
+
+.settings-popup button:hover {
+    background-color: var(--g-success-hover);
+}
+
+/* NUMBER PAD START*/
+div.number-pad#num-pad {
+    visibility: hidden;
+}
+ div.videobox:hover div.number-pad {
+    visibility: visible;
+
+    /*border: solid red 1px;*/
+    width: 18vw;
+    height: 11vw;
+    position: absolute;
+    top: 1.5vw;
+    /* bottom: 15%; */
+    left: 3vw;
+    /* right: 15%;*/
+}
+
+div.videobox:hover div.number-pad span {
+    visibility: visible;
+}
+
+div.number-pad div.row-one,
+div.number-pad div.row-two,
+div.number-pad div.row-three {
+    left: 0vw;
+    width: 18vw;
+    height: 3vw;
+    position: absolute;
+}
+
+
+div.number-pad div.row-one {
+    top: 0vw;
+}
+div.number-pad div.row-two {
+    top: 3.7vw;
+}
+
+div.number-pad div.row-three {
+    top: 7.4vw;
+}
+
+div.number-pad span.pad {
+    position:absolute;
+    width: 3.5vw;
+    height: 3.5vw;
+    color: var(--g-grey);
+    background: var(--g-dark-grey);
+    /*color: var(--g-green);*/
+    /*border: 1px solid var(--g-green);*/
+    border-radius: 0.5vw;
+    font-size: 3.5vw;
+}
+
+span.pad:hover {
+    cursor: pointer;
+}
+
+div.number-pad span.pad.selected {
+    background: var(--g-green);
+    color: var(--g-dark-grey);
+}
+
+
+span.pad.one,
+span.pad.six,
+span.pad.grey {
+    left: 0vw;
+}
+
+
+span.pad.two,
+span.pad.seven,
+span.pad.red
+{
+    left: 3.6vw;
+}
+
+
+span.pad.three,
+span.pad.eight,
+span.pad.black
+{
+    left: 7.2vw;
+}
+
+
+span.pad.four,
+span.pad.nine,
+span.pad.send
+{
+    left: 10.8vw;
+}
+
+
+span.pad.five,
+span.pad.ten,
+span.pad.cancel
+{
+    left: 14.4vw;
+}
+
+
+span.pad.one:before {
+    content: "counter_1";
+}
+
+span.pad.two:before {
+    content: "counter_2";
+}
+
+span.pad.three:before {
+    content: "counter_3";
+}
+
+span.pad.four:before {
+    content: "counter_4";
+}
+
+span.pad.five:before {
+    content: "counter_5";
+}
+
+span.pad.six:before {
+    content: "counter_6";
+}
+
+span.pad.seven:before {
+    content: "counter_7";
+}
+
+span.pad.eight:before {
+    content: "counter_8";
+}
+
+span.pad.nine:before {
+    content: "counter_9";
+}
+
+span.pad.ten:before {
+    content: "timer_10";
+}
+
+
+span.pad.grey:before {
+    content: "check_circle";
+}
+
+
+span.pad.red:before {
+    content: "check_circle";
+    color: var(--g-red);
+}
+
+
+span.pad.black:before {
+    content: "check_circle";
+    color: black;
+}
+
+
+span.pad.send:before {
+    content: "play_circle";
+    color: var(--g-success);
+}
+
+
+span.pad.cancel:before {
+    content: "cancel";
+    color: var(--g-failure)
+}
+
+/* NUMBER PAD END*/
+
+/* EYE BLINK */
+
+span.slot-eye {
+    visibility: hidden;
+    display: flex;
+    position: absolute;
+}
+
+span.slot-eye {
+    position: absolute;
+    right: 0.7vw;
+    top: 0.7vw;
+    background-color: transparent;
+    color: var(--g-green);
+    font-size: 4vw;
+    padding: 0;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+div.videos.game[data-phase="day"]:not([data-mode="host"])  .slot-eye.active:before
+{
+    content: "eye_tracking";
+    visibility: visible;
+    animation: blinker 1s linear infinite;
+}
+
+div.videos.game[data-phase="day"]:not([data-mode="host"])  .slot-eye.active[data-color="red"],
+div.videos.game[data-phase="day"]:not([data-mode="host"])  .slot-eye-role.active[data-color="red"]
+{
+    color: var(--g-red);
+}
+
+div.videos.game[data-phase="day"]:not([data-mode="host"])  .slot-eye.active[data-color="black"],
+div.videos.game[data-phase="day"]:not([data-mode="host"])  .slot-eye-role.active[data-color="black"]
+{
+    color: black;
+}
+
+span.slot-eye-role {
+    position: absolute;
+    left: 7vw;
+    top: 2vw;
+    font-size: 10vw;
+    background-color: transparent;
+    color: var(--g-grey);
+    padding: 0;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+div.videos.game[data-phase="day"]:not([data-mode="host"])  .slot-eye-role.active:before
+{
+    content: "frame_person";
+    visibility: visible;
+    animation: blinker 1s linear infinite;
+}
+/* EYE BLINK */
