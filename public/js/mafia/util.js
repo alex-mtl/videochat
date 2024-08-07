@@ -788,6 +788,7 @@ async function handleGamePhase(data, mode = 'normal') {
         gameMessage('Night '+data.night)
         gameMessage('', 2)
         removeActiveSpeaker()
+        removeVotingResult()
         stopCountdown()
         if (selfID !== roomEnv.gameHost.uid) {
             hideAllRolesAndVideos()
@@ -801,6 +802,7 @@ async function handleGamePhase(data, mode = 'normal') {
     } else if (data.phase === 'shooting') {
         //gameMessage('Night '+data.night)
         gameMessage('Shooting', 2)
+        removeVotingResult()
         if (selfID !== roomEnv.gameHost.uid) {
             hideAllRolesAndVideos()
             showPlaceholders()
