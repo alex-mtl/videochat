@@ -1,0 +1,13 @@
+.header #{ title || 'Mafia Game'}
+    if title
+        a(href="/mafia", alt="Play Mafia Game")
+            span.play-mafia.material-symbols-outlined
+    if user
+        a(href="/user", alt="User Profile")
+            span.user-avatar
+                img.rounded-circle.img-fluid(src=user.avatar_url alt="avatar")
+        a(href="/logout", alt="Logout")
+            span.user-logout.material-symbols-outlined
+    else
+        a(href="/login", alt="Log in")
+            span.user-login.material-symbols-outlined

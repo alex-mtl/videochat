@@ -316,13 +316,18 @@ div.videobox span.slot-role {
 
 div.videobox .slot-role[data-role="sheriff"]:before {
     content: "frame_inspect";
+    /*content: "\1F44D";";*/
+    /*content: "\1F46E"; !* police oficer*!*/
+    /*  f8a2 */
     /*content: "✡";*/
     /*content: "👍"; !* 👎 *!*/
     color: orange;
     visibility: visible;
     /*text-shadow: 1px 1px 2px red;*/
 }
-div.videobox .slot-role[data-role="citizen"]:before {
+div.videobox .slot-role[data-role="citizen"]:before,
+div.videobox .slot-role[data-role="R"]:before
+{
     content: "frame_person";
     color: var(--g-failure);
     visibility: visible;
@@ -335,6 +340,8 @@ div.videobox .slot-role[data-role="mafia"]:before {
 }
 div.videobox .slot-role[data-role="don"]:before {
     /*content: "frame_person";*/
+
+    /*content: "\1F52B"; !* gun pistolet *!*/
     content: "diamond";
     color: black;
     visibility: visible;
@@ -392,8 +399,12 @@ div.game.videos:not([data-phase='lobby']) .shout-out .slot-shout:before {
     color: var(--g-red);
 }
 
+/* Hide .slot-shout if an active-speaker video is present in the same .videobox */
+/*.videobox video.active-speaker ~ .slot-shout {*/
+/*    display: none;*/
+/*}*/
 
-.videobox:not(.vbox-game-host) span.slot-shout:before {
+.videobox:not(.vbox-game-host) video:not(.active-speaker) ~ span.slot-shout:before {
     content: "record_voice_over";
     color: var(--g-grey);
 }

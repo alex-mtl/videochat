@@ -8,9 +8,13 @@ const config = require('./config');
 const app = express();
 app.use(cookieParser());
 app.use(session({
-    secret: 'mGpFoUnYpRylxBNziSzK2tVx',
+    store: new sessionStore({
+        path: './sessions/vc', // Directory to store session files
+        ttl: 86400, // Session expiration time (in seconds)
+    }),
+    secret: config.secret,
     resave: false,
-    saveUninitialized: true
+    saveUninitialized: true,
 }));
 
 // Load SSL certificate and private key

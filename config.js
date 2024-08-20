@@ -9,5 +9,6 @@ module.exports = {
     chatHost: "https://video.ttl10.net/",
     secret: 'mGpFoUnYpRylxBNziSzK2tVx',
     ssl_key: '/var/www/html/video.ttl10.key.pem',
-    ssl_cert: '/var/www/html/video.ttl10.cert.pem'
+    ssl_cert: '/var/www/html/video.ttl10.cert.pem',
+    tg_token: '7202342115:AAHVTrAWmJNO3N4mTwtcvzcY7FdyawdBelM'
 };

@@ -17,6 +17,8 @@ const showRoles = onlyHost(async (ws, data, ROOM_ID, room) => {
 })
 
 const teamWins = onlyHost(async (ws, data, ROOM_ID, room) => {
+    room.game.phase = 'game-over'
+    room = await updateRoom(ROOM_ID, room)
     await broadcastRoom(ROOM_ID, JSON.stringify({type: 'game-over', players: room.slot, team: data.team }));
 })
 
@@ -587,6 +589,8 @@ const nextSpeaker = onlyHost(async (ws, data, ROOM_ID, room) => {
 
         if (activeSpeaker > 0) {
             room.game.days[curDay].currentSpeaker = activeSpeaker
+            room.game.days[curDay].currentSpeakerStart = Date.now()
+            room.game.days[curDay].currentSpeakerEnd = room.game.days[curDay].currentSpeakerStart + (duration * 1000)
             room = await updateRoom(ROOM_ID, room)
             await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'active-speaker', slot: room.game.days[curDay].currentSpeaker, duration: duration }));
         } else {
@@ -734,11 +738,12 @@ async function checkGameOver(room, ROOM_ID) {
             }
         }
     }
+    console.log('739','red:',redTeam,'black:',blackTeam)
     if ((redTeam.length > 0) && (blackTeam.length === 0)) {
-        ws.send(JSON.stringify({ type: 'team-wins', team: 'red' }));
+        host(ROOM_ID, { type: 'team-wins', team: 'red' });
     }
     if ((redTeam.length === blackTeam.length) && (blackTeam.length > 0)) {
-        ws.send(JSON.stringify({ type: 'team-wins', team: 'black' }));
+        host(ROOM_ID, { type: 'team-wins', team: 'black' });
     }
 
 }

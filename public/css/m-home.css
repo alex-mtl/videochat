@@ -28,6 +28,65 @@ body {
 .header {
     top: 0;
 }
+
+.header span.play-mafia {
+    position: absolute;
+    top: 0vw;
+    left: 1vw;
+    height: 44px;
+    width: 44px;
+    font-size: 44px;
+    color: white;
+}
+
+.header span.play-mafia:before {
+    content: "stadia_controller";
+}
+
+.header span.user-logout,
+.header span.user-login {
+    position: absolute;
+    top: 0vw;
+    right: 1vw;
+    height: 44px;
+    width: 44px;
+    font-size: 44px;
+    color: white;
+}
+.header a:visited {
+    color: white;  /* Change color when the link has been visited */
+    /*text-decoration: underline;  !* Optionally, add an underline *!*/
+}
+.header span.user-logout:before {
+    content: "logout";
+}
+.header span.user-logout:hover {
+    color: var(--g-failure);
+}
+
+
+.header a:visited {
+    color: white;  /* Change color when the link has been visited */
+    /*text-decoration: underline;  !* Optionally, add an underline *!*/
+}
+.header span.user-login:before {
+    content: "login";
+}
+.header span.user-login:hover {
+    color: var(--g-success);
+}
+
+.header span.user-avatar {
+    position: absolute;
+    top: 0vw;
+    right: calc(1vw + 48px);
+    height: 44px;
+}
+
+
+.header span.user-avatar img {
+    height: 100%;
+}
 .footer {
     bottom: 0;
 }

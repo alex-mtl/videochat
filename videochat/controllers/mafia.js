@@ -6,7 +6,11 @@ const path = require('path');
 const config = require('../../config');
 
 module.exports.home = (req, res) => {
-
+    let nickname = '';
+    if (req.session.user) {
+        nickname = req.session.user.nickname || req.session.user.username;
+    }
+    // console.log(req.session.user)
     getActiveRooms()
         .then(roomList => {
             roomList = roomList.filter(room => room.type === 'mafia' && room.hidden !== true);
@@ -35,8 +39,12 @@ module.exports.home = (req, res) => {
             let data = {
                 sessionID: req.sessionID,
                 wssURL: config.wssURL,
-                roomList
+                roomList,
+                nickname
             };
+            if (req.session.user) {
+                data = {...data, user: req.session.user}
+            }
             if (req.session.hasOwnProperty('error')) {
                 error = req.session.error ;
                 console.log('error message', error);

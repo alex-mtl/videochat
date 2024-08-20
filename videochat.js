@@ -4,10 +4,18 @@ const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const sessionStore = require('session-file-store')(session); // Requires 'session-file-store' package
 const fs = require('fs');
+const bodyParser = require('body-parser')
+
+const passport = require('passport');
+const LocalStrategy = require('passport-local').Strategy;
+require('dotenv').config();
 
 const config = require('./config');
 
 const app = express();
+
+var urlencodedParser = bodyParser.urlencoded({ extended: false })
+var urlencodedParserExt = bodyParser.urlencoded({ extended: true })
 
 app.use(cookieParser());
 
@@ -20,6 +28,15 @@ app.use(session({
     resave: false,
     saveUninitialized: true,
 }));
+
+app.use((req, res, next) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.set('Surrogate-Control', 'no-store');
+    next();
+});
+
 
 app.engine('pug', require('pug').__express)
 app.set('views', path.join(__dirname+'/videochat', 'views'));
@@ -37,6 +54,13 @@ const publicRoom = require('./videochat/controllers/publicRoom');
 
 
 app.get('/', home.homePage);
+app.get('/login', home.homePage);
+app.get('/register', home.register);
+app.get('/auth/telegram', home.tgAuth);
+app.get('/logout', home.logout);
+app.post('/login', urlencodedParser, home.loginPost);
+app.post('/register', urlencodedParser, home.registerPost);
+app.get('/user', urlencodedParser, home.userProfile);
 
 app.get('/rooms', roomList.page )
 app.get('/mafia', mafia.home )

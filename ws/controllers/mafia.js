@@ -377,13 +377,17 @@ const shoutOut = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
             PLAYER.so.push({ id:soId, start: ts, end: (ts+5000)})
             room.slot[PLAYER.slot] = PLAYER
             room = await updateRoom(ROOM_ID, room)
+            console.log(380, room.slot)
             await ws.send(JSON.stringify({type: 'unmute-mic', mode: 'shout-out'}));
             await broadcastRoom(ws.roomID, JSON.stringify({type: 'shout-out', slot: data.slot}));
             setTimeout(async () => {
                 room = await getRoom(ROOM_ID)
                 player = room.slot[PLAYER.slot]
                 so = player.so[0]
-                if (so.end <= Date.now()) {
+                if (
+                    so.end <= Date.now() &&
+                    (room.game.days["D"+room.game.day].currentSpeaker !== data.slot)
+                ) {
                     await slotSend(ROOM_ID, data.slot, {type: 'mute-mic', mode: 'shout-out'});
                 }
             }, 5000);
@@ -403,7 +407,11 @@ const shoutOut = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
                 let player = room.slot[PLAYER.slot]
                 let so = player.so[0]
                 console.log('404', so, now)
-                if (so.end <= now) {
+                if (
+                    so.end <= now &&
+                    (room.game.days["D"+room.game.day].currentSpeaker !== data.slot)
+                ) {
+                // if (so.end <= now) {
                     await slotSend(ROOM_ID, data.slot, {type: 'mute-mic', mode: 'shout-out'});
                 }
                 // await slotSend(ROOM_ID, data.slot, {type: 'mute-mic', mode: 'shout-out'});
@@ -424,15 +432,67 @@ const sendPlayerComm = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
 
 
 const getSelfRole = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
-    let response = {type: 'request-response', requestId: data.requestId, role: PLAYER.role}
+    let response = {type: 'request-response', requestId: data.requestId, role: PLAYER.role, now: Date.now()}
     await ws.send(JSON.stringify(response));
 });
 
+const getActiveSpeakers = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
+    let curDay = room.game.days["D"+room.game.day]
+    let activeSpeakerEnd = 0
+    let activeSpeaker = 0
+    if ((room.game.phase === 'day') && ((curDay.currentSpeakerEnd || 0) > 0)) {
+        activeSpeakerEnd = (curDay.currentSpeakerEnd || 0)
+        activeSpeaker = (curDay.currentSpeaker || 0)
+        if (activeSpeaker > 0) {
+            if (room.slot[activeSpeaker].status !== 'alive') {
+                activeSpeaker = 0
+            }
+        }
+    }
+
+    let so = Object.fromEntries(
+        Object.entries(room.slot)
+            .filter(([key, value]) => ((value.so.length > 0) && (value.so[0].end > Date.now())))
+    );
+
+    let response = {
+        type: 'request-response',
+        requestId: data.requestId,
+        'active-speaker': activeSpeaker,
+        'active-speaker-end': activeSpeakerEnd,
+        now: Date.now(),
+        so: so
+    }
+    await ws.send(JSON.stringify(response));
+});
 
 const getMafTeam = onlyMafTeam(async (ws, data, ROOM_ID, room, PLAYER, TEAM) => {
     let response = {type: 'request-response', requestId: data.requestId, mafTeam: TEAM}
     await ws.send(JSON.stringify(response));
 });
+
+const gameOver = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
+
+    let redTeam = []
+    let blackTeam = []
+    for (const [slot, player] of Object.entries(room.slot)) {
+        if (player.status === 'alive') {
+            if (['B', 'D'].includes(player.role)) {
+                blackTeam.push(slot)
+            } else {
+                redTeam.push(slot)
+            }
+        }
+    }
+    console.log('739','red:',redTeam,'black:',blackTeam)
+    if ((redTeam.length > 0) && (blackTeam.length === 0)) {
+        ws.send(JSON.stringify({type: 'game-over', players: room.slot, team: 'red' }));
+    }
+    if ((redTeam.length === blackTeam.length) && (blackTeam.length > 0)) {
+        ws.send(JSON.stringify({type: 'game-over', players: room.slot, team: 'black' }));
+    }
+
+})
 
 const getSheriff = onlySheriff(async (ws, data, ROOM_ID, room, PLAYER, TEAM) => {
     let response = {type: 'request-response', requestId: data.requestId, team: TEAM}
@@ -637,12 +697,14 @@ module.exports = common.addExports(
     gameReserveSlot,
     gameReserveRole,
     getSelfRole,
+    getActiveSpeakers,
     getMafTeam,
     getSheriff,
     shoutOut,
     sendPlayerComm,
     setPlayerName,
     playerVote,
+    gameOver,
     voteLockWinners,
     shoot,
 }));

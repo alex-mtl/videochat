@@ -246,6 +246,11 @@ async function getSelfRole() {
     return response.role;
 }
 
+async function getActiveSpeakers() {
+    const response = await sendRequest(ws, { type: 'get-active-speakers' });
+    return response;
+}
+
 async function getMafTeam() {
     const response = await sendRequest(ws, { type: 'get-maf-team' });
     return response.mafTeam;
@@ -784,6 +789,10 @@ async function handleGamePhase(data, mode = 'normal') {
         resetDisableButtons()
         hideHostVideo()
 
+    } else if (data.phase === 'game-over') {
+        if (mode !== 'normal') {
+            ws.send(JSON.stringify({type: 'game-over', request:'show-roles'}));
+        }
     } else if (data.phase === 'night') {
         gameMessage('Night '+data.night)
         gameMessage('', 2)
@@ -915,6 +924,25 @@ async function handleGamePhase(data, mode = 'normal') {
                 hidePlaceholders()
                 hideRoles()
                 mainButton('Next speaker', nextSpeakerSend)
+            }
+            if (mode !== 'normal') {
+                let response = await getActiveSpeakers()
+                let duration = Math.floor((response['active-speaker-end'] - response.now) / 1000)
+                duration = (duration > 0) ? duration : 1
+                if (response['active-speaker'] >0) {
+                    handleActiveSpeaker({
+                        slot: response['active-speaker'],
+                        duration: duration
+                    })
+                }
+                if (response.so.length >0) {
+                    response.so.forEach( (slot, so) => {
+                        handleShoutOut({ slot: so.slot, duration: (so.so[0].end - response.now)})
+                    })
+
+                }
+
+                console.log(response)
             }
             gameMessage('Day '+data.day)
             gameMessage('', 2)
@@ -1581,7 +1609,7 @@ function handleActiveSpeaker(data) {
 function handleShoutOut(data) {
     let vBox = document.querySelector('div.videobox[data-slot="'+data.slot+'"]')
     vBox.classList.add('shout-out')
-    vBox.setAttribute('shout-out-ttl', Date.now()+4900)
+    vBox.setAttribute('shout-out-ttl', Date.now()+(data.duration || 4900))
     let eBar  = document.querySelector('div.e-bar[data-slot="'+data.slot+'"]')
     eBar.classList.add('shout-out')
     setTimeout(() => {

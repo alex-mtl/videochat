@@ -1,0 +1,17 @@
+.row
+    if Array.isArray(propValue)
+        - const [n0, n1] = propName.split('_');
+        .col-sm-2
+            p.mb-0 #{n0}
+        .col-sm-4
+            p.text-muted.mb-0 #{propValue[0]}
+        .col-sm-2
+            p.mb-0 #{n1}
+        .col-sm-4
+            p.text-muted.mb-0 #{propValue[1]}
+    else
+        .col-sm-3
+            p.mb-0 #{propName}
+        .col-sm-9
+            p.text-muted.mb-0 #{propValue}
+hr
