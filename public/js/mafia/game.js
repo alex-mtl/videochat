@@ -144,19 +144,23 @@ function selfSlotDetection(selfID) {
                 slot.insertBefore(localVideo, slot.firstChild);
 
                 slot.setAttribute('data-uid', selfID)
+                slot.setAttribute('data-name', player.name || 'unknown')
                 if(['killed', 'disqualified', 'locked'].includes(slot.getAttribute('data-player-status'))) {
                     localVideo.origSrcObject = localVideo.srcObject
                     localVideo.srcObject = null
                 }
-                userName = slot.querySelector('.game-user');
+                userName = slot.querySelector('span.game-user');
+                userName.textContent = player.name || selfID;
+                inputUserName = slot.querySelector('input.game-user');
+                inputUserName.value = player.name || 'unknown';
                 // userName.textContent = selfID
-                userName.childNodes.forEach(node => {
-                    // Check if the child node is a text node
-                    if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim() === 'unknown') {
-                        // Replace the text content with selfID
-                        node.textContent = selfID;
-                    }
-                });
+                // userName.childNodes.forEach(node => {
+                //     // Check if the child node is a text node
+                //     if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim() === 'unknown') {
+                //         // Replace the text content with selfID
+                //         node.textContent = player.name || selfID;
+                //     }
+                // });
                 participant = true
                 break
             }

@@ -1,0 +1,11 @@
+//- Error Message Modal
+.modal.fade#errorModal(tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true")
+    .modal-dialog
+        .modal-content
+            .modal-header.bg-danger
+                h5.modal-title#errorModalLabel Error
+                button.btn-close(type="button" data-bs-dismiss="modal" aria-label="Close")
+            .modal-body
+                ul#errorMessages.list-unstyled
+            .modal-footer
+                button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Close

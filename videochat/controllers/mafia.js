@@ -42,9 +42,9 @@ module.exports.home = (req, res) => {
                 roomList,
                 nickname
             };
-            if (req.session.user) {
-                data = {...data, user: req.session.user}
-            }
+
+            data = {...data, user: req.session.user || null}
+
             if (req.session.hasOwnProperty('error')) {
                 error = req.session.error ;
                 console.log('error message', error);
@@ -73,11 +73,13 @@ module.exports.game = (req, res) => {
         fs.readFile(roomFile, 'utf8', function (err, roomData) {
             room = JSON.parse(roomData);
             console.log('VC 51', req.sessionID)
+            const user = req.session.user || null;
             res.render('mafia/game', {
                 sessionID: req.sessionID,
                 wssURL: config.wssURL,
                 roomID: req.params.room,
-                room: room
+                room,
+                user
             })
         })
     }

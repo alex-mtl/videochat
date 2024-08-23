@@ -83,6 +83,12 @@ function createPeerConnection(peerId, hostID, participant = true) {
                 for (const [slotN, player] of Object.entries(roomEnv.slot)) {
                     if (player.uid === peerId) {
                         slot = document.querySelector('div.videobox[data-slot="' + slotN+'"]');
+                        slot.setAttribute('data-name', player.name || "unknown");
+                        if (player.avatar) {
+                            slot.setAttribute('style', "--g-background-person: url('" + player.avatar + "');");
+                        } else {
+                            slot.setAttribute('style', null);
+                        }
                         break
                     }
                 }
@@ -96,6 +102,7 @@ function createPeerConnection(peerId, hostID, participant = true) {
                 }
 
             } else {
+
                 if (slot.classList.contains('vbox-game-host')) {
                     bindHostVideo(peerId, event.streams[0], slot);
                 } else {
@@ -394,6 +401,12 @@ function bindRemoteVideo(videoID, srcObject, slot) {
     slot.setAttribute('data-uid', videoID)
     slot.id = 'video-' + videoID;
     slot.setAttribute('alt', videoID);
+    // let player = roomEnv.slot[slot]
+    // if (player.avatar) {
+    //     slot.setAttribute('style', "--g-background-person: url('" + player.avatar + "');");
+    // } else {
+    //     slot.setAttribute('style', null);
+    // }
     // remoteVideoFrame.appendChild(remoteVideo);
     // remoteVideoFrame.classList.add("videobox");
 

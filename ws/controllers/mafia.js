@@ -53,9 +53,10 @@ function joinGame(ws, data) {
                 return;
             }
             if (room.type === 'mafia') {
-                sess = getSession(sessionID);
+                // sess = getSession(sessionID);
                 pass = false;
                 stream = false;
+                console.log('59 cuurent vs host', sessionID, room.gameHost.sessionID)
                 if (sessionID === room.gameHost.sessionID) {
                     let conn = clients[room.gameHost.uid]
                     if (conn === undefined) {
@@ -66,8 +67,6 @@ function joinGame(ws, data) {
                         console.log('WS 51 conn: ', typeof conn)
                     }
                     pass = true;
-                } else {
-                    console.log('48 WARN: ', sess.uid, room.host.uid)
                 }
 
             } else {
@@ -80,6 +79,10 @@ function joinGame(ws, data) {
                     checkWS = clients[player.uid];
                     if (checkWS === undefined) {
                         player.uid = clientId
+                        if (ws.req.session.user) {
+                            player.name = ws.req.session.user.nickname || ws.req.session.user.username
+                            player.avatar = ws.req.session.user.avatar_url
+                        }
                         emptySlot = false
                         break
                     }
@@ -88,6 +91,10 @@ function joinGame(ws, data) {
                     if ((player.uid === 'empty') && emptySlot) {
                         if (clientId !== room.gameHost.uid) {
                             player.uid = clientId;
+                            if (ws.req.session.user) {
+                                player.name = ws.req.session.user.nickname || ws.req.session.user.username
+                                player.avatar = ws.req.session.user.avatar_url
+                            }
                             player.sessionID = sessionID;
                             emptySlot = false;
                             break;
@@ -551,8 +558,13 @@ function createGame(sender, data) {
         //const clientId = generateClientId();
         // sender.uid = sender.uid;
         sender.userName = room.host;
-        console.log("Session to create ", room.chatSessionID, typeof room.chatSessionID);
-        createSession( room.chatSessionID, clientId, room.host, room.name);
+
+        // createSession( room.chatSessionID, clientId, room.host, room.name);
+        sender.req.session.chatSessionID = room.chatSessionID
+        sender.req.session.uid = clientId
+        sender.req.session.userName = room.host
+        sender.req.session.newRoom = room.name
+
         room.host = { uid: clientId, userName: room.host, sessionID: room.chatSessionID };
         room.gameHost = {uid: clientId, name: sender.userName, sessionID: room.chatSessionID, status: "unknown" }
         room.link = config.chatHost+'m/'+room.name;
@@ -628,18 +640,18 @@ function joinRoomGame(sender, data) {
                 }
                 sender.send(JSON.stringify({type: 'room-ready', room: room }));
             } else if (room.type === 'private') {
-                sess = getSession(sessionID);
+                // sess = getSession(sessionID);
                 if (room.password === password) {
                     ttl = new Date().getTime() + 600000; // now  + 10 min
-                    sess['room-'+roomID] = { ttl, password };
+                    sender.req.session['room-'+roomID] = { ttl, password };
                     sender.send(JSON.stringify({type: 'room-ready', room: room }));
                 } else {
-                    sess['room-'+roomID] = '';
+                    sender.req.session['room-'+roomID] = '';
                     sender.send(JSON.stringify({ type: 'error', message: "Password is wrong..." }));
                 }
-                updateSession(sessionID, sess);
+                // updateSession(sessionID, sess);
             } else if (room.type === 'master') {
-                sess = getSession(sessionID);
+                // sess = getSession(sessionID);
 
                 hostConn = clients[room.host.uid]; // dostaet polzovatlya
                 if (room.allowed.includes(sessionID)){
@@ -654,9 +666,9 @@ function joinRoomGame(sender, data) {
                     hostConn.send(JSON.stringify({ type: 'request-join', 'room': room.name, 'client-id': sender.uid,
                         'client-session': sessionID, message: data.request}));
                     ttl = new Date().getTime() + 600000; // now  + 10 min
-                    sess['room-'+roomID] = { ttl, admit: false, uid: sender.uid };
+                    sender.req.session['room-'+roomID] = { ttl, admit: false, uid: sender.uid };
                     sender.send(JSON.stringify({type: 'info', message: 'Request sent to the room host. Please wait for admission.' }));
-                    updateSession(sessionID, sess);
+                    // updateSession(sessionID, sess);
                 } else {
                     sender.send(JSON.stringify({ type: 'error', message: "No host detected online for this room: "+room.name }));
                     return;

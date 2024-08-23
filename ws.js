@@ -3,13 +3,16 @@ const https = require('https');
 const fs = require('fs');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
+const sessionStore = require('session-file-store')(session); // Requires 'session-file-store' package
 const config = require('./config');
-
+require('dotenv').config();
 const app = express();
 app.use(cookieParser());
+
+
 app.use(session({
     store: new sessionStore({
-        path: './sessions/vc', // Directory to store session files
+        path: process.env.SESSIONS_DIR, // Directory to store session files
         ttl: 86400, // Session expiration time (in seconds)
     }),
     secret: config.secret,
@@ -30,10 +33,30 @@ const handle = require('./ws/controllers/handle');
 const mafia = require('./ws/controllers/mafia');
 
 const WebSocket = require('ws');
+const sessionParser = session({
+    store: new sessionStore({
+        path: process.env.SESSIONS_DIR, // Directory to store session files
+        ttl: 86400, // Session expiration time (in seconds)
+    }),
+    secret: config.secret,
+    resave: true,
+    saveUninitialized: true,
+    cookie: {httpOnly: true}
+});
 
-const wss = new WebSocket.Server({ server });
+// const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ noServer: true });
+// Handle HTTP upgrade to WebSocket
+server.on('upgrade', (request, socket, head) => {
+    sessionParser(request, {}, () => {
 
-wss.on('connection', ws => {
+        wss.handleUpgrade(request, socket, head, (ws) => {
+            wss.emit('connection', ws, request);
+        });
+    });
+});
+wss.on('connection', (ws, req) => {
+    ws.req = req
     ws.on('message', message => {
         const data = JSON.parse(message);
         const handler = handle.getHandler(data.type);
@@ -43,13 +66,14 @@ wss.on('connection', ws => {
         } else if (typeof mafia[handler] === 'function') {
             mafia[handler](ws, data);
         } else {
-            ws.send(JSON.stringify({ type: 'error', message: 'Unknown message type:' + data.type }));
+            ws.send(JSON.stringify({type: 'error', message: 'Unknown message type:' + data.type}));
             console.error('Unknown message type:', data.type);
         }
     });
     ws.on('close', () => {
         handle.removeClient(ws);
     });
+
 });
 
 

@@ -1,0 +1,13 @@
+//- The Modal
+.modal.fade(id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true")
+    .modal-dialog
+        .modal-content
+            .modal-header
+                h5.modal-title#uploadModalLabel Upload Image
+                button.btn-close(type="button" data-bs-dismiss="modal" aria-label="Close")
+            .modal-body
+                p Square Image (png, jpg, gif) up to 1MB, max 512x512px
+                input#imageInput.form-control(type="file" accept="image/*")
+            .modal-footer
+                button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Close
+                button.btn.btn-primary(type="button" id="uploadButton") Upload

@@ -1,0 +1,52 @@
+//- User Data Edit Modal
+.modal.fade(id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true")
+    .modal-dialog
+        .modal-content
+            .modal-header
+                h5.modal-title#editUserModalLabel Edit User Information
+                button.btn-close(type="button" data-bs-dismiss="modal" aria-label="Close")
+            .modal-body
+                form#editUserForm
+                    .row.mb-3
+                        .col-sm-3
+                            label.form-label(for="username") Username
+                        .col-sm-9
+                            input#username.form-control(type="text" name="username" value=user.username)
+                    .row.mb-3
+                        .col-sm-3
+                            label.form-label(for="nickname") Nickname
+                        .col-sm-9
+                            input#nickname.form-control(type="text" name="nickname" value=user.nickname)
+                    .row.mb-3
+                        .col-sm-3
+                            label.form-label(for="email") Email
+                        .col-sm-9
+                            input#email.form-control(type="email" name="email" value=user.email)
+                    .row.mb-3
+                        .col-sm-3
+                            label.form-label(for="phone") Phone
+                        .col-sm-9
+                            input#phone.form-control(type="text" name="phone" value=user.phone)
+                    .row.mb-3
+                        .col-sm-3
+                            label.form-label(for="firstName") First Name
+                        .col-sm-9
+                            input#firstName.form-control(type="text" name="firstName" value=user.first_name)
+                    .row.mb-3
+                        .col-sm-3
+                            label.form-label(for="lastName") Last Name
+                        .col-sm-9
+                            input#lastName.form-control(type="text" name="lastName" value=user.last_name)
+                    .row.mb-3
+                        .col-sm-3
+                            label.form-label(for="country") Country
+                        .col-sm-9
+                            select#country.form-control(name="country")
+                    .modal-footer
+                        button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Close
+                        button.btn.btn-primary(type="submit") Save Changes
+script.
+    document.addEventListener('DOMContentLoaded', () => {
+        let selectElem = document.querySelector('div#editUserModal select#country');
+        countryOptions(selectElem, '#{user.country || 'US'}');
+    });

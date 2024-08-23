@@ -23,9 +23,14 @@ html(lang="en")
                 h5.my-3 #{username}
                 p.text-muted.mb-1 #{user.level || ''}
                 p.text-muted.mb-4 #{country || ''}
-                //.d-flex.justify-content-center.mb-2
-                //  button.btn.btn-primary(type="button", data-mdb-button-init, data-mdb-ripple-init) Follow
-                //  button.btn.btn-outline-primary.ms-1(type="button", data-mdb-button-init, data-mdb-ripple-init) Message
+                <!-- Button to Open the Modal -->
+                button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target="#uploadModal") Upload Image
+                button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target="#editUserModal") Edit Info
+
+                include elems/upload-avatar
+                include elems/edit-user-info
+                include elems/form-erorrs-modal
+
           .col-lg-8
             .card.mb-4
               .card-body

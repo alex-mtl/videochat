@@ -27,15 +27,17 @@ body {
 }
 .header {
     top: 0;
+    height: 5vw;
+    font-size: 2vw;
 }
 
 .header span.play-mafia {
     position: absolute;
     top: 0vw;
     left: 1vw;
-    height: 44px;
-    width: 44px;
-    font-size: 44px;
+    height: 5vw;
+    width: 5vw;
+    font-size: 5vw;
     color: white;
 }
 
@@ -48,11 +50,22 @@ body {
     position: absolute;
     top: 0vw;
     right: 1vw;
-    height: 44px;
-    width: 44px;
-    font-size: 44px;
+    height: 5vw;
+    width: 5vw;
+    font-size: 5vw;
     color: white;
 }
+
+.header span.user-sign-up {
+    position: absolute;
+    top: 0vw;
+    right: 6vw;
+    height: 5vw;
+    width: 5vw;
+    font-size: 5vw;
+    color: white;
+}
+
 .header a:visited {
     color: white;  /* Change color when the link has been visited */
     /*text-decoration: underline;  !* Optionally, add an underline *!*/
@@ -76,16 +89,23 @@ body {
     color: var(--g-success);
 }
 
+.header span.user-sign-up:before {
+    content: "person_check";
+}
+.header span.user-sign-up:hover {
+    color: var(--g-success);
+}
+
 .header span.user-avatar {
     position: absolute;
     top: 0vw;
-    right: calc(1vw + 48px);
-    height: 44px;
+    right: 6vw;
+    height: 5vw;
 }
 
 
 .header span.user-avatar img {
-    height: 100%;
+    height: 5vw;
 }
 .footer {
     bottom: 0;
@@ -93,7 +113,7 @@ body {
 .container {
     /*max-width: 800px;*/
     max-width: 90vw;
-    margin: 60px auto; /* Adjust margin to make space for header and footer */
+    margin: 5.2vw auto; /* Adjust margin to make space for header and footer */
     padding: 10px;
 }
 form {

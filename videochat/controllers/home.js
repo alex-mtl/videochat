@@ -68,15 +68,16 @@ function getUserBadges(userId) {
 module.exports.homePage = (req, res) => {
     const { username = '', password = '' } = req.query;
     let message = (req.session.errorMessage || (req.query.message || null))
-
-    console.log('session error: ', message)
+    let user = req.session.user || null
+    console.log('session user: ', user)
     req.session.errorMessage = null
     res.render('mafia/login', {
         sessionID : req.sessionID ,
         wssURL : config.wssURL,
         username,
         password,
-        message
+        message,
+        user
     })
 };
 
@@ -98,6 +99,7 @@ module.exports.tgAuth = async (req, res) => {
         }
         res.redirect('/user');
     } else {
+
         res.render('mafia/alert', {
                 sessionID : req.sessionID ,
                 wssURL : config.wssURL,
@@ -130,7 +132,8 @@ module.exports.login = (req, res) => {
         wssURL : config.wssURL,
         username,
         password,
-        message
+        message,
+        user: req.session.user || null
     })
 };
 
@@ -147,11 +150,21 @@ module.exports.loginPost = async (req, res)  => {
     let [rows] =  await db.query('SELECT * FROM users WHERE email = ?', [email]);
     // done(null, rows[0]);
     console.log('53', email, rows, rows.length )
-    if (rows.length === 0) {
+    if (rows.length === 0 ) {
         res.redirect('/login');
     } else {
-        req.session.user = rows[0];
-        res.redirect('/user');
+        let salt = rows[0].password_hash.split(':')[0]
+        let password_hash = rows[0].password_hash.split(':')[1]
+        const hashPassword = (password, salt) =>
+            crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+        if (hashPassword(password, salt)  === password_hash) {
+            req.session.user = rows[0];
+            res.redirect('/user');
+        } else {
+            req.session.errorMessage = "Invalid email or password.";
+            res.redirect('/login');
+        }
+
 
     }
     // const { username = '', password = '' } = req.query;
@@ -165,18 +178,22 @@ module.exports.userProfile = (req, res) => {
         user.stats = getUserStats(user.id)
         user.badges = getUserBadges(user.id)
         userProps = {
-            'Username': user.username,
+            'Username_Nickname': [
+                user.username,
+                user.nickname
+            ],
             'Email_Phone': [
                 user.email,
                 user.phone
             ],
-            'Nickname': user.nickname,
+
             'First Name_Last Name': [
                 user.first_name,
                 user.last_name
             ],
-            'Country': countries[(user.country || 'CA')]
+            'Country': countries[(user.country || 'US')]
         }
+
         res.render('mafia/user', {
             sessionID : req.sessionID ,
             wssURL : config.wssURL,
@@ -184,11 +201,13 @@ module.exports.userProfile = (req, res) => {
             email: user.email,
             avatar: user.avatar_url,
             userProps,
-            country: countries[(user.country || 'CA')]
+            country: countries[(user.country || 'US')],
+            countryCode: (user.country || 'US'),
+            user
         })
     } else {
         req.session.errorMessage = "You need to login first";
-        res.redirect('/login');
+        res.redirect('/login', {user});
     }
 };
 
@@ -200,8 +219,16 @@ module.exports.logout = (req, res) => {
             return res.status(500).send('Error occurred while logging out.');
         }
 
-        // Clear the session cookie
-        res.clearCookie('connect.sid', { path: '/' });
+        // const sessionFilePath = path.join( process.env.SESSIONS_DIR, `sess_${req.sessionID}`);
+        //
+        // // Delete the session file
+        // fs.unlink(sessionFilePath, (err) => {
+        //     if (err) {
+        //         console.error('Failed to delete session file:', err);
+        //     } else {
+        //         console.log('Session file deleted successfully.');
+        //     }
+        // });
 
         // req.session.errorMessage = "Session successfully terminated"
         res.redirect('/login?message=Session successfully terminated');
@@ -214,7 +241,8 @@ module.exports.register = (req, res) => {
     res.render('mafia/register', {
         sessionID : req.sessionID ,
         wssURL : config.wssURL,
-        title: 'Sign in'
+        title: 'Sign Up',
+        user: req.session.user || null
     })
 };
 
@@ -258,10 +286,7 @@ module.exports.registerPost = async (req, res) => {
             crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
         const hash = hashPassword(password, salt);
         const password_hash =  `${salt}:${hash}`;
-        console.log(hash,`\n`, hash.length)
-
-
-        // const hash = await bcrypt.hash(password, 10);
+          // const hash = await bcrypt.hash(password, 10);
         let [rows] =  await db.query('SELECT * FROM users WHERE email = ?', [email]);
         if (rows.length === 0) {
             let nickname = username = email.split('@')[0]
@@ -277,7 +302,7 @@ module.exports.registerPost = async (req, res) => {
             res.render('mafia/register', {
                 sessionID : req.sessionID ,
                 wssURL : config.wssURL,
-                title: 'Sign in',
+                title: 'Sign Up',
                 email,
                 password,
                 passwordConfirm,
@@ -290,7 +315,7 @@ module.exports.registerPost = async (req, res) => {
         res.render('mafia/register', {
             sessionID : req.sessionID ,
             wssURL : config.wssURL,
-            title: 'Sign in',
+            title: 'Sign Up',
             email,
             password,
             passwordConfirm,

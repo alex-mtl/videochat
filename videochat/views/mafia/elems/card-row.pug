@@ -4,14 +4,14 @@
         .col-sm-2
             p.mb-0 #{n0}
         .col-sm-4
-            p.text-muted.mb-0 #{propValue[0]}
+            p.text-muted.mb-0(data-user-attr=`user-data-${n0.toLowerCase().replace(' ', '-')}`) #{propValue[0]}
         .col-sm-2
             p.mb-0 #{n1}
         .col-sm-4
-            p.text-muted.mb-0 #{propValue[1]}
+            p.text-muted.mb-0(data-user-attr=`user-data-${n1.toLowerCase().replace(' ', '-')}`) #{propValue[1]}
     else
         .col-sm-3
             p.mb-0 #{propName}
         .col-sm-9
-            p.text-muted.mb-0 #{propValue}
+            p.text-muted.mb-0(data-user-attr=`user-data-${propName.toLowerCase().replace(' ', '-')}`) #{propValue}
 hr

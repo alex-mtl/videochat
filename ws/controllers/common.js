@@ -41,53 +41,53 @@ function grantAccess(sender, data) {
 
 }
 
-async function createSession(sessionID, clientID = null, userName = null, roomID = null) {
-    return new Promise((resolve, reject) => {
-        sessionFile = config.sessionsFolder + Buffer.from(sessionID).toString('base64') + '.json';
-        sess = {
-            chatSessionID: sessionID,
-            uid: clientID,
-            userName: userName,
-            newRoom: roomID
-        };
-        sessions[sessionID] = sess;
-        fs.writeFileSync(sessionFile, JSON.stringify(sess), 'utf-8');
-        resolve(sess);
-    })
-}
+// async function createSession(sessionID, clientID = null, userName = null, roomID = null) {
+//     return new Promise((resolve, reject) => {
+//         sessionFile = config.sessionsFolder + Buffer.from(sessionID).toString('base64') + '.json';
+//         sess = {
+//             chatSessionID: sessionID,
+//             uid: clientID,
+//             userName: userName,
+//             newRoom: roomID
+//         };
+//         sessions[sessionID] = sess;
+//         fs.writeFileSync(sessionFile, JSON.stringify(sess), 'utf-8');
+//         resolve(sess);
+//     })
+// }
 
 
-async function getSession(sessionID, clientID = null, userName = null, roomID = null) {
-    return new Promise((resolve, reject) => {
-        const sessionFile = config.sessionsFolder + Buffer.from(sessionID).toString('base64') + '.json';
-        console.log('329', sessionFile);
-        let sess = sessions[sessionID];
+// async function getSession(sessionID, clientID = null, userName = null, roomID = null) {
+//     return new Promise((resolve, reject) => {
+//         const sessionFile = config.sessionsFolder + Buffer.from(sessionID).toString('base64') + '.json';
+//         console.log('329', sessionFile);
+//         let sess = sessions[sessionID];
+//
+//         if (sess === undefined) {
+//             try {
+//                 const data = fs.promises.readFile(sessionFile, 'utf8');
+//
+//                 resolve(JSON.parse(data));
+//
+//             } catch (err) {
+//                 console.log('410 Session not found in file', sessionID);
+//                 sess = createSession(sessionID, clientID, userName);
+//                 resolve(sess);
+//                 console.log('New session created', sess);
+//             }
+//         } else {
+//             resolve(sess);
+//         }
+//     })
+// }
 
-        if (sess === undefined) {
-            try {
-                const data = fs.promises.readFile(sessionFile, 'utf8');
-
-                resolve(JSON.parse(data));
-
-            } catch (err) {
-                console.log('410 Session not found in file', sessionID);
-                sess = createSession(sessionID, clientID, userName);
-                resolve(sess);
-                console.log('New session created', sess);
-            }
-        } else {
-            resolve(sess);
-        }
-    })
-}
-
-function updateSession(sessionID, sess) {
-    // sessionFile = 'sessions/'+sessionID.toString('base64')+'.json';
-    const sessionFile = config.sessionsFolder + Buffer.from(sessionID).toString('base64') + '.json';
-    sessions[sessionID] = sess;
-    fs.writeFileSync(sessionFile, JSON.stringify(sess) , 'utf-8');
-    return sess;
-}
+// function updateSession(sessionID, sess) {
+//     // sessionFile = 'sessions/'+sessionID.toString('base64')+'.json';
+//     const sessionFile = config.sessionsFolder + Buffer.from(sessionID).toString('base64') + '.json';
+//     sessions[sessionID] = sess;
+//     fs.writeFileSync(sessionFile, JSON.stringify(sess) , 'utf-8');
+//     return sess;
+// }
 
 
 async function broadcastRoom(roomID, message, ws = null) {
@@ -280,9 +280,9 @@ function globalContext(target) {
 module.exports = {
     getRoom,
     updateRoom,
-    createSession,
-    getSession,
-    updateSession,
+    // createSession,
+    // getSession,
+    // updateSession,
     broadcastRoom,
     host,
     slotSend,

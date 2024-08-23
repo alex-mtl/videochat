@@ -34,7 +34,8 @@ function join(ws, data) {
             stream = false;
             if (obj.type === 'private') {
                 console.log('97 ', obj.type);
-                sess = getSession(sessionID);
+                // sess = getSession(sessionID);
+                sess = ws.req.session
                 pass = false;
                 if ((sess !== undefined) && (sess.hasOwnProperty('room-' + roomID))) {
                     if (obj.password === sess['room-' + roomID].password
@@ -58,7 +59,8 @@ function join(ws, data) {
                 }
             } else if (obj.type === 'master') {
                 console.log('115 ', obj.type);
-                sess = getSession(sessionID);
+                // sess = getSession(sessionID);
+                sess = ws.req.session
                 pass = false;
                 // console.log('142 ', sess.hasOwnProperty('room-'+roomID), sess);
                 if (sess.newRoom === obj.name) {
@@ -90,7 +92,8 @@ function join(ws, data) {
                 }
             } else if (obj.type === 'stream') {
                 console.log('140 ', obj.type);
-                sess = getSession(sessionID);
+                // sess = getSession(sessionID);
+                sess = ws.req.session
                 pass = false;
                 stream = false;
                 if ((sess.newRoom === obj.name)
@@ -301,7 +304,12 @@ function createRoom(sender, data) {
         sender.userName = room.host;
         console.log("Session to create ", room.chatSessionID, typeof room.chatSessionID);
         // createSession( room.chatSessionID, clientId, room.host, room.name);
-        createSession( room.chatSessionID, clientId, room.host, room.name);
+
+        sender.req.session.chatSessionID = room.chatSessionID
+        sender.req.session.uid = clientId
+        sender.req.session.userName = room.host
+        sender.req.session.newRoom = room.name
+
         room.host = { uid: clientId, userName: room.host, sessionID: room.chatSessionID };
         room.link = config.chatHost+'p/'+room.name;
         room.size = 1;
@@ -371,18 +379,18 @@ function joinRoom(sender, data) {
                 }
                 sender.send(JSON.stringify({type: 'room-ready', room: room }));
             } else if (room.type === 'private') {
-                sess = getSession(sessionID);
+                //sess = getSession(sessionID);
                 if (room.password === password) {
                     ttl = new Date().getTime() + 600000; // now  + 10 min
-                    sess['room-'+roomID] = { ttl, password };
+                    sender.req.session['room-'+roomID] = { ttl, password };
                     sender.send(JSON.stringify({type: 'room-ready', room: room }));
                 } else {
-                    sess['room-'+roomID] = '';
+                    sender.req.session['room-'+roomID] = '';
                     sender.send(JSON.stringify({ type: 'error', message: "Password is wrong..." }));
                 }
-                updateSession(sessionID, sess);
+                // updateSession(sessionID, sess);
             } else if (room.type === 'master') {
-                sess = getSession(sessionID);
+                // sess = getSession(sessionID);
 
                 hostConn = clients[room.host.uid]; // dostaet polzovatlya
                 if (room.allowed.includes(sessionID)){
@@ -397,9 +405,9 @@ function joinRoom(sender, data) {
                     hostConn.send(JSON.stringify({ type: 'request-join', 'room': room.name, 'client-id': sender.uid,
                         'client-session': sessionID, message: data.request}));
                     ttl = new Date().getTime() + 600000; // now  + 10 min
-                    sess['room-'+roomID] = { ttl, admit: false, uid: sender.uid };
+                    sender.req.session['room-'+roomID] = { ttl, admit: false, uid: sender.uid };
                     sender.send(JSON.stringify({type: 'info', message: 'Request sent to the room host. Please wait for admission.' }));
-                    updateSession(sessionID, sess);
+                    // updateSession(sessionID, sess);
                 } else {
                     sender.send(JSON.stringify({ type: 'error', message: "No host detected online for this room: "+room.name }));
                     return;
@@ -414,39 +422,40 @@ function joinRoom(sender, data) {
 
 }
 
-function createSession(sessionID, clientID = null, userName = null, roomID = null) {
-    sessionFile = config.sessionsFolder+Buffer.from(sessionID).toString('base64')+'.json';
-    sess = {
-        chatSessionID: sessionID,
-        uid: clientID,
-        userName: userName,
-        newRoom: roomID
-    };
-    sessions[sessionID] = sess;
-    fs.writeFileSync(sessionFile, JSON.stringify(sess) , 'utf-8');
-    return sess;
-}
+// function createSession(sessionID, clientID = null, userName = null, roomID = null) {
+//     sessionFile = config.sessionsFolder+Buffer.from(sessionID).toString('base64')+'.json';
+//     sess = {
+//         chatSessionID: sessionID,
+//         uid: clientID,
+//         userName: userName,
+//         newRoom: roomID
+//     };
+//     sessions[sessionID] = sess;
+//     fs.writeFileSync(sessionFile, JSON.stringify(sess) , 'utf-8');
+//     return sess;
+// }
 
-function getSession(sessionID, clientID = null, userName = null, roomID = null) {
-    const sessionFile = config.sessionsFolder + Buffer.from(sessionID).toString('base64') + '.json';
-    console.log('329',sessionFile);
-    let sess = sessions[sessionID];
-
-
-    if (sess === undefined) {
-        try {
-            const data = fs.promises.readFile(sessionFile, 'utf8');
-            sess = JSON.parse(data);
-            console.log('408 Session found in file', sess);
-        } catch (err) {
-            console.log('410 Session not found in file', sessionID);
-            sess = createSession(sessionID, clientID, userName);
-            console.log('New session created', sess);
-        }
-    }
-
-    return sess;
-}
+// function getSession(sessionID, clientID = null, userName = null, roomID = null) {
+//     const sessionFile = config.sessionsFolder + Buffer.from(sessionID).toString('base64') + '.json';
+//     console.log('329',sessionFile);
+//     let sess = sessions[sessionID];
+//
+//
+//     if (sess === undefined) {
+//         try {
+//             const data = fs.promises.readFile(sessionFile, 'utf8');
+//             sess = JSON.parse(data);
+//             console.log('408 Session found in file', sess);
+//         } catch (err) {
+//             console.log('410 Session not found in file', sessionID);
+//             sess = createSession(sessionID, clientID, userName);
+//
+//             console.log('New session created', sess);
+//         }
+//     }
+//
+//     return sess;
+// }
 
 function getRoom(roomID) {
     roomFile = config.roomsFolder+'/'+roomID+'.json';
@@ -459,13 +468,13 @@ function getRoom(roomID) {
     return false;
 }
 
-function updateSession(sessionID, sess) {
-    // sessionFile = 'sessions/'+sessionID.toString('base64')+'.json';
-    const sessionFile = config.sessionsFolder + Buffer.from(sessionID).toString('base64') + '.json';
-    sessions[sessionID] = sess;
-    fs.writeFileSync(sessionFile, JSON.stringify(sess) , 'utf-8');
-    return sess;
-}
+// function updateSession(sessionID, sess) {
+//     // sessionFile = 'sessions/'+sessionID.toString('base64')+'.json';
+//     const sessionFile = config.sessionsFolder + Buffer.from(sessionID).toString('base64') + '.json';
+//     sessions[sessionID] = sess;
+//     fs.writeFileSync(sessionFile, JSON.stringify(sess) , 'utf-8');
+//     return sess;
+// }
 
 async function sendChatMessage(sender, data) {
     ts = new Date();

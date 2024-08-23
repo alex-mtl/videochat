@@ -8,11 +8,13 @@ html(lang="en")
     //script(src="/static/js/mafia/home.js", defer)
     script(src="/static/js/mafia/login.js", defer)
     link(href="/static/css/m-home.css", rel="stylesheet")
+    link(href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200", rel="stylesheet")
     link(href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css", rel="stylesheet", integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN", crossorigin="anonymous")
     script(src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js", integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL", crossorigin="anonymous", defer)
   body
     script let chatSessionID = "#{sessionID}"; var websocketUrl = "#{wssURL}";
-    .header Login
+    -var title = "Login"
+    include elems/layout-header
     .container
       if message
         include elems/alert-message
@@ -28,5 +30,10 @@ html(lang="en")
         br
         .row.g-1.align-items-center
           .col
-            include elems/tg-button
+            a.btn.btn-primary(href="/register") Sign Up
+        br
+        .row.g-1.align-items-center
+          .col
+            span
+              include elems/tg-button
     .footer © MAO Game Platform

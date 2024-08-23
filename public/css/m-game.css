@@ -1,4 +1,3 @@
-
 :root {
     --columns: 4; /* Default number of columns */
     --g-grey: rgba(211, 211, 211, 0.5);
@@ -11,7 +10,8 @@
     --g-alert: #f5c6cb;
     --g-red: #e15754;
     --g-ready: 7;
-    --shootVictim: 'timer_10'
+    --shootVictim: 'timer_10';
+    --g-background-person: url('/static/img/background_replace.svg')
 }
 
 .video-grid {
@@ -26,8 +26,12 @@
     width: 99%;
 }
 
+div.game.videos {
+    margin-top:5.2vw;
+}
+
 /* any span invisible by default! */
-span {
+.game span {
     visibility: hidden;
 }
 
@@ -92,7 +96,7 @@ video:not(.play) {
 /* content: "background_replace"; */
 div.videobox {
     position:relative;
-    background-image: url(/static/img/background_replace.svg);
+    background-image: var(--g-background-person);
     /*background-color: var(--g-grey);*/
     background-repeat: no-repeat;
     background-position: center center;
@@ -100,7 +104,8 @@ div.videobox {
 }
 
 [data-phase="shooting"] div.videobox,
-div.videobox:not([data-player-status="alive"]):not([data-player-status="unknown"]) {
+/*div.videobox:not([data-player-status="alive"]):not([data-player-status="unknown"]) {*/
+div.videobox[data-uid="empty"]:not([data-player-status="alive"]):not([data-player-status="unknown"]) {
     background-image: none;
 }
 
@@ -1362,6 +1367,16 @@ div.videobox[data-player-status='alive']:hover span.player-lock:hover {
     cursor: pointer;
 }
 
+/*div.videobox[data-player-status='locked'] span.player-status {*/
+/*    visibility: visible;*/
+/*    !* display: inline-block; *!*/
+/*    !* background-position: center; *!*/
+/*    background-size: cover;*/
+/*    !* background-repeat: no-repeat; *!*/
+/*    !* height: 8vw; *!*/
+/*    !* width: 8vw; *!*/
+/*    background-image: url('https://t.me/i/userpic/320/DQbfkbUDBN2c1B4veGJjORXP4nu5EhjCpMN1UVF7Ibs.jpg');*/
+/*}*/
 div.videobox[data-player-status='locked'] .player-status:before {
     content: 'grid_4x4';
     visibility: visible;
