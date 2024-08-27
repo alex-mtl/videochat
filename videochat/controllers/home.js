@@ -1,9 +1,14 @@
 const config = require('../../config');
 const db = require('../../db')
 const avatar = require('../utils/avatar')
+
 const { countries } = require('../utils/countries')
 const crypto = require('crypto');
 const validator = require('validator');
+
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 
 function checkTelegramLogin(data, botToken) {
     const secretKey = crypto.createHash('sha256').update(config.tg_token).digest();
@@ -90,8 +95,8 @@ module.exports.tgAuth = async (req, res) => {
         let [rows] =  await db.query('SELECT * FROM users WHERE telegram_id = ?', [id]);
         if (rows.length === 0) {
             let nickname = username || `${first_name} ${last_name}`
-            const [result] = await db.query('INSERT INTO users (telegram_id, username, avatar_url) VALUES (?, ?, ?)',
-                [id, nickname, photo_url]);
+            const [result] = await db.query('INSERT INTO users (telegram_id, username, first_name, last_name, avatar_url) VALUES (?, ?, ?)',
+                [id, nickname, first_name, last_name, photo_url]);
             const [newUser] = await db.query('SELECT * FROM users WHERE id = ?', [result.insertId]);
             req.session.user = newUser[0];
         } else {
@@ -106,19 +111,45 @@ module.exports.tgAuth = async (req, res) => {
                 message: "Attempt to hijack via telegram account!"
             })
     }
+};
 
-    // res.render('mafia/tg-auth', {
-    //     sessionID : req.sessionID ,
-    //     wssURL : config.wssURL,
-    //     id,
-    //     first_name,
-    //     last_name,
-    //     username,
-    //     photo_url,
-    //     auth_date,
-    //     hash
-    // })
+module.exports.googleAuth = async (req, res) => {
+    console.log('Google body: ', req.body)
+    let payload = null
 
+    const ticket = await client.verifyIdToken({
+        idToken: req.body['credential'] || null,
+        audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    if (ticket != null) {
+        payload = ticket.getPayload();
+        const googleId = payload['sub'];
+        const email = payload['email'];
+        const email_verified = payload['email_verified'];
+        const username = nickname = payload['name'] || email.split('@')[0];
+        const u_picture = payload['picture'];
+        const u_givenName = payload['given_name'];
+        const u_familyName = payload['family_name'];
+    //     const { id, first_name, last_name, username, photo_url, auth_date, hash } = req.query;
+        let [rows] =  await db.query('SELECT * FROM users WHERE google_id = ?', [googleId]);
+        if (rows.length === 0) {
+            // let nickname = u_name || `${u_givenName} ${u_familyName}`
+            const [result] = await db.query('INSERT INTO users (google_id, email, email_confirmed, username, nickname, first_name, last_name, avatar_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                [googleId, email, email_verified, username, nickname, u_givenName, u_familyName, u_picture]);
+            const [newUser] = await db.query('SELECT * FROM users WHERE id = ?', [result.insertId]);
+            req.session.user = newUser[0];
+        } else {
+            req.session.user = rows[0];
+        }
+        res.redirect('/user');
+    } else {
+
+        res.render('mafia/alert', {
+                sessionID : req.sessionID ,
+                wssURL : config.wssURL,
+                message: "Attempt to hijack via google account!"
+            })
+    }
 };
 
 module.exports.login = (req, res) => {
@@ -133,6 +164,14 @@ module.exports.login = (req, res) => {
         username,
         password,
         message,
+        user: req.session.user || null
+    })
+};
+
+module.exports.privacyPolicy = (req, res) => {
+    res.render('mafia/privacy-policy', {
+        sessionID : req.sessionID ,
+        wssURL : config.wssURL,
         user: req.session.user || null
     })
 };

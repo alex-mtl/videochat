@@ -17,11 +17,12 @@
                             label.form-label(for="nickname") Nickname
                         .col-sm-9
                             input#nickname.form-control(type="text" name="nickname" value=user.nickname)
-                    .row.mb-3
-                        .col-sm-3
-                            label.form-label(for="email") Email
-                        .col-sm-9
-                            input#email.form-control(type="email" name="email" value=user.email)
+                    if (!user.email_confirmed)
+                        .row.mb-3
+                            .col-sm-3
+                                label.form-label(for="email") Email
+                            .col-sm-9
+                                input#email.form-control(type="email" name="email" value=user.email)
                     .row.mb-3
                         .col-sm-3
                             label.form-label(for="phone") Phone

@@ -1,0 +1,59 @@
+span.email-confirm {
+    background-color: transparent;
+    color: var(--g-grey); /* Text color */
+    padding: 0;
+    font-size: 3vw;
+    font-weight: bold; /* Bold font */
+}
+
+span.email-confirm:before {
+    content: "mail";
+    font-size: 3vw;
+    color: var(--g-dark-grey);
+}
+
+span.email-confirm.confirmed:before {
+    content: "mark_email_read";
+     color: var(--g-green);
+ }
+
+span.telegram-confirm {
+    background-image: url('/static/img/icons8-telegram-96.svg');
+    /*color: var(--g-grey); !* Text color *!*/
+    padding: 0;
+    font-size: 3vw;
+    width: 3vw;
+    height: 3vw;
+    font-weight: bold; /* Bold font */
+    display: inline-block;
+
+    background-size: 3vw; /* Set the width of the SVG to 3vw */
+    background-repeat: no-repeat; /* Prevent repeating of the image */
+    background-position: center;
+
+}
+
+span.telegram-confirm.confirmed {
+    background-image: url('/static/img/icons8-telegram-96-confirmed.svg');
+}
+
+span.google-confirm {
+    background-image: url('/static/img/g-google.svg');
+    /*color: var(--g-grey); !* Text color *!*/
+    padding: 0;
+    font-size: 3vw;
+    width: 3vw;
+    height: 3vw;
+    font-weight: bold; /* Bold font */
+    display: inline-block;
+
+    background-size: 3vw; /* Set the width of the SVG to 3vw */
+    background-repeat: no-repeat; /* Prevent repeating of the image */
+    background-position: center;
+
+}
+
+span.google-confirm.confirmed {
+    background-image: url('/static/img/g-google-confirmed.svg');
+}
+

@@ -126,4 +126,4 @@ function removeOldSessions() {
 
 // Call the function to remove old files
 removeOldRooms()
-removeOldSessions()
+// removeOldSessions()

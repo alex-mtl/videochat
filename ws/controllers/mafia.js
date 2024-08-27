@@ -29,7 +29,8 @@ const {
 } = require("./common");
 
 function validateString(str) {
-    const re = XRegExp("^[\\pL\\-_0-9]+$");
+    // const re = XRegExp("^[\\pL\\-_0-9\\. ]+$");
+    const re = /^[\p{L}\-_0-9\. ]+$/u;
     if(!re.test(str)) {
         return false;
     }

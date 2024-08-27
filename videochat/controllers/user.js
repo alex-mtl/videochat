@@ -96,10 +96,12 @@ module.exports.updateUser = async (req, res) => {
     let errors = []
 
     // Extract user data from the request body
-    const { username, nickname, email, phone, firstName, lastName, country } = req.body;
+    let { username, nickname, email, phone, firstName, lastName, country } = req.body;
 
-    if (email.length !== 0 && !validator.isEmail(email)) {
+    if (!req.session.user.email_confirmed && email.length !== 0 && !validator.isEmail(email)) {
         errors.push('Please enter valid email')
+    } else {
+        email = req.session.user.email
     }
 
     if (username.length === 0) {
@@ -150,7 +152,7 @@ module.exports.updateUser = async (req, res) => {
         WHERE id = ?
     `;
 
-        const values = [
+        let values = [
             username,
             nickname,
             email,
@@ -163,7 +165,14 @@ module.exports.updateUser = async (req, res) => {
 
         const [result] = await db.query(updateQuery, values);
 
+
         if (result.affectedRows === 1) {
+            const [user] = await db.query(
+                'SELECT * FROM users WHERE id = ?',
+                [req.session.user.id]
+            );
+            req.session.user = user[0]
+
             // Respond with updated data
             res.json({
                 username,
