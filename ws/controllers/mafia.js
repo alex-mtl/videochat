@@ -92,10 +92,8 @@ function joinGame(ws, data) {
                     if ((player.uid === 'empty') && emptySlot) {
                         if (clientId !== room.gameHost.uid) {
                             player.uid = clientId;
-                            if (ws.req.session.user) {
-                                player.name = ws.req.session.user.nickname || ws.req.session.user.username
-                                player.avatar = ws.req.session.user.avatar_url
-                            }
+                            player.name = ws.req.session?.user?.nickname || ws.req.session?.user?.username || 'unknown'
+                            player.avatar = ws.req.session?.user?.avatar_url || '/static/img/avatar/d450356dc7cb3609.png';
                             player.sessionID = sessionID;
                             emptySlot = false;
                             break;
@@ -105,7 +103,14 @@ function joinGame(ws, data) {
 
             }
             ;
-
+            if (emptySlot) {
+                let spectator = {
+                    clientId,
+                    name: ws.req.session?.user?.nickname || ws.req.session?.user?.username || 'unknown',
+                    avatar: ws.req.session?.user?.avatar_url || '/static/img/avatar/d450356dc7cb3609.png'
+                }
+                room.spectators[clientId] = spectator
+            }
             // if (!pass) {
             room.users[clientId] = {uid: clientId};
             room.size = room.users.length;
@@ -114,6 +119,9 @@ function joinGame(ws, data) {
         console.log("WS order 117", clientId)
         clients[clientId] = ws;
         ws.uid = clientId;
+        console.log(ws.req.session)
+        ws.avatar = ws.req.session?.user?.avatar_url || '/static/img/avatar/d450356dc7cb3609.png';
+
         ws.roomID = roomID;
         rooms[roomID] = room;
 
@@ -123,7 +131,7 @@ function joinGame(ws, data) {
 
         fs.writeFileSync(roomFile, JSON.stringify(room), 'utf-8');
 
-        await broadcastRoom(roomID, JSON.stringify({type: 'participant-joined', id: clientId, room: room}), ws);
+        await broadcastRoom(roomID, JSON.stringify({type: 'participant-joined', id: clientId, avatar: ws.avatar, room: room}), ws);
     });
 
 }
@@ -431,6 +439,54 @@ const shoutOut = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
 const sendPlayerComm = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
     let receiver = room.slot[data.slot]
     if (receiver.status === 'alive') {
+        let chance = 0
+        if ((data.slot === (PLAYER.slot + 1))
+            || (data.slot === (PLAYER.slot - 1))
+            || ((data.slot === 10) && (PLAYER.slot === 1))
+            || ((data.slot === 1) && (PLAYER.slot === 10))
+        ) {
+
+        } else {
+            if (data['pad-color'] !== 'unknown') {
+                chance = chance + 0.1
+            }
+            if (data['pad-number'] !== 0) {
+                chance = chance + 0.15
+            }
+            randomValue = Math.random();
+            leak = (randomValue <= chance);
+            console.log(leak, chance, randomValue)
+            randomSide =  Math.random();
+            side = (randomSide <= 0.5)
+            if (leak) {
+                if (side) {
+                    //left
+                    if (data.slot === 10) {
+                        randomWitness = 1
+                    } else {
+                        randomWitness = data.slot + 1
+                    }
+                } else {
+                    if (data.slot === 1) {
+                        randomWitness = 10
+                    } else {
+                        randomWitness = data.slot - 1
+                    }
+                }
+                console.log('476', randomWitness)
+                let witness = room.slot[randomWitness]
+                if (witness.status === 'alive') {
+                    console.log('479', randomWitness)
+                    witnessWS = clients[witness.uid]
+                    if (witnessWS !== undefined) {
+                        console.log('482', witness.uid)
+                        await witnessWS.send(JSON.stringify({ type: 'player-comm-witness', from: PLAYER.slot, to: data.slot, slot: data['pad-number'], color: data['pad-color'] }));
+                    } else {
+                        console.log('485', witness.uid)
+                    }
+                }
+            }
+        }
         userWS = clients[receiver.uid]
         if (userWS !== undefined) {
             await userWS.send(JSON.stringify({ type: 'player-comm', from: PLAYER.slot, slot: data['pad-number'], color: data['pad-color'] }));
@@ -572,6 +628,7 @@ function createGame(sender, data) {
         room.size = 1;
         room.type = 'mafia';
         room.game = {};
+        room.spectators = {};
         room.users = {}
         room.users[clientId] = {uid: clientId};
         room.slot = {};

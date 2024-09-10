@@ -141,6 +141,7 @@ function selfSlotDetection(selfID) {
                 slot.classList.remove('no-video')
                 slot.classList.add('self-view')
                 slot.querySelectorAll('video').forEach(video => video.remove());
+                localVideo.removeAttribute('id')
                 slot.insertBefore(localVideo, slot.firstChild);
 
                 slot.setAttribute('data-uid', selfID)
@@ -257,9 +258,11 @@ function startSignaling() {
         } else if (data.type === 'participant-joined') {
             // Handle new participant joined
             const clientId = data.id;
+        // , data.avatar
             roomEnv = data.room;
             if (sessionID != clientId) {
                 peerConnection = createPeerConnection(clientId);
+                // peerConnection = createPeerConnection(clientId, null, null, data.avatar);
                 peerConnection.onicecandidate = event => {
                     if (event.candidate) {
                         sendIceCandidate(sessionID, clientId, event.candidate);
@@ -346,6 +349,8 @@ function startSignaling() {
             handleShoutOut(data);
         } else if (data.type === 'player-comm') {
             handlePlayerComm(data);
+        } else if (data.type === 'player-comm-witness') {
+            handlePlayerCommWitness(data);
         } else if (data.type === 'set-player-name') {
             handleSetPlayerName(data);
         } else if (data.type === 'set-host-name') {
@@ -472,4 +477,19 @@ function selectRole(card) {
         deck = document.querySelector('div.deck-container')
         deck.classList.add('locked')
     }
+}
+
+function addAvatar(peerId, avatarUrl) {
+    const guestsContainer = document.querySelector('div.guests-container');
+    const span = document.createElement('span');
+
+    // Create a new img element
+    const img = document.createElement('img');
+    img.src = avatarUrl;
+    img.alt = 'Guest Avatar';
+    img.setAttribute('data-spectator-uid', peerId);
+
+    span.appendChild(img)
+    // Add the img to the container
+    guestsContainer.appendChild(span);
 }

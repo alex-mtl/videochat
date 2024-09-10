@@ -39,7 +39,7 @@ html(lang="en")
         - var slot = 'game-host'
         include elems/videobox.pug
         div.game-panel
-          video.g-mask.play.muted#localVideo(autoplay, muted, playsinline)
+
           include elems/game-actions.pug
           include elems/host-panel.pug
           include elems/player-panel.pug
@@ -48,6 +48,8 @@ html(lang="en")
           - const player = room.slot[slot]
           - var vbID = "video-"+slot+"-empty"
           include elems/videobox.pug
+    div.guests-container
+      span.spectators
     include elems/card-deck.pug
     include elems/number-pad.pug
     #chat
@@ -61,3 +63,5 @@ html(lang="en")
           th.chat-to to
           th.chat-message message
     include elems/media-source.pug
+    video.g-mask.play.muted#localVideo(autoplay, muted, playsinline)
+

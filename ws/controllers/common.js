@@ -245,6 +245,7 @@ async function checkUserConnection(ws, data) {
         userConn = clients[ data.uid ];
         if (userConn === undefined) {
             delete room.users[data.uid]
+            delete room.spectators[data.uid]
             room = await updateRoom(ws.roomID, room)
             console.log("Fresh user list: ", room.users)
         } else {

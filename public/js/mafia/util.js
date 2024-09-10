@@ -67,7 +67,7 @@ function sendRequest(ws, data) {
         ws.send(JSON.stringify({ ...data, requestId }));
     });
 }
-function createPeerConnection(peerId, hostID, participant = true) {
+function createPeerConnection(peerId, hostID, participant = true, avatar = null) {
     const peerConnection = new RTCPeerConnection(configuration);
 
     localStream.getTracks().forEach(track => {
@@ -99,6 +99,12 @@ function createPeerConnection(peerId, hostID, participant = true) {
                 } else {
                     remoteVideoFrame = createRemoteVideo(peerId, event.streams[0], hostID);
                     remoteVideosContainer.appendChild(remoteVideoFrame);
+                    // console.log("Spectator: ", peerId)
+                    // if (avatar) {
+                    //     addAvatar(peerId, avatar)
+                    // }
+
+
                 }
 
             } else {
@@ -112,6 +118,12 @@ function createPeerConnection(peerId, hostID, participant = true) {
             }
         }
     };
+    if (avatar && !participant && !hostID) {
+        console.log("Spectator: ", peerId)
+        if (avatar) {
+            addAvatar(peerId, avatar)
+        }
+    }
     peerConnections[peerId] = peerConnection;
     return peerConnection;
 }
@@ -1634,6 +1646,30 @@ function handleShoutOut(data) {
 }
 
 function handlePlayerComm(data) {
+    if (data.slot > 0) {
+        playTimes(sfx.knock, data.slot)
+        let victimEye = document.querySelector('div.videobox[data-slot="'+data.slot+'"] span.slot-eye-role')
+        victimEye.classList.add('active')
+        victimEye.setAttribute('data-color', data.color)
+    } else {
+        sfx.knock.play();
+    }
+    let slotEye = document.querySelector('div.videobox[data-slot="'+data.from+'"] span.slot-eye')
+    slotEye.classList.add('active')
+    slotEye.setAttribute('data-color', data.color)
+
+    setTimeout(() => {
+        slotEye.classList.remove('active')
+        slotEye.removeAttribute('data-color')
+        if (data.slot > 0) {
+            let victimEye = document.querySelector('div.videobox[data-slot="'+data.slot+'"] span.slot-eye-role')
+            victimEye.classList.remove('active')
+            victimEye.removeAttribute('data-color')
+        }
+    }, 5000)
+}
+
+function handlePlayerCommWitness(data) {
     if (data.slot > 0) {
         playTimes(sfx.knock, data.slot)
         let victimEye = document.querySelector('div.videobox[data-slot="'+data.slot+'"] span.slot-eye-role')

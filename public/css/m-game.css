@@ -88,9 +88,10 @@ video:not(.play) {
     opacity: 10%;
 }
 
-#localVideo {
+video#localVideo {
     object-fit:cover;
     width:100%;
+    visibility: hidden;
 }
 
 /* content: "background_replace"; */
@@ -263,6 +264,10 @@ input.game-user {
 }
 .game.videos[data-phase="lobby"] div.videobox.self-view:not(.no-video):hover input.game-user {
     visibility: visible;
+}
+
+.game.videos[data-phase="lobby"] div.videobox.self-view video {
+    transform: scaleX(-1);
 }
 
 
@@ -1748,3 +1753,26 @@ div.videos.game[data-phase="day"]:not([data-mode="host"])  .slot-eye-role.active
     animation: blinker 1s linear infinite;
 }
 /* EYE BLINK */
+
+.guests-container {
+    /*position: fixed;*/
+    bottom: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 10px; /* Adjust the space between avatars as needed */
+    padding: 10px;
+    overflow: hidden;
+    /*background-color: #f0f0f0; !* Optional: background color for the container *!*/
+}
+
+.guests-container img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #ccc; /* Optional: border for the avatars */
+    background-color: white;
+}
+
+

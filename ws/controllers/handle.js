@@ -148,7 +148,7 @@ function join(ws, data) {
         rooms[roomID] = obj;
 
         // Send the new client their ID
-        ws.send(JSON.stringify({type: 'id', id: clientId, room: obj}));
+        await ws.send(JSON.stringify({type: 'id', id: clientId, room: obj}));
         console.log('wsid: ', ws.uid, clientId, 'obj :', JSON.stringify(obj));
 
         fs.writeFileSync(roomFile, JSON.stringify(obj), 'utf-8');
@@ -585,6 +585,7 @@ function removeClient(ws) {
                     if ((removeId === 0) && room.hasOwnProperty('users')) {
                         if (room.users.hasOwnProperty(clientId)) {
                             delete room.users[clientId];
+                            delete room.spectators[clientId];
                             room.size = room.size - 1;
                         }
                     }

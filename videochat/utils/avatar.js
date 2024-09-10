@@ -43,7 +43,7 @@ function addBackgroundColor(svgContent, backgroundColor) {
 module.exports.generateAvatar = async () => {
     // const templatesDir = path.join(__dirname, 'public/img/svg/');
     // const templateIndex = Math.floor(Math.random() * 10) + 1;
-    const avatar = crypto.randomBytes(16).toString('hex')+Date.now();
+    const avatar = crypto.randomBytes(8).toString('hex')+Date.now();
     const outputFilePath = path.join(process.env.AVATAR_DIR, `${avatar}.png`);
     const templates = fs.readdirSync(process.env.AVATAR_TEMPLATES_DIR);
     const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
