@@ -132,3 +132,61 @@ form {
     margin-top: 2vw; /* Adjust margin to avoid overlapping with header */
     margin-bottom: 2vw; /* Adjust margin to avoid overlapping with footer */
 }
+
+/* Game Password Popup*/
+
+.game-password-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: var(--g-dark-grey);
+    color: var(--g-grey);
+    padding: 1em;
+    border: 1px solid var(--g-grey);
+    z-index: 1000;
+    visibility: hidden;
+}
+
+.game-password-popup.show {
+    visibility: visible;
+}
+
+.game-password-popup h2 {
+    margin: 0 0 1em 0;
+    text-align: center;
+}
+
+.game-password-popup label {
+    min-width:8vw;
+    font-size: 1.2em;
+    margin-bottom: 0.5em;
+    display: inline-block;
+}
+
+.game-password-popup select {
+    /*width: 100%;*/
+    padding: 0.5em;
+    margin-bottom: 1em;
+}
+
+.game-password-popup button {
+    width: 45%;
+    padding: 0.5em;
+
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+.game-password-popup button#startButton {
+    background-color: var(--g-success);
+}
+
+.game-password-popup button#closeButton {
+    background-color: var(--g-failure);
+}
+
+.game-password-popup button:hover {
+    background-color: var(--g-success-hover);
+}

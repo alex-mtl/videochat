@@ -56,10 +56,16 @@ server.on('upgrade', (request, socket, head) => {
     });
 });
 wss.on('connection', (ws, req) => {
+    console.log('Session ID:', req.sessionID); // Should log the correct session ID
+    console.log('Session data:', req.session);
     ws.req = req
     ws.on('message', message => {
         const data = JSON.parse(message);
         const handler = handle.getHandler(data.type);
+
+        console.log('ws.req data:', data); // Should log the correct session ID
+        console.log('ws.req Session ID:', ws.req.sessionID); // Should log the correct session ID
+        console.log('ws.req Session data:', ws.req.session);
 
         if (typeof handle[handler] === 'function') {
             handle[handler](ws, data);

@@ -68,6 +68,20 @@ function joinGame(ws, data) {
                         console.log('WS 51 conn: ', typeof conn)
                     }
                     pass = true;
+                } else {
+                    if (room.game?.settings?.password) {
+                        sess = ws.req.session
+                        // console.log(ws.req.sessionId, sess)
+                        // console.log(room.game.settings.password)
+                        if (room.game.settings.password !== sess?.pwds?.[roomID] ) {
+                            // await ws.send(JSON.stringify({type: 'error', message: 'There is no game ' + roomID}));
+                            await ws.send(JSON.stringify({ type: 'error', message: "Room does not exist or you have no permission to join" }));
+                            await ws.send(JSON.stringify({ type: 'redirect', uri: '/mafia' }));
+                            return
+                        } else {
+                            // await ws.send(JSON.stringify({ type: 'error', message: "Setting pwd "+room.game.settings.password+" user pwd"+sess?.pwds?.roomID }));
+                        }
+                    }
                 }
 
             } else {
@@ -592,7 +606,7 @@ async function setPlayerName(ws, data) {
 }
 
 
-function createGame(sender, data) {
+async function createGame(sender, data) {
     //rooms.push({ name: data.name, host: data.host})
     clientId = sender.uid;
     room = data.room;
@@ -605,12 +619,12 @@ function createGame(sender, data) {
     ) {
         valid = true;
     } else {
-        sender.send(JSON.stringify({ type: 'error', message: "Validation failed for '"+room.name+"' or '"+ room.host + "'" }));
+        await sender.send(JSON.stringify({ type: 'error', message: "Validation failed for '"+room.name+"' or '"+ room.host + "'" }));
         return;
     }
     roomFile = config.roomsFolder+'/'+room.name+'.json';
     if (fs.existsSync(roomFile)) {
-        sender.send(JSON.stringify({ type: 'error', message: "Room '"+room.name+"' already exists" }));// ...
+        await sender.send(JSON.stringify({ type: 'error', message: "Room '"+room.name+"' already exists" }));// ...
     } else {
         //const clientId = generateClientId();
         // sender.uid = sender.uid;
@@ -628,6 +642,7 @@ function createGame(sender, data) {
         room.size = 1;
         room.type = 'mafia';
         room.game = {};
+        room.game.settings = {};
         room.spectators = {};
         room.users = {}
         room.users[clientId] = {uid: clientId};
@@ -659,18 +674,21 @@ function createGame(sender, data) {
         fs.writeFileSync(roomFile, JSON.stringify(room) , 'utf-8');
         console.log('Room file written ',roomFile);
         // console.log('Session ID ', req.sessionID);
-        sender.send(JSON.stringify({ type: 'room-ready', room: room, info: '1:'+(room.name !== '')+'2:'+(room.host !== '') }));
+        await sender.send(JSON.stringify({ type: 'room-ready', room: room, info: '1:'+(room.name !== '')+'2:'+(room.host !== '') }));
 
     }
 
 }
 
-function joinRoomGame(sender, data) {
+async function joinRoomGame(sender, data) {
+    // console.log('sender.req : ', sender.req)
+    console.log(683, sender.req.sessionID ?? 'none')
     roomID = data.roomID;
     sessionID = data.chatSessionID;
     if (data.hasOwnProperty('password')){
         //p = data.password.toString();
-        password = crypto.createHash('md5').update(data.password.toString()).digest('hex');
+        // password = crypto.createHash('md5').update(data.password.toString()).digest('hex');
+        password = crypto.createHash('md5').update(data.password.toString()).digest('hex').substring(0, 8);
     } else {
         password = false;
     }
@@ -683,29 +701,47 @@ function joinRoomGame(sender, data) {
     ) {
         valid = true;
     } else {
-        sender.send(JSON.stringify({ type: 'error', message: "Room ID failed for "+roomID }));
+        await sender.send(JSON.stringify({ type: 'error', message: "Room ID failed for "+roomID }));
         return;
     }
     roomFile = config.roomsFolder+'/'+roomID+'.json';
     if (fs.existsSync(roomFile)) {
-        fs.readFile(roomFile, 'utf8', function (err, roomData) {
+        fs.readFile(roomFile, 'utf8', async function (err, roomData) {
             room = JSON.parse(roomData);
             if (room.game.type === 'public') {
-                sender.send(JSON.stringify({type: 'room-ready', room: room }));
+                if (!room.game.settings.password) {
+                    await sender.send(JSON.stringify({type: 'room-ready', room: room }));
+                } else {
+                    if (room.game.settings.password === password) {
+                        if (!sender.req.session?.pass) {
+                            console.log(713, sender.req.sessionID ?? 'none')
+                            sender.req.session['pwds'] = {}
+                            sender.req.session['pwds'][''+roomID] = password
+                        } else {
+                            console.log(717, sender.req.sessionId)
+                            sender.req.session['pwds'][''+roomID] = password
+                        }
+                        sender.req.session.save()
+                        await sender.send(JSON.stringify({type: 'room-ready', room: room }));
+                    } else {
+                        await sender.send(JSON.stringify({ type: 'error', message: "Room does not exist or you have no permission to join" }));
+                    }
+                }
+
             } else if (room.type === 'stream') {
                 if (sender.uid !== room.host.uid) {
                     room.link = room.link.replace('/s/'+room.name, '/w/'+room.name)
                 }
-                sender.send(JSON.stringify({type: 'room-ready', room: room }));
+                await sender.send(JSON.stringify({type: 'room-ready', room: room }));
             } else if (room.type === 'private') {
                 // sess = getSession(sessionID);
                 if (room.password === password) {
                     ttl = new Date().getTime() + 600000; // now  + 10 min
                     sender.req.session['room-'+roomID] = { ttl, password };
-                    sender.send(JSON.stringify({type: 'room-ready', room: room }));
+                    await sender.send(JSON.stringify({type: 'room-ready', room: room }));
                 } else {
                     sender.req.session['room-'+roomID] = '';
-                    sender.send(JSON.stringify({ type: 'error', message: "Password is wrong..." }));
+                    await sender.send(JSON.stringify({ type: 'error', message: "Password is wrong..." }));
                 }
                 // updateSession(sessionID, sess);
             } else if (room.type === 'master') {
@@ -713,7 +749,7 @@ function joinRoomGame(sender, data) {
 
                 hostConn = clients[room.host.uid]; // dostaet polzovatlya
                 if (room.allowed.includes(sessionID)){
-                    sender.send(JSON.stringify({type: 'room-ready', room: room }));
+                    await sender.send(JSON.stringify({type: 'room-ready', room: room }));
                     return
                 }
 
@@ -725,10 +761,10 @@ function joinRoomGame(sender, data) {
                         'client-session': sessionID, message: data.request}));
                     ttl = new Date().getTime() + 600000; // now  + 10 min
                     sender.req.session['room-'+roomID] = { ttl, admit: false, uid: sender.uid };
-                    sender.send(JSON.stringify({type: 'info', message: 'Request sent to the room host. Please wait for admission.' }));
+                    await sender.send(JSON.stringify({type: 'info', message: 'Request sent to the room host. Please wait for admission.' }));
                     // updateSession(sessionID, sess);
                 } else {
-                    sender.send(JSON.stringify({ type: 'error', message: "No host detected online for this room: "+room.name }));
+                    await sender.send(JSON.stringify({ type: 'error', message: "No host detected online for this room: "+room.name }));
                     return;
                 }
 
@@ -736,7 +772,7 @@ function joinRoomGame(sender, data) {
 
         });
     } else {
-        sender.send(JSON.stringify({ type: 'error', message: "Room '"+room.name+"' does not exist" }));
+        await sender.send(JSON.stringify({ type: 'error', message: "Room '"+room.name+"' does not exist" }));
     }
 
 }

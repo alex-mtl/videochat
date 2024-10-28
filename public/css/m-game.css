@@ -167,7 +167,7 @@ div.videobox span.toggle-video:before {
 }
 
 div.videobox span.settings:before {
-    content: 'settings';
+    content: 'settings_video_camera';
 }
 
 div.videobox span.refresh:before {
@@ -275,7 +275,8 @@ div.videobox.self-view span.game-user {
     color: var(--g-green)
 }
 
-span.slot-status {
+span.slot-status,
+div.videobox.vbox-game-host span.game-settings {
     position: absolute;
     bottom: 1vw;
     right: 0.5vw;
@@ -287,7 +288,7 @@ span.slot-status {
     visibility: hidden;
 }
 
-div.game.videos[data-phase='lobby'] span.slot-status {
+div.game.videos[data-phase='lobby'] div.videobox:not(.vbox-game-host) span.slot-status {
     visibility: visible;
 }
 
@@ -308,6 +309,19 @@ div.game.videos[data-phase='lobby'] span.slot-status {
     content: "cancel";
     color: var(--g-red);
     cursor: pointer;
+}
+
+div.game.videos[data-phase='lobby'] div.videobox.vbox-game-host span.game-settings {
+    visibility: visible;
+    color: var(--g-green);
+}
+
+div.game.videos[data-phase='lobby'] div.videobox.vbox-game-host span.game-settings:before {
+    content: "settings";
+}
+
+.self-view .game-settings {
+    cursor: pointer; /* Change mouse pointer to hand on hover */
 }
 
 div.videobox span.slot-role {
@@ -1488,7 +1502,7 @@ div.game:not([data-phase="day"]) span.mafia-shoot[data-victim] {
 }
 
 .settings-popup label {
-    width:8vw;
+    min-width:8vw;
     font-size: 1.2em;
     margin-bottom: 0.5em;
     display: inline-block;
@@ -1774,5 +1788,4 @@ div.videos.game[data-phase="day"]:not([data-mode="host"])  .slot-eye-role.active
     border: 2px solid #ccc; /* Optional: border for the avatars */
     background-color: white;
 }
-
 

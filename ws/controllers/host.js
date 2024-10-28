@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const {getRoom,
     updateRoom,
     // createSession,
@@ -832,6 +833,21 @@ const nominate = onlyHost(async (ws, data, ROOM_ID, room) => {
     }
 })
 
+const gameSettings = onlyHost(async (ws, data, ROOM_ID, room) => {
+    const settings = data.settings
+    console.log('settings:', settings)
+    if (!settings?.password) {
+        room.game.settings.password = false
+    } else if (settings.password.trim() === '') {
+        room.game.settings.password = false
+    } else {
+        room.game.settings.password = crypto.createHash('md5').update(settings.password).digest('hex').substring(0, 8);
+    }
+    room.game.settings.registeredOnly = (settings?.registeredOnly === true)
+    await updateRoom(ws.roomID, room)
+
+})
+
 const gameStart = onlyHost(async (ws, data, ROOM_ID, room) => {
     ready = true;
     for (const [slot, player] of Object.entries(room.slot)) {
@@ -1061,6 +1077,7 @@ module.exports = {
     gameStop,
     showRoles,
     startSitdown,
+    gameSettings,
     donWatch,
     sheriffWatch,
     startDayOne,

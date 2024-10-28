@@ -40,7 +40,12 @@ html(lang="en")
                 td= r.game.phase
                 td= r.userCount
                 td= r.aliveCount
-                td
-                  button(onclick="joinGame(this)", type="button", class="btn btn-primary") Join Room
+                if r.game.settings.password
+                  td
+                    button(onclick="joinGameWithPassword(this)", type="button", class="btn btn-primary") Join Room
+                else
+                  td
+                    button(onclick="joinGame(this)", type="button", class="btn btn-primary") Join Room
+      include elems/game-password.pug
 
     .footer © MAO Game Platform

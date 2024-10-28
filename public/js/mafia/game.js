@@ -80,7 +80,6 @@ function playTimes(sound, times) {
     sound.play();
 }
 
-
 // Retrieve stored sources from localStorage
 const videoSource = localStorage.getItem('selectedVideoSource');
 const audioSource = localStorage.getItem('selectedAudioSource');
@@ -100,23 +99,58 @@ if (audioSource !== null) {
     };
 }
 
-navigator.mediaDevices.getUserMedia(constraints)
-    .then(stream => {
-        stream.getAudioTracks().forEach(track => {
-            track.enabled = false; // Mute audio track
+if (isFirefox()) {
+    // Alert user or log a message
+    console.warn("This program is not supported on Firefox.");
+    alert("This program is not supported on Firefox.");
+
+
+    // Optionally stop further execution by throwing an error or returning
+    throw new Error("Unsupported browser: Firefox");
+} else {
+    navigator.mediaDevices.getUserMedia({audio: true, video: true})
+        .then(stream => {
+            // Mute audio track initially
+            stream.getAudioTracks().forEach(track => track.enabled = false);
+
+            // Get the video track and attempt to set constraints on it
+            const videoTrack = stream.getVideoTracks()[0];
+            if (videoTrack) {
+
+                videoTrack.applyConstraints(constraints.video)
+                    .then(() => {
+                        console.log('Constraints successfully applied.');
+                    })
+                    .catch(error => {
+                        const settings = videoTrack.getSettings();
+                        // const capabs = videoTrack.getCapabilities();
+                        // console.log(capabs.aspectRatio)
+
+                        // Log the width and height
+                        console.log(`Video Track Dimensions: ${settings.width}x${settings.height}`);
+
+                        // You can also access other settings if needed
+                        console.log('Other settings:', settings);
+                        alert('Error applying constraints:', videoTrack.getConstraints());
+                    });
+            }
+
+            // Assign the stream to the video element
+            localStream = stream;
+            localVideo.srcObject = stream;
+            localVideo.play().catch(error => {
+                console.error('Error attempting to play the video:', error);
+                // Optionally, prompt the user to manually start the video
+            });
+
+            // Start any other processes like signaling here
+            startSignaling();
+        })
+        .catch(error => {
+            console.error('Error accessing media devices:', error.message);
+            document.querySelector('settings-popup').classList.add('show');
         });
-        localStream = stream;
-        localVideo.srcObject = stream;
-        localVideo.play().catch(error => {
-            console.error('Error attempting to play the video:', error);
-            // You might want to inform the user that they need to manually start the video
-        });
-        startSignaling();
-    })
-    .catch(error => {
-        document.querySelector('settings-popup').classList.add('show')
-        console.error('Error accessing media devices:', error);
-    });
+}
 
 function muteAllSfx() {
     for (const [name, sound] of Object.entries(sfx)) {
@@ -301,6 +335,8 @@ function startSignaling() {
             handleRequestJoin(data);
         } else if (data.type === 'error') {
             handleError(data, 'error');
+        } else if (data.type === 'redirect') {
+            handleRedirect(data);
         } else if (data.type === 'reset') {
             handleReset(data);
         } else if (data.type === 'game-player-status') {

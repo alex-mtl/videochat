@@ -40,6 +40,26 @@ function joinGame(elem) {
     ws.send(JSON.stringify({type: 'join-room-game', roomID: roomID, 'password': roomPassword, chatSessionID}));
 }
 
+function joinGamePassword(roomID, roomPassword) {
+    instaRoom = roomID
+    ws.send(JSON.stringify({type: 'join-room-game', roomID: roomID, 'password': roomPassword, chatSessionID}));
+}
+
+async function saveGameSettings() {
+    const gamePassword = document.getElementById('gamePassword');
+    const registeredOnly = document.getElementById('registeredOnly');
+    settings = {}
+    if (gamePassword.value.trim() !== '') {
+        settings['password'] = gamePassword.value;
+    } else {
+        settings['password'] = false;
+    }
+    settings['registeredOnly'] = registeredOnly.checked;
+
+    ws.send(JSON.stringify({type: 'game-settings', settings: settings}));
+    document.querySelector('div#gameSettingsPopup').classList.remove('show')
+};
+
 function requestJoinRoom(elem) {
     room = {};
     row = elem.parentElement.parentElement;
@@ -152,7 +172,7 @@ function startSignaling() {
 
     }
     function handleRoomList(data) {
-        select = document.getElementById('roomList');
+        const select = document.getElementById('roomList');
         select.innerHTML = '';
         roomlist = data.room - list;
         roomlist.forEach(room => {

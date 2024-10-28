@@ -13,11 +13,11 @@ const configuration = {
             credential: "turnpassword",
         }
         ,
-        {
-            urls: "turn:mao-dao.com:3478?transport=udp",
-            username: "maodao",
-            credential: "coturn",
-        }
+        // {
+        //     urls: "turn:mao-dao.com:3478?transport=udp",
+        //     username: "maodao",
+        //     credential: "coturn",
+        // }
     ]
 };
 
@@ -57,6 +57,10 @@ function generateUniqueId() {
     return Math.random().toString(36).substr(2, 9);
 }
 
+// Function to detect Firefox browser
+function isFirefox() {
+    return typeof InstallTrigger !== 'undefined';
+}
 // Function to send a request and return a Promise
 function sendRequest(ws, data) {
     return new Promise((resolve, reject) => {
@@ -214,6 +218,18 @@ function toggleVideo(elem) {
 
 function showSettings() {
     document.querySelector('div#mediaSourcePopup').classList.add('show')
+}
+
+function showGameSettings() {
+    document.querySelector('div#gameSettingsPopup').classList.add('show')
+}
+
+function joinGameWithPassword(elem) {
+    row = elem.parentElement.parentElement;
+    roomID = row.getAttribute('id').replace("roomID-", "");
+    inputRoomID = document.querySelector('div#gamePasswordPopup input#gameRoomID')
+    inputRoomID.value = roomID
+    document.querySelector('div#gamePasswordPopup').classList.add('show')
 }
 
 function peerRefresh(elem) {
@@ -584,6 +600,11 @@ function handleError(data, type) {
     }
     alertToaster(data.message, type);
     //showPopupAlert(data.message, type);
+}
+
+
+function handleRedirect(data) {
+    window.location.href = data.redirect
 }
 
 let alertTemplate = `
@@ -1937,7 +1958,7 @@ function handleVotingRoundResult(data) {
 /* media source settings */
 let videoSelect, audioSelect;
 
-// document.getElementById('startButton').addEventListener('click', async () => {
+
 async function saveMediaSettings() {
     const videoSource = videoSelect.value;
     const audioSource = audioSelect.value;
@@ -1990,6 +2011,36 @@ async function saveMediaSettings() {
 function closeMediaSettings() {
     document.querySelector('div#mediaSourcePopup').classList.remove('show')
 }
+
+async function saveGameSettings() {
+    const gamePassword = document.getElementById('gamePassword');
+    const registeredOnly = document.getElementById('registeredOnly');
+    settings = {}
+    if (gamePassword.value.trim() !== '') {
+        settings['password'] = gamePassword.value;
+    } else {
+        settings['password'] = false;
+    }
+    settings['registeredOnly'] = registeredOnly.checked;
+
+    ws.send(JSON.stringify({type: 'game-settings', settings: settings}));
+    document.querySelector('div#gameSettingsPopup').classList.remove('show')
+};
+
+function closeGameSettings() {
+    document.querySelector('div#gameSettingsPopup').classList.remove('show')
+}
+
+function closeGamePassword() {
+    document.querySelector('div#gamePasswordPopup').classList.remove('show')
+}
+
+async function sendJoinGamePassword() {
+    const gamePassword = document.getElementById('gamePassword').value;
+    const gameRoomID = document.getElementById('gameRoomID').value;
+    joinGamePassword(gameRoomID, gamePassword)
+    document.querySelector('div#gamePasswordPopup').classList.remove('show')
+};
 
 
 

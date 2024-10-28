@@ -1,0 +1,15 @@
+div.settings-popup#gameSettingsPopup
+    h2 Game Settings
+    div.mb-3
+        label(for="gamePassword" class="form-label") Game password:
+        input#gamePassword.form-control(type="password" name="gamePassword")
+    div.form-check.mb-3
+        label(for="registeredOnly" class="form-check-label") Registered only
+        input#registeredOnly.form-check-input(type="checkbox" name="registeredOnly")
+
+
+
+    button#closeButton(onclick="closeGameSettings()") Close
+    button#startButton(onclick="saveGameSettings()") Save
+    //include game-settings.js.pug
+
