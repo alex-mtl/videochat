@@ -165,7 +165,15 @@ async function gamePlayerStatus(ws, data) {
                 checkUserConnection(userWS, player)
             }
             delete room.users[player.uid]
-            player = { uid : 'empty', name: "unknown", sessionID: 'none', status: "unknown", mic: "off", warn: false}
+            player = {
+                uid : 'empty',
+                name: "unknown",
+                sessionID: 'none',
+                status: "unknown",
+                mic: "off",
+                role: 'none',
+                warn: false
+            }
             // console.log(player)
             room.slot[data.slot] = player
             // console.log('roomPlayer',room.slot[data.slot])

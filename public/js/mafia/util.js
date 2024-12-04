@@ -6,13 +6,13 @@ const configuration = {
         // {urls: 'stun:stun.sipnet.ru:3478'},
         // {urls: 'stun:stun.skylink.ru:3478'},
         // {urls: 'stun:stun.voys.nl:3478'},
-        {urls: 'stun:mao-dao.com:3478'},
+        // {urls: 'stun:mao-dao.com:3478'},
         {
             urls: "turn:194.26.138.209:3478?transport=udp",
             username: "turnuser",
             credential: "turnpassword",
         }
-        ,
+        // ,
         // {
         //     urls: "turn:mao-dao.com:3478?transport=udp",
         //     username: "maodao",
@@ -61,6 +61,16 @@ function generateUniqueId() {
 function isFirefox() {
     return typeof InstallTrigger !== 'undefined';
 }
+
+function isTelegramInAppBrowser() {
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    if (typeof window.TelegramWebview !== 'undefined') {
+        //console.log('Found Telegram Webview');
+        return true;
+    }
+    return userAgent.includes("Telegram");
+}
+
 // Function to send a request and return a Promise
 function sendRequest(ws, data) {
     return new Promise((resolve, reject) => {
@@ -342,6 +352,7 @@ function shoot(elem) {
 function setPlayerName(elem) {
     let videoBox = elem.parentElement;
     let slot =videoBox.getAttribute('data-slot')
+
     ws.send(JSON.stringify({type: 'set-player-name', slot: slot, name: elem.value}));
 }
 function createRemoteVideo(videoID, srcObject, hostID) {
@@ -1298,12 +1309,15 @@ function handleGamePlayerMic(data) {
 function handleGamePlayerStatus(data) {
     if (data.status === 'reset') {
         slotStatus = document.querySelector('div.videobox[data-slot="'+data.slot+'"] span.slot-status')
+        slotMic = document.querySelector('div.videobox[data-slot="'+data.slot+'"] span.slot-mic')
+        slotMic.setAttribute('data-mic', 'off')
         videobox = slotStatus.parentElement
         uid = videobox.getAttribute('data-uid')
         removePeerConnection(uid)
         // delete peerConnections[uid];
         videobox.setAttribute('data-player-status', 'unknown')
         videobox.setAttribute('data-uid', 'empty')
+        videobox.setAttribute('style', null)
         videobox.setAttribute('id', 'video-'+data.slot+'-empty')
 
         slotStatus.setAttribute('data-status', 'unknown')
@@ -1716,6 +1730,9 @@ function handlePlayerCommWitness(data) {
 
 function handleSetPlayerName(data) {
     let vBox = document.querySelector('div.videobox[data-slot="'+data.slot+'"]')
+    if (data.reset !== undefined) {
+        slot.setAttribute('style', null);
+    }
     let span = vBox.querySelector('span.game-user')
     span.textContent = data.name
 }

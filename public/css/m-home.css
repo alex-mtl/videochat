@@ -190,3 +190,8 @@ form {
 .game-password-popup button:hover {
     background-color: var(--g-success-hover);
 }
+
+span.pwd:before {
+    content: 'password';
+    vertical-align: middle;
+}

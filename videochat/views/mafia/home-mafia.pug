@@ -42,7 +42,9 @@ html(lang="en")
                 td= r.aliveCount
                 if r.game.settings.password
                   td
-                    button(onclick="joinGameWithPassword(this)", type="button", class="btn btn-primary") Join Room
+                    button(onclick="joinGameWithPassword(this)", type="button", class="btn btn-primary")
+                      span.pwd.material-symbols-outlined
+                      | &nbsp Join Room
                 else
                   td
                     button(onclick="joinGame(this)", type="button", class="btn btn-primary") Join Room

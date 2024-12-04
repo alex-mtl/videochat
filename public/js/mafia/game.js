@@ -107,7 +107,17 @@ if (isFirefox()) {
 
     // Optionally stop further execution by throwing an error or returning
     throw new Error("Unsupported browser: Firefox");
+} else if (isTelegramInAppBrowser()) {
+    console.log("This is the Telegram in-app browser.");
+    alert("This program is not supported on Telegram in-app browser. \n" +
+        "Please open the link in regular browser. \n" +
+        "Or go to in-app browser settings and add video.ttl10.net \n" +
+        "to \" Never open in in-app browser\" list"
+    );
+    window.location.href = "/static/img/img.html";
+
 } else {
+    // alert('agent: '+navigator.userAgent+' | vendor: |'+ navigator.vendor+ ' | opera: '+ window.opera)
     navigator.mediaDevices.getUserMedia({audio: true, video: true})
         .then(stream => {
             // Mute audio track initially
