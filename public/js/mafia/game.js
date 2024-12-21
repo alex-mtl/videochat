@@ -1,3 +1,4 @@
+let wsConnRetry = 0;
 var hostId = null;
 let selfID = null;
 let sfx = {
@@ -102,11 +103,86 @@ if (audioSource !== null) {
 if (isFirefox()) {
     // Alert user or log a message
     console.warn("This program is not supported on Firefox.");
-    alert("This program is not supported on Firefox.");
+    // alert("This program is not supported on Firefox.");
+    navigator.mediaDevices.getUserMedia({audio: true, video: true})
+        .then(stream => {
+            // Mute audio track initially
+            stream.getAudioTracks().forEach(track => track.enabled = false);
 
+            // Get the video track and attempt to set constraints on it
+            const videoTrack = stream.getVideoTracks()[0];
+            localStream = stream;
+            localVideo.srcObject = stream;
+            localVideo.play().catch(error => {
+                console.error('Error attempting to play the video:', error);
+                // Optionally, prompt the user to manually start the video
+            });
+            if (videoTrack) {
+
+                videoTrack.applyConstraints(constraints.video)
+                    .then(() => {
+                        console.log('Constraints successfully applied.');
+                        // Assign the stream to the video element
+                        resizedStream = localStream;
+                        startSignaling();
+
+                    })
+                    .catch(error => {
+                        const settings = videoTrack.getSettings();
+                        // const capabs = videoTrack.getCapabilities();
+                        // console.log(capabs.aspectRatio)
+
+                        // Log the width and height
+                        console.log(`Video Track Dimensions: ${settings.width}x${settings.height}`);
+
+                        // You can also access other settings if needed
+                        console.log('Other settings:', settings);
+                        console.log('error:', error.message);
+                        console.log('constraints.video:', constraints.video);
+                        // alert('Error applying constraints:', error.message,videoTrack.getConstraints());
+
+                        const canvas = document.createElement("canvas");
+                        const context = canvas.getContext("2d");
+                        canvas.width = 180; // Desired width
+                        canvas.height = 135; // Desired height
+
+                        localVideo.addEventListener("loadedmetadata", () => {
+                            // Match canvas size to video size (if needed)
+
+                            const originalWidth = localVideo.videoWidth;
+                            const originalHeight = localVideo.videoHeight;
+                            const aspectRatio = originalWidth / originalHeight;
+
+                            console.log(`Original Dimensions: ${originalWidth}x${originalHeight}`);
+                            console.log(`Aspect Ratio: ${aspectRatio}`);
+
+                            const resizeVideoFrame = () => {
+                                context.drawImage(localVideo, 0, 0, canvas.width, canvas.height);
+                                requestAnimationFrame(resizeVideoFrame);
+                            };
+                            resizeVideoFrame();
+                        });
+
+                        resizedStream = canvas.captureStream();
+                        startSignaling();
+                    });
+
+
+
+
+            }
+
+
+            // Start any other processes like signaling here
+
+        })
+        .catch(error => {
+            console.error('Error accessing media devices:', error.message);
+            document.querySelector('settings-popup').classList.add('show');
+        });
 
     // Optionally stop further execution by throwing an error or returning
-    throw new Error("Unsupported browser: Firefox");
+    // throw new Error("Unsupported browser: Firefox");
 } else if (isTelegramInAppBrowser()) {
     console.log("This is the Telegram in-app browser.");
     alert("This program is not supported on Telegram in-app browser. \n" +
@@ -125,11 +201,21 @@ if (isFirefox()) {
 
             // Get the video track and attempt to set constraints on it
             const videoTrack = stream.getVideoTracks()[0];
+            localStream = stream;
+            localVideo.srcObject = stream;
+            localVideo.play().catch(error => {
+                console.error('Error attempting to play the video:', error);
+                // Optionally, prompt the user to manually start the video
+            });
             if (videoTrack) {
 
                 videoTrack.applyConstraints(constraints.video)
                     .then(() => {
                         console.log('Constraints successfully applied.');
+                        // Assign the stream to the video element
+                        resizedStream = localStream;
+                        startSignaling();
+
                     })
                     .catch(error => {
                         const settings = videoTrack.getSettings();
@@ -141,20 +227,50 @@ if (isFirefox()) {
 
                         // You can also access other settings if needed
                         console.log('Other settings:', settings);
-                        alert('Error applying constraints:', videoTrack.getConstraints());
+                        console.log('error:', error.message);
+                        console.log('constraints.video:', constraints.video);
+                        //alert('Error applying constraints:', error.message,videoTrack.getConstraints());
+
+                        const canvas = document.createElement("canvas");
+                        const context = canvas.getContext("2d");
+
+                        localVideo.addEventListener("loadedmetadata", () => {
+                            // Match canvas size to video size (if needed)
+
+                            const originalWidth = localVideo.videoWidth;
+                            const originalHeight = localVideo.videoHeight;
+                            const aspectRatio = originalWidth / originalHeight;
+
+                            if ((aspectRatio - 1.7777) < 0.01) {
+                                canvas.width = 192; // Desired width
+                                canvas.height = 108; // Desired height
+                            } else if ((aspectRatio - 1.3333) < 0.01) {
+                                canvas.width = 180; // Desired width
+                                canvas.height = 135; // Desired height
+                            } else {
+                                alert('Unknown video ratio:'+aspectRatio)
+                            }
+                            console.log(`Original Dimensions: ${originalWidth}x${originalHeight}`);
+                            console.log(`Aspect Ratio: ${aspectRatio}`);
+
+                            const resizeVideoFrame = () => {
+                                context.drawImage(localVideo, 0, 0, canvas.width, canvas.height);
+                                requestAnimationFrame(resizeVideoFrame);
+                            };
+                            resizeVideoFrame();
+                        });
+
+                        resizedStream = canvas.captureStream();
+                        startSignaling();
                     });
+
+
+
+
             }
 
-            // Assign the stream to the video element
-            localStream = stream;
-            localVideo.srcObject = stream;
-            localVideo.play().catch(error => {
-                console.error('Error attempting to play the video:', error);
-                // Optionally, prompt the user to manually start the video
-            });
-
             // Start any other processes like signaling here
-            startSignaling();
+
         })
         .catch(error => {
             console.error('Error accessing media devices:', error.message);
@@ -226,10 +342,21 @@ function updateStatuses() {
     }
 }
 function startSignaling() {
+    wsConnRetry++;
             // Create WebSocket connection using the retrieved URL
     ws = new WebSocket(websocketUrl);
     ws.onopen = () => {
+        wsConnRetry = 0;
         ws.send(JSON.stringify({type: 'join-game', roomId: roomId, sessionID: chatSessionID }));
+
+    };
+
+    ws.onclose = (event) => {
+        console.log('WebSocket closed. Reconnecting...');
+        if (wsConnRetry < 5) {
+            setTimeout(window.location.reload(), 1000); // Retry after 1 second
+        }
+
     };
 
     ws.onmessage = event => {
@@ -252,26 +379,37 @@ function startSignaling() {
                 let gameMode = document.querySelector('div.game.videos')
                 gameMode.setAttribute('data-mode',"player")
 
-                hostPanel = document.querySelector('div.host-panel')
-                hostPanel.remove()
+                if(hostPanel = document.querySelector('div.host-panel')) {
+                    hostPanel.remove()
+                }
             } else {
                 hostVideo = document.getElementById('hostVideo')
-                hostVideo.srcObject = localVideo.srcObject;
-                hostVideo.classList.add('muted')
-                hostVideo.parentElement.classList.add('self-view')
-                hostVideo.parentElement.classList.remove('no-video')
+                if(!hostVideo.srcObject) {
+                    hostVideo.srcObject = localVideo.srcObject;
+                    hostVideo.classList.add('muted')
+                    hostVideo.parentElement.classList.add('self-view')
+                    hostVideo.parentElement.classList.remove('no-video')
 
-                localVideo.classList.remove('muted')
-                localVideo.srcObject = null;
-                localVideo.remove();
+                    localVideo.classList.remove('muted')
+                    localVideo.srcObject = null;
+                    localVideo.remove();
+                }
+
                 gamePanel = document.querySelector('div.game-panel')
                 gamePanel.setAttribute('data-mode',"host")
 
                 let gameMode = document.querySelector('div.game.videos')
                 gameMode.setAttribute('data-mode',"host")
+                if(roomEnv.game?.settings?.sandbox) {
+                    document.documentElement.style.setProperty('--g-settings-sandbox', 'visible');
+                } else {
+                    document.documentElement.style.setProperty('--g-settings-sandbox', 'hidden');
+                }
 
-                playerPanel = document.querySelector('div.player-panel')
-                playerPanel.remove()
+                if (playerPanel = document.querySelector('div.player-panel')) {
+                    playerPanel.remove();
+                }
+
 
                 // Set the source attribute to your player.js file
                 // script.src = '/static/js/mafia/host.js';
@@ -297,7 +435,15 @@ function startSignaling() {
                     peersPromises.push(promise);
                 }
             }
-            handleGamePhase(roomEnv.game, 'reload')
+            Promise.all(peersPromises)
+                .then(() => {
+                    handleGamePhase(roomEnv.game, 'reload')
+                    console.log('All peer connections initialized and offers sent.');
+                })
+                .catch(error => {
+                    console.error('Error initializing peer connections:', error);
+                });
+
 
         } else if (data.type === 'participant-joined') {
             // Handle new participant joined
@@ -305,7 +451,12 @@ function startSignaling() {
         // , data.avatar
             roomEnv = data.room;
             if (sessionID != clientId) {
-                peerConnection = createPeerConnection(clientId);
+                if(clientId === data.room.gameHost.uid) {
+                    peerConnection = createPeerConnection(clientId, clientId);
+                } else {
+                    peerConnection = createPeerConnection(clientId);
+                }
+
                 // peerConnection = createPeerConnection(clientId, null, null, data.avatar);
                 peerConnection.onicecandidate = event => {
                     if (event.candidate) {
@@ -538,4 +689,14 @@ function addAvatar(peerId, avatarUrl) {
     span.appendChild(img)
     // Add the img to the container
     guestsContainer.appendChild(span);
+}
+
+function nominate(el) {
+    let slot = el.parentElement.getAttribute('data-slot')
+    let gameMode = document.querySelector('div.game.videos').getAttribute('data-mode')
+    if (gameMode === "player") {
+        ws.send(JSON.stringify({type: 'nominate-player', slot: slot}));
+    } else if (gameMode === "host") {
+        ws.send(JSON.stringify({type: 'nominate', slot: slot}));
+    }
 }

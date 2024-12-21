@@ -232,7 +232,7 @@ const startDayOne = onlyHost(async (ws, data, ROOM_ID, room) => {
     room.game.lastSlot = 0
     room.game.day = 1
     room.game.days = {}
-    room.game.days["D1"] = { nominees: [], rounds: [], shooters: [], victims: [] }
+    room.game.days["D1"] = { nominees: [], rounds: [], shooters: [], victims: [], accusers: {} }
     room.game.speakers = []
     for (const [slot, player] of Object.entries(room.slot)) {
         player.status = 'alive'
@@ -251,7 +251,7 @@ const startDay = onlyHost(async (ws, data, ROOM_ID, room) => {
 
     room.game.lastSlot = 0
     room.game.day = (room.game.day + 1)
-    room.game.days["D"+room.game.day] = { nominees: [], rounds: [], shooters: [], victims: []  }
+    room.game.days["D"+room.game.day] = { nominees: [], rounds: [], shooters: [], victims: [], accusers: {} }
     room.game.speakers = []
 
     room = await updateRoom(ROOM_ID, room)
@@ -844,6 +844,7 @@ const gameSettings = onlyHost(async (ws, data, ROOM_ID, room) => {
         room.game.settings.password = crypto.createHash('md5').update(settings.password).digest('hex').substring(0, 8);
     }
     room.game.settings.registeredOnly = (settings?.registeredOnly === true)
+    room.game.settings.sandbox = (settings?.sandbox === true)
     await updateRoom(ws.roomID, room)
 
 })

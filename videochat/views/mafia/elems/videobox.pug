@@ -9,7 +9,7 @@
     input.game-user.g-mask(type="text", minlength="15", value=player.name, onblur="setPlayerName(this)")
     span.player-name-confirm
     input.g-mask#volumeSlider(type='range' min='0' max='1' step='0.05' value='1' onchange="adjustVolume(this.parentElement.querySelector('video'), this.value )")
-    if slot === 'game-host'
+    if slot === 'H'
         span.game-settings(class="material-symbols-outlined", onclick="showGameSettings()")
         include game-settings.pug
     else

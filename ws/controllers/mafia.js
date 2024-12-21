@@ -62,7 +62,9 @@ function joinGame(ws, data) {
                     let conn = clients[room.gameHost.uid]
                     if (conn === undefined) {
                         console.log('41 GameHost', clientId)
-                        clientId = room.host.uid;
+                        // clientId = room.host.uid;
+                        room.gameHost.uid = clientId
+                        room.host.uid = clientId
 
                     } else {
                         console.log('WS 51 conn: ', typeof conn)
@@ -161,7 +163,7 @@ async function gamePlayerStatus(ws, data) {
             slotRes = data.slot
             userWS = clients[player.uid]
             if (userWS !== undefined) {
-                await userws.send(JSON.stringify({ type: 'reset' }));
+                await userWS.send(JSON.stringify({ type: 'reset' }));
                 checkUserConnection(userWS, player)
             }
             delete room.users[player.uid]
@@ -458,6 +460,37 @@ const shoutOut = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
     }
 })
 
+const nominatePlayer = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
+    let curDay = "D"+room.game.day
+    let nominees =  room.game.days[curDay].nominees
+    let accusers =  room.game.days[curDay].accusers
+    console.log(467, PLAYER, accusers, nominees)
+    if (PLAYER.status === 'alive') {
+        if (nominees.includes(data.slot) && ((accusers[PLAYER.slot] ?? null) === data.slot)) {
+            console.log(469)
+            nominees = nominees.filter(slot => slot !== data.slot);
+            delete accusers[PLAYER.slot];
+        } else if (accusers[PLAYER.slot] ?? null) {
+            console.log(473)
+            nominees = nominees.filter(slot => slot !== accusers[PLAYER.slot]); ;
+            accusers[PLAYER.slot] = data.slot
+            nominees.push(data.slot)
+        } else {
+            console.log(478)
+            if (!nominees.includes(data.slot)) {
+                accusers[PLAYER.slot] = data.slot
+                nominees.push(data.slot)
+            }
+        }
+        console.log(484)
+        room.game.days[curDay].nominees = nominees
+        room.game.days[curDay].accusers = accusers
+        room = await updateRoom(ws.roomID, room)
+        nominees = room.game.days[curDay].nominees
+        await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'nominees', nominees: nominees }));
+    }
+})
+
 const sendPlayerComm = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
     let receiver = room.slot[data.slot]
     if (receiver.status === 'alive') {
@@ -650,7 +683,11 @@ async function createGame(sender, data) {
         room.size = 1;
         room.type = 'mafia';
         room.game = {};
-        room.game.settings = {};
+        room.game.settings = {
+            "password": false,
+            "registeredOnly": false,
+            "sandbox": false
+        }
         room.spectators = {};
         room.users = {}
         room.users[clientId] = {uid: clientId};
@@ -810,6 +847,7 @@ module.exports = common.addExports(
     gamePlayerMic,
     gameReserveSlot,
     gameReserveRole,
+    nominatePlayer,
     getSelfRole,
     getActiveSpeakers,
     getMafTeam,

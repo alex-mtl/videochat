@@ -349,10 +349,7 @@ function warnRemove(el) {
     ws.send(JSON.stringify({type: 'warn-remove', slot: slot}));
 }
 
-function nominate(el) {
-    let slot = el.parentElement.getAttribute('data-slot')
-    ws.send(JSON.stringify({type: 'nominate', slot: slot}));
-}
+
 
 function playerKill(el) {
     let slot = el.parentElement.getAttribute('data-slot')

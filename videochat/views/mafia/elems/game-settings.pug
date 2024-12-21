@@ -6,8 +6,9 @@ div.settings-popup#gameSettingsPopup
     div.form-check.mb-3
         label(for="registeredOnly" class="form-check-label") Registered only
         input#registeredOnly.form-check-input(type="checkbox" name="registeredOnly")
-
-
+    div.form-check.mb-3
+        label(for="sandbox" class="form-check-label") Sandbox mode
+        input#sandbox.form-check-input(type="checkbox" name="sandbox")
 
     button#closeButton(onclick="closeGameSettings()") Close
     button#startButton(onclick="saveGameSettings()") Save

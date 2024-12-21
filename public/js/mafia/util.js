@@ -23,15 +23,16 @@ const configuration = {
 
 const constraints = {
     video: {
-        width: { ideal: 240, max: 240 },
-        height: { ideal: 120, max: 120 },
+        width: { ideal: 192, max: 192 },
+        height: { ideal: 108, max: 108 },
         aspectRatio: { ideal: 16 / 9 },
         frameRate: { ideal: 20, max: 25 },
-        facingMode: "user"
+        // facingMode: "user"
     },
     audio: true
 };
 let localVideo = document.getElementById('localVideo')
+let resizedStream = null;
 const remoteVideosContainer = document.getElementById('remoteVideos');
 var sessionID = null;
 var roomEnv = null;
@@ -84,9 +85,9 @@ function sendRequest(ws, data) {
 function createPeerConnection(peerId, hostID, participant = true, avatar = null) {
     const peerConnection = new RTCPeerConnection(configuration);
 
-    localStream.getTracks().forEach(track => {
+    resizedStream.getTracks().forEach(track => {
         if (participant) {
-            peerConnection.addTrack(track, localStream);
+            peerConnection.addTrack(track, resizedStream);
         }
     });
 
@@ -109,7 +110,8 @@ function createPeerConnection(peerId, hostID, participant = true, avatar = null)
             }
             if ( slot === null) {
                 if (participant && (peerId === hostID)) {
-                    bindHostVideo(peerId, event.streams[0], document.getElementById('game-host'));
+                    // bindHostVideo(peerId, event.streams[0], document.getElementById('game-host'));
+                    bindHostVideo(peerId, event.streams[0], document.querySelector('div.videobox[data-slot="H"]'));
                 } else {
                     remoteVideoFrame = createRemoteVideo(peerId, event.streams[0], hostID);
                     remoteVideosContainer.appendChild(remoteVideoFrame);
@@ -123,7 +125,7 @@ function createPeerConnection(peerId, hostID, participant = true, avatar = null)
 
             } else {
 
-                if (slot.classList.contains('vbox-game-host')) {
+                if (slot.classList.contains('vbox-H')) {
                     bindHostVideo(peerId, event.streams[0], slot);
                 } else {
                     bindRemoteVideo(peerId, event.streams[0], slot);
@@ -132,6 +134,12 @@ function createPeerConnection(peerId, hostID, participant = true, avatar = null)
             }
         }
     };
+    peerConnection.oniceconnectionstatechange = () => {
+        if (peerConnection.iceConnectionState === "disconnected") {
+            handlePeerLeft(peerId); // `peerId` is captured from the outer scope
+        }
+    };
+
     if (avatar && !participant && !hostID) {
         console.log("Spectator: ", peerId)
         if (avatar) {
@@ -140,6 +148,22 @@ function createPeerConnection(peerId, hostID, participant = true, avatar = null)
     }
     peerConnections[peerId] = peerConnection;
     return peerConnection;
+}
+
+function handlePeerLeft(peerId) {
+    console.log(`Peer ${peerId} disconnected`);
+    const peerConnection = peerConnections[peerId];
+    if (peerConnection) {
+        peerConnection.close(); // Clean up the connection
+        delete peerConnections[peerId]; // Remove from the map
+    }
+    if (sessionID === roomEnv.gameHost.uid) {
+        slotStatus = document.querySelector('.game.videos[data-phase="lobby"] div.videobox[data-uid="'+peerId+'"] span.slot-status')
+        if (slotStatus) {
+            changeUserStatus(slotStatus)
+        }
+    }
+
 }
 
 function selfMic(micElem) {
@@ -321,7 +345,7 @@ function shoot(elem) {
         return
     }
     ws.send(JSON.stringify({type: 'shoot', slot: slot}));
-    mafTeam = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-role:not([data-role="citizen"])')
+    mafTeam = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-H) span.slot-role:not([data-role="citizen"])')
     mafTeam.forEach(maf => {
         videobox = maf.parentElement;
         if (!videobox.classList.contains('self-view')) {
@@ -338,7 +362,7 @@ function shoot(elem) {
         }
     })
 
-    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-role')
+    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-H) span.slot-role')
     citizens.forEach(citizen => {
         citizen.setAttribute('data-role', 'none')
         citizen.parentElement.querySelector('video').classList.remove('night-video')
@@ -786,14 +810,14 @@ function handleShuffleRoles(data) {
 
 function showPlaceholders() {
     playerPlaceholders = document.querySelectorAll(
-        'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot')
+        'div.videobox[data-slot]:not(.vbox-H) div.select-slot')
     playerPlaceholders.forEach( slot => {
         slot.classList.add('show');
     })
 }
  function hidePlaceholders() {
      playerPlaceholders = document.querySelectorAll(
-         'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot.show')
+         'div.videobox[data-slot]:not(.vbox-H) div.select-slot.show')
      playerPlaceholders.forEach( slot => {
          slot.classList.remove('show');
      })
@@ -801,7 +825,7 @@ function showPlaceholders() {
  }
 
 function hideRoles() {
-    spanRole = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-role')
+    spanRole = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-H) span.slot-role')
     spanRole.forEach( span => {
         span.setAttribute('data-role', 'none')
     })
@@ -887,7 +911,7 @@ async function handleGamePhase(data, mode = 'normal') {
 
         sfx.sitdown.play()
         if (selfID !== roomEnv.gameHost.uid) {
-            // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot button,'+
+            // 'div.videobox[data-slot]:not(.vbox-H) div.select-slot button,'+
             resetDisableButtons()
             showPlaceholders()
             hideHostVideo()
@@ -923,7 +947,7 @@ async function handleGamePhase(data, mode = 'normal') {
 
         sfx.godfather.play()
         if (selfID !== roomEnv.gameHost.uid) {
-            // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot button,'+
+            // 'div.videobox[data-slot]:not(.vbox-H) div.select-slot button,'+
             hideAllRolesAndVideos()
             showPlaceholders()
 
@@ -949,7 +973,7 @@ async function handleGamePhase(data, mode = 'normal') {
         startCountdown(10)
         sfx.dog.play()
         if (selfID !== roomEnv.gameHost.uid) {
-            // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot button,'+
+            // 'div.videobox[data-slot]:not(.vbox-H) div.select-slot button,'+
             hideAllRolesAndVideos()
             resetDisableButtons()
             showPlaceholders()
@@ -1015,7 +1039,7 @@ async function handleGamePhase(data, mode = 'normal') {
 
         sfx.sheriff.play()
         if (selfID !== roomEnv.gameHost.uid) {
-            // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot button,'+
+            // 'div.videobox[data-slot]:not(.vbox-H) div.select-slot button,'+
             hideAllRolesAndVideos()
             showPlaceholders()
             if (mode !== 'normal') {
@@ -1043,7 +1067,7 @@ async function handleGamePhase(data, mode = 'normal') {
         startCountdown(10)
         sfx.police.play()
         if (selfID !== roomEnv.gameHost.uid) {
-            // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot button,'+
+            // 'div.videobox[data-slot]:not(.vbox-H) div.select-slot button,'+
             hideAllRolesAndVideos()
             showPlaceholders()
         } else {
@@ -1072,7 +1096,7 @@ async function handleGamePhase(data, mode = 'normal') {
             barSlot.setAttribute('data-status', "unknown")
         })
 
-        // 'div.videobox[data-slot]:not(.vbox-game-host) div.select-slot.show button,'+
+        // 'div.videobox[data-slot]:not(.vbox-H) div.select-slot.show button,'+
         hidePlaceholders()
         stopCountdown()
     }
@@ -1337,7 +1361,7 @@ function handleGamePlayerStatus(data) {
 }
 
 function hideAllRolesAndVideos() {
-    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-role')
+    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-H) span.slot-role')
     citizens.forEach(citizen => {
         citizen.setAttribute('data-role', 'none')
         citizen.parentElement.querySelector('video').classList.remove('night-video')
@@ -1369,7 +1393,7 @@ function resetDisableButtons() {
 
 function hideHostVideo() {
     if (selfID !== roomEnv.gameHost.uid) {
-        hostVideo = document.querySelector('div.videobox.vbox-game-host video')
+        hostVideo = document.querySelector('div.videobox.vbox-H video')
         stream = hostVideo.srcObject;
         if (stream !== null) {
             tracks = stream.getTracks();
@@ -1383,13 +1407,13 @@ function hideHostVideo() {
         hostVideo.setAttribute('host-video-trigger', 'off')
 
 
-        vBox = document.querySelector('div.videobox.vbox-game-host')
+        vBox = document.querySelector('div.videobox.vbox-H')
         vBox.setAttribute('data-player-status', 'host-off')
     }
 }
 
 function showHostVideo() {
-    hostVideo = document.querySelector('div.videobox.vbox-game-host video')
+    hostVideo = document.querySelector('div.videobox.vbox-H video')
     stream = hostVideo.srcObject;
     if (stream !== null) {
         tracks = stream.getTracks();
@@ -1402,12 +1426,12 @@ function showHostVideo() {
 
 
     hostVideo.setAttribute('host-video-trigger', 'on')
-    vBox = document.querySelector('div.videobox.vbox-game-host')
+    vBox = document.querySelector('div.videobox.vbox-H')
     vBox.setAttribute('data-player-status',null)
 }
 
 function showDayVideos() {
-    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-role')
+    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-H) span.slot-role')
     citizens.forEach(citizen => {
         citizen.setAttribute('data-role', 'none')
         citizen.parentElement.querySelector('video').classList.remove('night-video')
@@ -1434,7 +1458,7 @@ function handleMafiaSitdown(data) {
         span = document.querySelector('div.videobox[data-slot="'+slotN+'"] span.slot-role')
         span.setAttribute('data-role', role)
     }
-    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-role:not([data-role="mafia"]):not([data-role="don"])')
+    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-H) span.slot-role:not([data-role="mafia"]):not([data-role="don"])')
     citizens.forEach(citizen => {
         citizen.setAttribute('data-role', 'citizen')
         citizen.parentElement.querySelector('video').classList.add('night-video')
@@ -1443,8 +1467,8 @@ function handleMafiaSitdown(data) {
     hidePlaceholders()
     showHostVideo()
     videoElems = document.querySelectorAll(
-        'div.videobox[data-slot]:not(.vbox-game-host) .g-mask,' +
-        'div.videobox[data-slot]:not(.vbox-game-host) .g-mask:hover'
+        'div.videobox[data-slot]:not(.vbox-H) .g-mask,' +
+        'div.videobox[data-slot]:not(.vbox-H) .g-mask:hover'
     )
     videoElems.forEach( elem => {
         elem.classList.remove('night')
@@ -1464,7 +1488,7 @@ function handleMafiaShooting(data) {
         span.setAttribute('data-role', role)
         span.parentElement.querySelector('span.video-target').setAttribute('data-role', role)
     }
-    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-role:not([data-role="mafia"]):not([data-role="don"])')
+    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-H) span.slot-role:not([data-role="mafia"]):not([data-role="don"])')
     citizens.forEach(citizen => {
         citizen.setAttribute('data-role', 'citizen')
         citizen.parentElement.querySelector('video').classList.add('night-video')
@@ -1473,8 +1497,8 @@ function handleMafiaShooting(data) {
     hidePlaceholders()
     showHostVideo()
     videoElems = document.querySelectorAll(
-        'div.videobox[data-slot]:not(.vbox-game-host) .g-mask,' +
-        'div.videobox[data-slot]:not(.vbox-game-host) .g-mask:hover'
+        'div.videobox[data-slot]:not(.vbox-H) .g-mask,' +
+        'div.videobox[data-slot]:not(.vbox-H) .g-mask:hover'
     )
     videoElems.forEach( elem => {
         elem.classList.remove('night')
@@ -1508,7 +1532,7 @@ function handleDonWatch(data) {
         span = document.querySelector('div.videobox[data-slot="'+slotN+'"] span.slot-role')
         span.setAttribute('data-role', role)
     }
-    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-role:not([data-role="mafia"]):not([data-role="don"])')
+    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-H) span.slot-role:not([data-role="mafia"]):not([data-role="don"])')
     citizens.forEach(citizen => {
         citizen.setAttribute('data-role', 'none')
         citizen.parentElement.querySelector('video').classList.add('night-video')
@@ -1517,8 +1541,8 @@ function handleDonWatch(data) {
     hidePlaceholders()
     showHostVideo()
     videoElems = document.querySelectorAll(
-        'div.videobox[data-slot]:not(.vbox-game-host) .g-mask,' +
-        'div.videobox[data-slot]:not(.vbox-game-host) .g-mask:hover'
+        'div.videobox[data-slot]:not(.vbox-H) .g-mask,' +
+        'div.videobox[data-slot]:not(.vbox-H) .g-mask:hover'
     )
     videoElems.forEach( elem => {
         elem.classList.remove('night')
@@ -1539,7 +1563,7 @@ function handleDonCheck(data) {
         span = document.querySelector('div.videobox[data-slot="'+slotN+'"] span.slot-role')
         span.setAttribute('data-role', role)
     }
-    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-role:not([data-role="mafia"]):not([data-role="don"])')
+    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-H) span.slot-role:not([data-role="mafia"]):not([data-role="don"])')
     citizens.forEach(citizen => {
         citizen.setAttribute('data-role', 'none')
         citizen.parentElement.querySelector('video').classList.add('night-video')
@@ -1548,8 +1572,8 @@ function handleDonCheck(data) {
     hidePlaceholders()
     showHostVideo()
     videoElems = document.querySelectorAll(
-        'div.videobox[data-slot]:not(.vbox-game-host) .g-mask,' +
-        'div.videobox[data-slot]:not(.vbox-game-host) .g-mask:hover'
+        'div.videobox[data-slot]:not(.vbox-H) .g-mask,' +
+        'div.videobox[data-slot]:not(.vbox-H) .g-mask:hover'
     )
     videoElems.forEach( elem => {
         elem.classList.remove('night')
@@ -1567,7 +1591,7 @@ function handleSheriffWatch(data) {
         span = document.querySelector('div.videobox[data-slot="'+slotN+'"] span.slot-role')
         span.setAttribute('data-role', role)
     }
-    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-role:not([data-role="sheriff"])')
+    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-H) span.slot-role:not([data-role="sheriff"])')
     citizens.forEach(citizen => {
         citizen.setAttribute('data-role', 'none')
         citizen.parentElement.querySelector('video').classList.add('night-video')
@@ -1576,8 +1600,8 @@ function handleSheriffWatch(data) {
     hidePlaceholders()
     showHostVideo()
     videoElems = document.querySelectorAll(
-        'div.videobox[data-slot]:not(.vbox-game-host) .g-mask,' +
-        'div.videobox[data-slot]:not(.vbox-game-host) .g-mask:hover'
+        'div.videobox[data-slot]:not(.vbox-H) .g-mask,' +
+        'div.videobox[data-slot]:not(.vbox-H) .g-mask:hover'
     )
     videoElems.forEach( elem => {
         elem.classList.remove('night')
@@ -1595,7 +1619,7 @@ function handleSheriffCheck(data) {
         span = document.querySelector('div.videobox[data-slot="'+slotN+'"] span.slot-role')
         span.setAttribute('data-role', role)
     }
-    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-role:not([data-role="sheriff"])')
+    citizens = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-H) span.slot-role:not([data-role="sheriff"])')
     citizens.forEach(citizen => {
         citizen.setAttribute('data-role', 'none')
         citizen.parentElement.querySelector('video').classList.add('night-video')
@@ -1604,8 +1628,8 @@ function handleSheriffCheck(data) {
     hidePlaceholders()
     showHostVideo()
     videoElems = document.querySelectorAll(
-        'div.videobox[data-slot]:not(.vbox-game-host) .g-mask,' +
-        'div.videobox[data-slot]:not(.vbox-game-host) .g-mask:hover'
+        'div.videobox[data-slot]:not(.vbox-H) .g-mask,' +
+        'div.videobox[data-slot]:not(.vbox-H) .g-mask:hover'
     )
     videoElems.forEach( elem => {
         elem.classList.remove('night')
@@ -1615,6 +1639,8 @@ function handleSheriffCheck(data) {
 }
 
 function removeActiveSpeaker() {
+    let game = document.querySelector('div.game.videos')
+    game.classList.remove('self-active-speaker')
     let videos = document.querySelectorAll('video.active-speaker')
     videos.forEach(video => {
         video.classList.remove('active-speaker')
@@ -1626,7 +1652,7 @@ function removeActiveSpeaker() {
     })
 }
 function removeVotingResult() {
-    let candidates = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-game-host) span.slot-vote.voted')
+    let candidates = document.querySelectorAll('div.videobox[data-slot]:not(.vbox-H) span.slot-vote.voted')
     candidates.forEach(candidate => {
         candidate.classList.remove('voted')
         let classes = Array.from(candidate.classList);
@@ -1646,6 +1672,10 @@ function handleActiveSpeaker(data) {
     if ((data.slot !== 0) && (data.duration > 0)) {
         let speaker = document.querySelector('div.videobox[data-slot="' + data.slot + '"] video')
         speaker.classList.add('active-speaker')
+        if (speaker.classList.contains('self-view')) {
+            game = document.querySelector('div.game.videos')
+            game.classList.add('self-active-speaker')
+        }
         if (data.duration === 10) {
             speaker.classList.add('active-speaker-penalized')
         }
@@ -2032,6 +2062,7 @@ function closeMediaSettings() {
 async function saveGameSettings() {
     const gamePassword = document.getElementById('gamePassword');
     const registeredOnly = document.getElementById('registeredOnly');
+    const sandbox = document.getElementById('sandbox');
     settings = {}
     if (gamePassword.value.trim() !== '') {
         settings['password'] = gamePassword.value;
@@ -2039,6 +2070,12 @@ async function saveGameSettings() {
         settings['password'] = false;
     }
     settings['registeredOnly'] = registeredOnly.checked;
+    settings['sandbox'] = sandbox.checked;
+    if(settings['sandbox'] === true) {
+        document.documentElement.style.setProperty('--g-settings-sandbox', 'visible');
+    } else {
+        document.documentElement.style.setProperty('--g-settings-sandbox', 'hidden');
+    }
 
     ws.send(JSON.stringify({type: 'game-settings', settings: settings}));
     document.querySelector('div#gameSettingsPopup').classList.remove('show')

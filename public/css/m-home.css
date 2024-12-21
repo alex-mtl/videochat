@@ -31,6 +31,10 @@ body {
     font-size: 2vw;
 }
 
+.header.hidden {
+    top: -5vw;
+}
+
 .header span.play-mafia {
     position: absolute;
     top: 0vw;
