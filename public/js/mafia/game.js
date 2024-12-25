@@ -700,3 +700,10 @@ function nominate(el) {
         ws.send(JSON.stringify({type: 'nominate', slot: slot}));
     }
 }
+
+async function checkRole(el) {
+    let slot = el.parentElement.getAttribute('data-slot')
+    let checkBy = el.getAttribute('data-check-by')
+    const response = await sendRequest(ws, { type: 'get-'+checkBy+'-check', slot });
+    el.setAttribute('data-checked-role', response.role)
+}

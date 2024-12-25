@@ -331,8 +331,6 @@ async function getSheriff() {
     return response.team;
 }
 
-
-
 function shoot(elem) {
     let slot = 0
     if (typeof elem === 'object' && elem instanceof Element) {
@@ -1568,6 +1566,10 @@ function handleDonCheck(data) {
         citizen.setAttribute('data-role', 'none')
         citizen.parentElement.querySelector('video').classList.add('night-video')
         citizen.parentElement.querySelector('span.video-lock').setAttribute('data-role', 'citizen')
+        let ctznSlot = citizen.parentElement.getAttribute('data-slot')
+        let ctznRole = (data.donChecks[ctznSlot] ?? null) ? data.donChecks[ctznSlot] : 'none'
+        citizen.parentElement.querySelector('span.video-lock').setAttribute('data-checked-role', ctznRole)
+        citizen.parentElement.querySelector('span.video-lock').setAttribute('data-check-by', 'don')
     })
     hidePlaceholders()
     showHostVideo()
@@ -1624,6 +1626,10 @@ function handleSheriffCheck(data) {
         citizen.setAttribute('data-role', 'none')
         citizen.parentElement.querySelector('video').classList.add('night-video')
         citizen.parentElement.querySelector('span.video-lock').setAttribute('data-role', 'citizen')
+        let ctznSlot = citizen.parentElement.getAttribute('data-slot')
+        let ctznRole = (data.sheriffChecks[ctznSlot] ?? null) ? data.sheriffChecks[ctznSlot] : 'none'
+        citizen.parentElement.querySelector('span.video-lock').setAttribute('data-checked-role', ctznRole)
+        citizen.parentElement.querySelector('span.video-lock').setAttribute('data-check-by', 'sheriff')
     })
     hidePlaceholders()
     showHostVideo()

@@ -357,6 +357,15 @@ div.videobox span.slot-role {
     visibility: hidden;
 }
 
+div.videobox span.slot-role[data-checked-role] {
+    position: absolute;
+    top: 3vw;
+    left: 8vw;
+    padding: 0;
+    background-color: var(--g-grey);
+    font-size: 8vw;
+}
+
 div.videobox .slot-role[data-role="sheriff"]:before {
     content: "frame_inspect";
     /*content: "\1F44D";";*/
@@ -369,13 +378,16 @@ div.videobox .slot-role[data-role="sheriff"]:before {
     /*text-shadow: 1px 1px 2px red;*/
 }
 div.videobox .slot-role[data-role="citizen"]:before,
-div.videobox .slot-role[data-role="R"]:before
+div.videobox .slot-role[data-role="R"]:before,
+div.videobox .slot-role[data-checked-role='R']
 {
     content: "frame_person";
     color: var(--g-failure);
     visibility: visible;
 }
-div.videobox .slot-role[data-role="mafia"]:before {
+div.videobox .slot-role[data-role="mafia"]:before,
+div.videobox .slot-role[data-checked-role='B']
+{
     /*content: "domino_mask";*/
     content: "frame_person";
     color: black;
@@ -387,6 +399,20 @@ div.videobox .slot-role[data-role="don"]:before {
     /*content: "\1F52B"; !* gun pistolet *!*/
     content: "diamond";
     color: black;
+    visibility: visible;
+}
+
+div.videobox .slot-role[data-checked-role='none']:hover:before
+{
+    content: "frame_person";
+    color: var(--g-grey);
+    visibility: visible;
+    cursor: pointer;
+}
+
+div.videobox .slot-role[data-checked-role='B']:hover:before
+div.videobox .slot-role[data-checked-role='R']:hover:before
+{
     visibility: visible;
 }
 
@@ -968,11 +994,13 @@ span.game-role.role-show {
 }
 
 span.game-role[data-role='RED'],
+span.game-role[data-checked-role='R'],
 span.game-role[data-role='CITIZEN'],
 span.game-role[data-role='SHERIFF'] {
     color: red;
 }
 span.game-role[data-role='BLACK'],
+span.game-role[data-checked-role='B'],
 span.game-role[data-role='DON'],
 span.game-role[data-role='MAFIA'] {
     color: black;
@@ -983,18 +1011,50 @@ div.videobox span.video-lock {
     position: absolute;
     width: 100%;
     top: 3vw;
-    left: 8.5vw;
+    left: 8.1vw;
     font-size: 8vw;
     font-weight: bold; /* Bold font */
     visibility: hidden;
 }
 
-div.videobox:not([data-phase="lobby"]) .video-lock[data-role="citizen"]:before {
+[data-phase="sheriff-check"] div.videobox .video-lock[data-role="citizen"]:before,
+[data-phase="don-check"] div.videobox .video-lock[data-role="citizen"]:before
+{
     content: "visibility_lock";
     color: var(--g-grey);
     visibility: visible;
 }
 
+[data-phase="sheriff-check"] div.videobox .video-lock[data-checked-role="none"]:hover,
+[data-phase="don-check"] div.videobox .video-lock[data-checked-role="none"]:hover,
+[data-phase="don-check"] div.videobox .video-lock[data-checked-role="citizen"]:hover
+{
+    cursor: pointer;
+}
+
+[data-phase="sheriff-check"] div.videobox .video-lock[data-checked-role="B"]:before {
+    content: "frame_person";
+    color: black;
+    visibility: visible;
+}
+
+[data-phase="sheriff-check"] div.videobox .video-lock[data-checked-role="R"]:before {
+    content: "frame_person";
+    color: var(--g-failure);
+    visibility: visible;
+}
+
+[data-phase="don-check"] div.videobox .video-lock[data-checked-role="S"]:before {
+    content: "frame_inspect";
+    color: orange;
+    visibility: visible;
+}
+
+[data-phase="don-check"] div.videobox .video-lock[data-checked-role="NS"]:before {
+    content: "frame_person";
+    color: var(--g-grey);
+    visibility: visible;
+}
 span.g-countdown {
     font-size: 6vw;
     width: 100%;

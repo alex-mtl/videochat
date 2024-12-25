@@ -21,10 +21,12 @@ const {
     broadcastRoom,
     sleep,
     onlyHost,
+    startDay,
     host,
     slotSend,
     onlyPlayer,
     onlyMafTeam,
+    onlyDon,
     onlySheriff, updateRoom
 } = require("./common");
 
@@ -618,6 +620,63 @@ const getSheriff = onlySheriff(async (ws, data, ROOM_ID, room, PLAYER, TEAM) => 
     await ws.send(JSON.stringify(response));
 });
 
+const getSheriffCheck = onlySheriff(async (ws, data, ROOM_ID, room, PLAYER, TEAM) => {
+    let curDay = room.game.days["D"+room.game.day]
+    const sheriffChecks = Object.values(room.game.days).reduce((acc, day) => {
+        if (Object.keys(day.sheriffCheck).length > 0) {
+            Object.assign(acc, day.sheriffCheck);
+        }
+        return acc;
+    }, {});
+    if ((room.game.phase === 'sheriff-check')
+        && (Object.keys(curDay.sheriffCheck).length === 0)
+        && !(sheriffChecks[data.slot] ?? null)
+    ) {
+        room.game.days["D"+room.game.day].sheriffCheck[data.slot] = ['B','D'].includes(room.slot[data.slot].role) ? 'B' : 'R'
+        room = await updateRoom(ROOM_ID, room)
+        let response = {type: 'request-response', requestId: data.requestId, role: room.game.days["D"+room.game.day].sheriffCheck[data.slot]}
+        await ws.send(JSON.stringify(response));
+        setTimeout(async () => {
+            room = await getRoom(ROOM_ID);
+            if (room.game.phase === 'sheriff-check') {
+
+                await hostModule.startDay(ws, {type: 'start-day', host: room.gameHost.uid});
+            }
+        }, 3000)
+    } else {
+        let response = {type: 'request-response', requestId: data.requestId, role: sheriffChecks[data.slot] ?? 'none'}
+        await ws.send(JSON.stringify(response));
+    }
+});
+
+const getDonCheck = onlyDon(async (ws, data, ROOM_ID, room, PLAYER, TEAM) => {
+    let curDay = room.game.days["D"+room.game.day]
+    const donChecks = Object.values(room.game.days).reduce((acc, day) => {
+        if (Object.keys(day.donCheck).length > 0) {
+            Object.assign(acc, day.donCheck);
+        }
+        return acc;
+    }, {});
+    if ((room.game.phase === 'don-check')
+        && (Object.keys(curDay.donCheck).length === 0)
+        && !(donChecks[data.slot] ?? null)
+    ) {
+        room.game.days["D"+room.game.day].donCheck[data.slot] = ['S'].includes(room.slot[data.slot].role) ? 'S' : 'NS'
+        room = await updateRoom(ROOM_ID, room)
+        let response = {type: 'request-response', requestId: data.requestId, role: room.game.days["D"+room.game.day].donCheck[data.slot]}
+        await ws.send(JSON.stringify(response));
+        // setTimeout(async () => {
+        //     room = await getRoom(ROOM_ID);
+        //     if (room.game.phase === 'don-check') {
+        //
+        //         await hostModule.startDay(ws, {type: 'start-day', host: room.gameHost.uid});
+        //     }
+        // }, 3000)
+    } else {
+        let response = {type: 'request-response', requestId: data.requestId, role: donChecks[data.slot] ?? 'none'}
+        await ws.send(JSON.stringify(response));
+    }
+});
 
 async function setPlayerName(ws, data) {
     let room = await getRoom(ws.roomID);
@@ -852,6 +911,8 @@ module.exports = common.addExports(
     getActiveSpeakers,
     getMafTeam,
     getSheriff,
+    getSheriffCheck,
+    getDonCheck,
     shoutOut,
     sendPlayerComm,
     setPlayerName,

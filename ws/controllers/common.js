@@ -138,7 +138,7 @@ function onlyHost(handler) {
         try {
             const ROOM_ID = ws.roomID;
             const room = await getRoom(ROOM_ID);
-            if (ws.uid !== room.gameHost.uid) {
+            if ((ws.uid !== room.gameHost.uid) && (data?.host !== room.gameHost.uid)) {
                 console.log('Attempt to execute action when not a host!', ws.uid, ROOM_ID);
                 throw new Error('Not a host');
             }
@@ -220,14 +220,44 @@ function onlySheriff(handler) {
             );
             valid = false
             for (const [slot, player] of Object.entries(TEAM)) {
-                if (player.uid !== 'empty' && player.uid === ws.uid) {
+                if (player.uid !== 'empty' && (player.uid === ws.uid) && (player.status === 'alive')) {
                     valid = true
                     PLAYER = player
                     break
                 }
             }
             if (!valid) {
-                console.log('Attempt to execute action when not a black!', ws.uid, ROOM_ID);
+                console.log('Attempt to execute action when not a sheriff!', ws.uid, ROOM_ID);
+                throw new Error('Not a sheriff');
+            }
+            await handler(ws, data, ROOM_ID, room, PLAYER, TEAM);
+        } catch (error) {
+            // Handle the error (e.g., notify the user or log the attempt)
+            console.error(error.message);
+        }
+    };
+}
+
+function onlyDon(handler) {
+    return async (ws, data) => {
+        try {
+            const ROOM_ID = ws.roomID;
+            const room = await getRoom(ROOM_ID);
+            let PLAYER = {}
+            const TEAM = Object.fromEntries(
+                Object.entries(room.slot)
+                    .filter(([key, value]) => ['D'].includes(value.role))
+            );
+            valid = false
+            for (const [slot, player] of Object.entries(TEAM)) {
+                if (player.uid !== 'empty' && (player.uid === ws.uid) && (player.status === 'alive')) {
+                    valid = true
+                    PLAYER = player
+                    break
+                }
+            }
+            if (!valid) {
+                console.log('Attempt to execute action when not a don!', ws.uid, ROOM_ID);
                 throw new Error('Not a sheriff');
             }
             await handler(ws, data, ROOM_ID, room, PLAYER, TEAM);
@@ -291,6 +321,7 @@ module.exports = {
     onlyPlayer,
     onlyMafTeam,
     onlySheriff,
+    onlyDon,
     checkUserConnection,
     sleep,
     globalContext,

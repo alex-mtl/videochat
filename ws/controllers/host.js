@@ -130,7 +130,7 @@ const donWatch = onlyHost(async (ws, data, ROOM_ID, room) => {
             if (player.uid !== 'empty' && player.role === 'D') {
                 user = clients[player.uid]
                 if (user !== undefined) {
-                    await user.send(JSON.stringify({type: 'don-watch', team: mafTeam}));
+                    await user.send(JSON.stringify({type: 'don-watch', team: mafTeam }));
                 } else {
                     await host(ROOM_ID, {type: 'player-not-ready', slot: slot});
                     return
@@ -148,6 +148,13 @@ const startDonCheck = onlyHost(async (ws, data, ROOM_ID, room) => {
         Object.entries(room.slot)
             .filter(([key, value]) => (value.role === 'D'))
     );
+
+    const donChecks = Object.values(room.game.days).reduce((acc, day) => {
+        if (Object.keys(day.donCheck).length > 0) {
+            Object.assign(acc, day.donCheck);
+        }
+        return acc;
+    }, {});
     let donSlot = 0
     for (const [slot, player] of Object.entries(room.slot)) {
         if ((player.status === 'alive')
@@ -157,8 +164,9 @@ const startDonCheck = onlyHost(async (ws, data, ROOM_ID, room) => {
             break
         }
     }
+
     await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'don-check' }));
-    await sleep(300);
+
     console.log(364, donSlot)
     if (donSlot>0) {
         player = room.slot[donSlot]
@@ -167,7 +175,7 @@ const startDonCheck = onlyHost(async (ws, data, ROOM_ID, room) => {
             user = clients[player.uid]
             if (user !== undefined) {
                 console.log(370, donSlot, donTeam)
-                await user.send(JSON.stringify({type: 'don-check', team: donTeam}));
+                await user.send(JSON.stringify({type: 'don-check', team: donTeam, donChecks}));
             } else {
                 await host(ROOM_ID, {type: 'don-not-ready', slot: slot});
                 return
@@ -182,7 +190,14 @@ const startSheriffCheck = onlyHost(async (ws, data, ROOM_ID, room) => {
     room.game.stage = ""
     room = await updateRoom(ROOM_ID, room)
     await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-phase', phase: 'sheriff-check' }));
-    await sleep(300);
+    // await sleep(300);
+    const sheriffChecks = Object.values(room.game.days).reduce((acc, day) => {
+        if (Object.keys(day.sheriffCheck).length > 0) {
+            Object.assign(acc, day.sheriffCheck);
+        }
+        return acc;
+    }, {});
+
     for (const [slot, player] of Object.entries(room.slot)) {
         if ((player.status === 'alive')
             && (player.role === 'S')
@@ -191,7 +206,14 @@ const startSheriffCheck = onlyHost(async (ws, data, ROOM_ID, room) => {
                 user = clients[player.uid]
                 if (user !== undefined) {
                     sheriffTeam = { [slot]: player };
-                    await user.send(JSON.stringify({type: 'sheriff-check', team: sheriffTeam }));
+                    await user.send(JSON.stringify({type: 'sheriff-check', team: sheriffTeam, sheriffChecks }));
+                    // setTimeout(async () => {
+                    //     room = await getRoom(ROOM_ID);
+                    //     if (room.game.phase === 'sheriff-check') {
+                    //
+                    //         await startDay(ws, {type: 'start-day'});
+                    //     }
+                    // }, 7000)
                 } else {
                     await host(ROOM_ID, {type: 'sheriff-not-ready', slot: slot});
                     return
@@ -232,7 +254,7 @@ const startDayOne = onlyHost(async (ws, data, ROOM_ID, room) => {
     room.game.lastSlot = 0
     room.game.day = 1
     room.game.days = {}
-    room.game.days["D1"] = { nominees: [], rounds: [], shooters: [], victims: [], accusers: {} }
+    room.game.days["D1"] = { nominees: [], rounds: [], shooters: [], victims: [], accusers: {}, donCheck: {}, sheriffCheck: {} }
     room.game.speakers = []
     for (const [slot, player] of Object.entries(room.slot)) {
         player.status = 'alive'
@@ -251,7 +273,7 @@ const startDay = onlyHost(async (ws, data, ROOM_ID, room) => {
 
     room.game.lastSlot = 0
     room.game.day = (room.game.day + 1)
-    room.game.days["D"+room.game.day] = { nominees: [], rounds: [], shooters: [], victims: [], accusers: {} }
+    room.game.days["D"+room.game.day] = { nominees: [], rounds: [], shooters: [], victims: [], accusers: {}, donCheck: {}, sheriffCheck: {} }
     room.game.speakers = []
 
     room = await updateRoom(ROOM_ID, room)
