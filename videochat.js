@@ -22,7 +22,7 @@ app.use(cookieParser());
 app.use(session({
     store: new sessionStore({
         path: process.env.SESSIONS_DIR, // Directory to store session files
-        ttl: 86400, // Session expiration time (in seconds)
+        ttl: 2592000, // Session expiration time (in seconds)
     }),
     secret: config.secret,
     resave: false,
@@ -30,10 +30,12 @@ app.use(session({
 }));
 
 app.use((req, res, next) => {
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
-    res.set('Surrogate-Control', 'no-store');
+    if (!req.path.startsWith('/static')) {
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
+        res.set('Surrogate-Control', 'no-store');
+    }
     next();
 });
 
@@ -44,7 +46,12 @@ app.set('view engine', 'pug');
 app.locals.pretty = true;
 //app.set('view options', { pretty: true });
 
-app.use('/static', express.static('public'));
+app.use('/static', express.static('public', {
+    etag: true,              // Enable ETag generation (default: true)
+    lastModified: true,      // Enable Last-Modified header (default: true)
+    cacheControl: true,      // Enable Cache-Control header (default: true)
+    maxAge: '1w'             // Set max-age for cache expiration (optional, adjust as needed)
+}));
 app.use('/favicon.ico', express.static('favicon.ico'));
 
 // Middleware to parse URL-encoded bodies

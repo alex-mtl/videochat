@@ -36,7 +36,7 @@ const WebSocket = require('ws');
 const sessionParser = session({
     store: new sessionStore({
         path: process.env.SESSIONS_DIR, // Directory to store session files
-        ttl: 86400, // Session expiration time (in seconds)
+        ttl: 2592000, // Session expiration time (in seconds)
     }),
     secret: config.secret,
     resave: true,
@@ -63,9 +63,9 @@ wss.on('connection', (ws, req) => {
         const data = JSON.parse(message);
         const handler = handle.getHandler(data.type);
 
-        console.log('ws.req data:', data); // Should log the correct session ID
-        console.log('ws.req Session ID:', ws.req.sessionID); // Should log the correct session ID
-        console.log('ws.req Session data:', ws.req.session);
+        //console.log('ws.req data:', data); // Should log the correct session ID
+        //console.log('ws.req Session ID:', ws.req.sessionID); // Should log the correct session ID
+        //console.log('ws.req Session data:', ws.req.session);
 
         if (typeof handle[handler] === 'function') {
             handle[handler](ws, data);

@@ -2,76 +2,101 @@ let wsConnRetry = 0;
 var hostId = null;
 let selfID = null;
 let sfx = {
-    shuffle : new Howl({
+    shuffle: new Howl({
         src: '/static/sfx/airport-tone.mp3',
         loop: false,
         volume: 0.1
     }),
 
-    sitdown : new Howl({
+    sitdown: new Howl({
         src: '/static/sfx/sitdown.mp3',
         loop: false,
         volume: 0.01
     }),
 
-    police : new Howl({
+    police: new Howl({
         src: '/static/sfx/police-siren.mp3',
         loop: false,
         volume: 0.01
     }),
 
-    godfather : new Howl({
+    godfather: new Howl({
         src: '/static/sfx/godfather.mp3',
         loop: false,
         volume: 0.01
     }),
 
-    sheriff : new Howl({
+    sheriff: new Howl({
         src: '/static/sfx/sherlock.mp3',
         loop: false,
         volume: 0.01
     }),
-    notify : new Howl({
+    notify: new Howl({
         src: '/static/sfx/notify.mp3',
         loop: false,
         volume: 0.1
     }),
-    warn : new Howl({
+    warn: new Howl({
         src: '/static/sfx/warn.mp3',
         loop: false,
         volume: 0.05
     }),
-    nominate : new Howl({
+    nominate: new Howl({
         src: '/static/sfx/nominate.mp3',
         loop: false,
         volume: 0.05
     }),
-    shot : new Howl({
+    shot: new Howl({
         src: '/static/sfx/shot.mp3',
         loop: false,
         volume: 0.01
     }),
-    dog : new Howl({
+    dog: new Howl({
         src: '/static/sfx/dog.mp3',
         loop: false,
         volume: 0.01
     }),
-    gameOver : new Howl({
+    gameOver: new Howl({
         src: '/static/sfx/game-over.mp3',
         loop: false,
         volume: 0.01
     }),
-    knock : new Howl({
+    knock: new Howl({
         src: '/static/sfx/knock.mp3',
         loop: false,
         volume: 0.05
+    }),
+    donCheckSheriff: new Howl({
+        src: '/static/sfx/sheriff.mp3',
+        loop: false,
+        volume: 0.2
+    }),
+    donCheckNotSheriff: new Howl({
+        src: '/static/sfx/not-a-sheriff.mp3',
+        loop: false,
+        volume: 0.2
+    }),
+    sheriffCheckMafia: new Howl({
+        src: '/static/sfx/mafia.mp3',
+        loop: false,
+        volume: 0.2
+    }),
+    sheriffCheckCitizen: new Howl({
+        src: '/static/sfx/citizen.mp3',
+        loop: false,
+        volume: 0.2
+    }),
+    tweet: new Howl({
+        src: '/static/sfx/tweet.mp3',
+        loop: false,
+        volume: 0.2
     }),
 }
 
 function playTimes(sound, times) {
     let count = 0;
 
-    sound.on('end', function() {
+    sound.on('end', function () {
         count++;
         if (count < times) {
             sound.play();
@@ -81,6 +106,25 @@ function playTimes(sound, times) {
     sound.play();
 }
 
+
+let lastScrollTop = 0;
+const header = document.querySelector('.header');
+const scrollThreshold = 5;
+window.addEventListener('scroll', () => {
+    const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+
+    if (currentScroll > lastScrollTop ) {
+        // User is scrolling down
+        header.classList.add('hidden');
+    } else if (currentScroll < lastScrollTop - scrollThreshold) {
+        // User is scrolling up and exceeds the threshold
+        header.classList.remove('hidden');
+    }
+
+    lastScrollTop = currentScroll <= 0 ? 0 : currentScroll; // Prevent negative scroll values
+});
+
+
 // Retrieve stored sources from localStorage
 const videoSource = localStorage.getItem('selectedVideoSource');
 const audioSource = localStorage.getItem('selectedAudioSource');
@@ -89,7 +133,7 @@ const audioSource = localStorage.getItem('selectedAudioSource');
 if (videoSource !== null) {
     constraints.video = {
         ...constraints.video,
-        deviceId: videoSource ? { exact: videoSource } : undefined
+        deviceId: videoSource ? {exact: videoSource} : undefined
     };
 }
 
@@ -168,8 +212,6 @@ if (isFirefox()) {
                     });
 
 
-
-
             }
 
 
@@ -194,7 +236,7 @@ if (isFirefox()) {
 
 } else {
     // alert('agent: '+navigator.userAgent+' | vendor: |'+ navigator.vendor+ ' | opera: '+ window.opera)
-    navigator.mediaDevices.getUserMedia({audio: true, video: true})
+    navigator.mediaDevices.getUserMedia(constraints)
         .then(stream => {
             // Mute audio track initially
             stream.getAudioTracks().forEach(track => track.enabled = false);
@@ -248,7 +290,7 @@ if (isFirefox()) {
                                 canvas.width = 180; // Desired width
                                 canvas.height = 135; // Desired height
                             } else {
-                                alert('Unknown video ratio:'+aspectRatio)
+                                alert('Unknown video ratio:' + aspectRatio)
                             }
                             console.log(`Original Dimensions: ${originalWidth}x${originalHeight}`);
                             console.log(`Aspect Ratio: ${aspectRatio}`);
@@ -263,8 +305,6 @@ if (isFirefox()) {
                         resizedStream = canvas.captureStream();
                         startSignaling();
                     });
-
-
 
 
             }
@@ -283,6 +323,7 @@ function muteAllSfx() {
         sound.stop()
     }
 }
+
 function selfSlotDetection(selfID) {
     let participant = false;
     if (roomEnv.gameHost.uid !== selfID) {
@@ -297,7 +338,7 @@ function selfSlotDetection(selfID) {
                         track.enabled = true; // Mute audio track
                     });
                 }
-                slot = document.querySelector('div.videobox[data-slot="' + slotN+'"]');
+                slot = document.querySelector('div.videobox[data-slot="' + slotN + '"]');
                 slot.classList.remove('no-video')
                 slot.classList.add('self-view')
                 slot.querySelectorAll('video').forEach(video => video.remove());
@@ -306,7 +347,7 @@ function selfSlotDetection(selfID) {
 
                 slot.setAttribute('data-uid', selfID)
                 slot.setAttribute('data-name', player.name || 'unknown')
-                if(['killed', 'disqualified', 'locked'].includes(slot.getAttribute('data-player-status'))) {
+                if (['killed', 'disqualified', 'locked'].includes(slot.getAttribute('data-player-status'))) {
                     localVideo.origSrcObject = localVideo.srcObject
                     localVideo.srcObject = null
                 }
@@ -337,17 +378,18 @@ function selfSlotDetection(selfID) {
 
 function updateStatuses() {
     for (const [slotN, player] of Object.entries(roomEnv.slot)) {
-        barSlot = document.querySelector('div.e-bar[data-slot="'+slotN+'"]')
+        barSlot = document.querySelector('div.e-bar[data-slot="' + slotN + '"]')
         barSlot.setAttribute('data-status', player.status)
     }
 }
+
 function startSignaling() {
     wsConnRetry++;
-            // Create WebSocket connection using the retrieved URL
+    // Create WebSocket connection using the retrieved URL
     ws = new WebSocket(websocketUrl);
     ws.onopen = () => {
         wsConnRetry = 0;
-        ws.send(JSON.stringify({type: 'join-game', roomId: roomId, sessionID: chatSessionID }));
+        ws.send(JSON.stringify({type: 'join-game', roomId: roomId, sessionID: chatSessionID}));
 
     };
 
@@ -371,20 +413,20 @@ function startSignaling() {
             participant = selfSlotDetection(clientId);
             hostID = data.room.gameHost.uid;
             var script = document.createElement('script');
-            if(sessionID !== hostID) {
+            if (sessionID !== hostID) {
 
                 gamePanel = document.querySelector('div.game-panel')
-                gamePanel.setAttribute('data-mode',"player")
+                gamePanel.setAttribute('data-mode', "player")
 
                 let gameMode = document.querySelector('div.game.videos')
-                gameMode.setAttribute('data-mode',"player")
+                gameMode.setAttribute('data-mode', "player")
 
-                if(hostPanel = document.querySelector('div.host-panel')) {
+                if (hostPanel = document.querySelector('div.host-panel')) {
                     hostPanel.remove()
                 }
             } else {
                 hostVideo = document.getElementById('hostVideo')
-                if(!hostVideo.srcObject) {
+                if (!hostVideo.srcObject) {
                     hostVideo.srcObject = localVideo.srcObject;
                     hostVideo.classList.add('muted')
                     hostVideo.parentElement.classList.add('self-view')
@@ -396,11 +438,14 @@ function startSignaling() {
                 }
 
                 gamePanel = document.querySelector('div.game-panel')
-                gamePanel.setAttribute('data-mode',"host")
+                gamePanel.setAttribute('data-mode', "host")
+
+                deckPanel = document.querySelector('div.deck-container')
+                deckPanel.setAttribute('data-mode', "host")
 
                 let gameMode = document.querySelector('div.game.videos')
-                gameMode.setAttribute('data-mode',"host")
-                if(roomEnv.game?.settings?.sandbox) {
+                gameMode.setAttribute('data-mode', "host")
+                if (roomEnv.game?.settings?.sandbox) {
                     document.documentElement.style.setProperty('--g-settings-sandbox', 'visible');
                 } else {
                     document.documentElement.style.setProperty('--g-settings-sandbox', 'hidden');
@@ -415,8 +460,8 @@ function startSignaling() {
                 // script.src = '/static/js/mafia/host.js';
                 // document.head.appendChild(script);
                 // script.onload = () => {
-                    detectGameState()
-                    // handleGamePhase(roomEnv.game)
+                detectGameState()
+                // handleGamePhase(roomEnv.game)
                 // };
 
             }
@@ -430,7 +475,7 @@ function startSignaling() {
                                 sendIceCandidate(sessionID, uid, event.candidate);
                             }
                         };
-                        await  sendOffer(ws, clientId, uid, peerConnection);
+                        await sendOffer(ws, clientId, uid, peerConnection);
                     })();
                     peersPromises.push(promise);
                 }
@@ -448,10 +493,10 @@ function startSignaling() {
         } else if (data.type === 'participant-joined') {
             // Handle new participant joined
             const clientId = data.id;
-        // , data.avatar
+            // , data.avatar
             roomEnv = data.room;
             if (sessionID != clientId) {
-                if(clientId === data.room.gameHost.uid) {
+                if (clientId === data.room.gameHost.uid) {
                     peerConnection = createPeerConnection(clientId, clientId);
                 } else {
                     peerConnection = createPeerConnection(clientId);
@@ -471,7 +516,7 @@ function startSignaling() {
                 // Remove the entry from the dictionary
                 delete pendingRequests[data.requestId];
             } else {
-                handleError({ message: 'Undefined request:'+data.requestId }, 'error');
+                handleError({message: 'Undefined request:' + data.requestId}, 'error');
             }
 
         } else if (data.type === 'participant-left') {
@@ -558,6 +603,8 @@ function startSignaling() {
             handleNominate(data);
         } else if (data.type === 'ready-to-vote') {
             handleReadyToVote(data);
+        } else if (data.type === 'mainButton') {
+            handleMainButton(data);
         } else if (data.type === 'start-voting') {
             handleStartVoting(data);
         } else if (data.type === 'voting-round-ready') {
@@ -591,8 +638,8 @@ function startSignaling() {
         } else if (data.type === 'sheriff-check') {
             handleSheriffCheck(data);
         } else if ((data.type === 'player-kill')
-        || (data.type === 'player-lock')
-        || (data.type === 'player-alive')
+            || (data.type === 'player-lock')
+            || (data.type === 'player-alive')
         ) {
             handlePlayerStatus(data);
         } else if (data.type === 'last-speech-voted') {
@@ -603,11 +650,10 @@ function startSignaling() {
             handleTeamWins(data);
         } else if (data.type === 'game-over') {
             handleGameOver(data);
-        // } else if (data.type === 'sitdown-ready') {
-        //     handleSitdownReady(data);
+            // } else if (data.type === 'sitdown-ready') {
+            //     handleSitdownReady(data);
         }
     };
-
 
 
     function handleRoomList(data) {
@@ -629,14 +675,14 @@ function startSignaling() {
         var row = document.createElement('tr');
 
         var d = new Date(); // for now
-        var now = ''+d.getHours()+'h '+d.getMinutes()+'m';
+        var now = '' + d.getHours() + 'h ' + d.getMinutes() + 'm';
 
-        row.innerHTML = `<td class="chat-time">`+now+`</td>`;
-        row.innerHTML += `<td class="chat-from">`+data['client-id']+`</td>`;
-        row.innerHTML += `<td class="chat-to">`+''+`</td>`;
-        row.innerHTML += `<td class="chat-message">`+escapeHtml(data.message)+
-        `<button style="float:right;" class="btn btn-danger" id="deny_`+data['client-id']+`">Deny Request</button>
-        <button style="float:right;" class="btn btn-success" id="accept_`+data['client-id']+`">Accept Request</button></td>`;
+        row.innerHTML = `<td class="chat-time">` + now + `</td>`;
+        row.innerHTML += `<td class="chat-from">` + data['client-id'] + `</td>`;
+        row.innerHTML += `<td class="chat-to">` + '' + `</td>`;
+        row.innerHTML += `<td class="chat-message">` + escapeHtml(data.message) +
+            `<button style="float:right;" class="btn btn-danger" id="deny_` + data['client-id'] + `">Deny Request</button>
+        <button style="float:right;" class="btn btn-success" id="accept_` + data['client-id'] + `">Accept Request</button></td>`;
 
         if (data.from === sessionID) {
             row.classList.add('self-message');
@@ -646,13 +692,27 @@ function startSignaling() {
 
         table.appendChild(row);
 
-        var acceptGuest = document.getElementById("accept_"+data['client-id'])
+        var acceptGuest = document.getElementById("accept_" + data['client-id'])
         acceptGuest.onclick = function () {
-            ws.send(JSON.stringify({type: 'grant-access', from: hostId, to: data['client-id'], 'client-session': data["client-session"], roomId: roomId, access: true}));
+            ws.send(JSON.stringify({
+                type: 'grant-access',
+                from: hostId,
+                to: data['client-id'],
+                'client-session': data["client-session"],
+                roomId: roomId,
+                access: true
+            }));
         };
-        var denyGuest = document.getElementById("deny_"+data['client-id'])
+        var denyGuest = document.getElementById("deny_" + data['client-id'])
         denyGuest.onclick = function () {
-            ws.send(JSON.stringify({type: 'grant-access', from: hostId, to: data['client-id'], 'client-session': data["client-session"], roomId: roomId, access: false}));
+            ws.send(JSON.stringify({
+                type: 'grant-access',
+                from: hostId,
+                to: data['client-id'],
+                'client-session': data["client-session"],
+                roomId: roomId,
+                access: false
+            }));
         }
     }
 
@@ -704,6 +764,21 @@ function nominate(el) {
 async function checkRole(el) {
     let slot = el.parentElement.getAttribute('data-slot')
     let checkBy = el.getAttribute('data-check-by')
-    const response = await sendRequest(ws, { type: 'get-'+checkBy+'-check', slot });
+    const response = await sendRequest(ws, {type: 'get-' + checkBy + '-check', slot});
+    switch(response.role) {
+        case 'S':
+            sfx.donCheckSheriff.play()
+            break;
+        case 'NS':
+            sfx.donCheckNotSheriff.play()
+            break;
+        case 'B':
+            sfx.sheriffCheckMafia.play()
+            break;
+        case 'R':
+            sfx.sheriffCheckCitizen.play()
+            break;
+    }
+
     el.setAttribute('data-checked-role', response.role)
 }

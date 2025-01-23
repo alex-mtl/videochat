@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 // const util = require('util');
 const XRegExp = require('xregexp');
 const crypto = require('crypto');
@@ -29,6 +30,7 @@ const {
     onlyDon,
     onlySheriff, updateRoom
 } = require("./common");
+const {nextSpeaker, playerLock, playerKill} = require("./host");
 
 function validateString(str) {
     // const re = XRegExp("^[\\pL\\-_0-9\\. ]+$");
@@ -137,7 +139,7 @@ function joinGame(ws, data) {
         console.log("WS order 117", clientId)
         clients[clientId] = ws;
         ws.uid = clientId;
-        console.log(ws.req.session)
+        // console.log(ws.req.session)
         ws.avatar = ws.req.session?.user?.avatar_url || '/static/img/avatar/d450356dc7cb3609.png';
 
         ws.roomID = roomID;
@@ -157,6 +159,7 @@ function joinGame(ws, data) {
 async function gamePlayerStatus(ws, data) {
     room = await getRoom(ws.roomID);
     valid = false
+    let player = {}
     let slotRes = 0
     if (ws.uid === room.gameHost.uid) {
         if (data.status === 'reset') {
@@ -176,6 +179,7 @@ async function gamePlayerStatus(ws, data) {
                 status: "unknown",
                 mic: "off",
                 role: 'none',
+                avatar: await getRandomAvatar(),
                 warn: false
             }
             // console.log(player)
@@ -183,7 +187,12 @@ async function gamePlayerStatus(ws, data) {
             // console.log('roomPlayer',room.slot[data.slot])
             room = await updateRoom(ws.roomID, room)
 
-            await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'set-player-name', slot: data.slot, name: 'unknown' }));
+            await broadcastRoom(ws.roomID,  JSON.stringify({
+                type: 'set-player-name',
+                slot: data.slot,
+                name: 'unknown',
+                player: (({ role, ...rest }) => rest)(player)
+            }));
         } else {
             // console.log(131)
             room.gameHost.status = data.status
@@ -202,7 +211,13 @@ async function gamePlayerStatus(ws, data) {
     }
     if (valid) {
         await updateRoom(ws.roomID, room)
-        await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-player-status', uid: ws.uid, status: data.status, slot: slotRes }));
+        await broadcastRoom(ws.roomID,  JSON.stringify({
+            type: 'game-player-status',
+            uid: ws.uid,
+            status: data.status,
+            slot: slotRes,
+            player: (({ role, ...rest } = {}) => rest)( player )
+        }));
     } else {
         await ws.send(JSON.stringify({ type: 'error', message: "Something went wrong. Can't change your status..." }));
     }
@@ -462,6 +477,55 @@ const shoutOut = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
     }
 })
 
+const passNextSpeaker = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
+    console.log("481",PLAYER.slot,room.game.speakers.at(-1), room.game.speakers)
+    if (
+        room.game.speakers.at(-1) == PLAYER.slot
+        && PLAYER.slot === data.slot
+    ) {
+        console.log("483")
+        data.type = "next-speaker"
+        data.host = room.gameHost.uid;
+        nextSpeaker(ws, data)
+    }
+})
+
+const passPlayerLock = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
+    console.log("491",PLAYER.slot,room.game.speakers.at(-1), room.game.speakers)
+    if (
+        (
+            room.game.speakers.at(-1) == PLAYER.slot ||
+            room?.activePlayerSlot == PLAYER.slot
+        )
+        && PLAYER.slot == data.slot
+    ) {
+        console.log("493")
+        data.type = "player-lock"
+        data.host = room.gameHost.uid;
+        playerLock(ws, data)
+    }
+})
+
+const passPlayerKill = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
+    console.log('510', PLAYER.slot, data.slot, room.activePlayerSlot, (
+        room.game.speakers.at(-1) == PLAYER.slot ||
+        room?.activePlayerSlot == PLAYER.slot
+    ),PLAYER.slot == data.slot)
+    if (
+        (
+            room.game.speakers.at(-1) == PLAYER.slot ||
+            room?.activePlayerSlot == PLAYER.slot
+        )
+        && PLAYER.slot == data.slot
+    ) {
+        console.log('518',"call: player-kill")
+        data.type = "player-kill"
+        data.host = room.gameHost.uid;
+        playerKill(ws, data)
+    }
+})
+
+
 const nominatePlayer = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
     let curDay = "D"+room.game.day
     let nominees =  room.game.days[curDay].nominees
@@ -705,7 +769,14 @@ async function setPlayerName(ws, data) {
 
 }
 
+async function getRandomAvatar() {
+    const templates = fs.readdirSync(process.env.PSEUDO_PLAYERS_AVATAR_DIR);
+    // console.error(process.env.PSEUDO_PLAYERS_AVATAR_DIR)
+    const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
 
+    const svgTemplatePath = path.join(process.env.PSEUDO_PLAYERS_AVATAR_DIR, randomTemplate).replace(process.env.APP_PUBLIC_DIR, '/static/');
+    return svgTemplatePath
+}
 async function createGame(sender, data) {
     //rooms.push({ name: data.name, host: data.host})
     clientId = sender.uid;
@@ -745,7 +816,9 @@ async function createGame(sender, data) {
         room.game.settings = {
             "password": false,
             "registeredOnly": false,
-            "sandbox": false
+            "skipRoleShuffle": true,
+            "sandbox": false,
+            "autohost": false,
         }
         room.spectators = {};
         room.users = {}
@@ -755,7 +828,8 @@ async function createGame(sender, data) {
         room.game.phase = 'lobby'
 
         for (let i=0; i<10; i++) {
-            room.slot[i+1] = { uid : 'empty', name: "unknown", sessionID: 'none', status: "unknown", mic: "off"}
+
+            room.slot[i+1] = { uid : 'empty', name: "unknown", sessionID: 'none', status: "unknown", mic: "off", avatar: await getRandomAvatar() }
         }
 
         room.game.stream = (room.stream === 'On')
@@ -907,6 +981,9 @@ module.exports = common.addExports(
     gameReserveSlot,
     gameReserveRole,
     nominatePlayer,
+    passNextSpeaker,
+    passPlayerKill,
+    passPlayerLock,
     getSelfRole,
     getActiveSpeakers,
     getMafTeam,

@@ -247,6 +247,13 @@ function handleReadyToVote(data) {
         mainButton('Night', startNight)
     }
 }
+
+function handleMainButton(data) {
+   if (data.message === 'game-start') {
+       mainButton('Start', startGame)
+   }
+}
+
 function handleReadyToNight(data) {
     gameMessage('')
     gameMessage('',2)
@@ -261,7 +268,7 @@ function handleSplitSpeech(data) {
     if (data.winners.length > data.split.length) {
         mainButton('Defence speech '+data.winners[data.split.length], defenseSpeech, [data.winners[data.split.length]])
     } else {
-        mainButton('Vote gain: '+data.winners.join(', '), startVotingSend)
+        mainButton('Vote again: '+data.winners.join(', '), startVotingSend)
 
     }
 

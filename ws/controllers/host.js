@@ -327,7 +327,7 @@ const startVoting = onlyHost(async (ws, data, ROOM_ID, room) => {
         room.game.days[curDay].rounds.push(round)
         room.game.stage = "voting"
         roomState = await updateRoom(ROOM_ID, room)
-        console.log("WS 354", roomState.game.days[curDay].rounds)
+        // console.log("WS 354", roomState.game.days[curDay].rounds)
         nominees =  roomState.game.days[curDay].rounds[curRound].nominees
         await broadcastRoom(ROOM_ID, JSON.stringify({ type: 'start-voting', nominees: nominees }));
         await host(ROOM_ID, { type: 'voting-round-ready', round: 0, candidate: nominees[0] });
@@ -507,10 +507,34 @@ const lockWinners = onlyHost(async (ws, data, ROOM_ID, room) => {
 
             }, 5000)
 })
+const passTracker = {};
 
+function checkPass(ROOM_ID, data) {
+    const currentTime = Date.now();
+
+    // Initialize tracker for this ROOM_ID if not already present
+    if (!passTracker[ROOM_ID]) {
+     passTracker[ROOM_ID] = { lastExecution: 0, lastHost: null };
+    }
+
+    const { lastExecution, lastHost } = passTracker[ROOM_ID];
+    // If the last call was less than 3 seconds ago and the last host was not empty, skip execution
+    if (lastHost && currentTime - lastExecution < 3000) {
+        console.log(`Execution for ROOM_ID ${ROOM_ID} skipped - throttled.`);
+        return  false;
+    }
+
+    passTracker[ROOM_ID] = {
+        lastExecution: currentTime,
+        lastHost: data.host || null,
+    };
+    return true
+}
 const nextSpeaker = onlyHost(async (ws, data, ROOM_ID, room) => {
-// async function nextSpeaker(ws, data) {
-
+    if (!checkPass(ROOM_ID, data) ) {
+        await host(ROOM_ID, { type: 'error', message: "Looks like previous player SKIP already" });
+        return;
+    }
         let activeSpeaker = 0;
         let duration = 60
         let lastAlive = 0;
@@ -561,7 +585,7 @@ const nextSpeaker = onlyHost(async (ws, data, ROOM_ID, room) => {
                 }
             }
             if (room.game.day > 1) {
-                console.log('808', 'activeSpeaker', activeSpeaker)
+                // console.log('808', 'activeSpeaker', activeSpeaker)
             }
             if (activeSpeaker === 0) {
                 for (const [slot, player] of Object.entries(room.slot)) {
@@ -666,6 +690,8 @@ const lastSpeech = onlyHost(async (ws, data, ROOM_ID, room) => {
 
             }
         }
+        room.activePlayerSlot = data.candidate
+        roomUpd = await updateRoom(ROOM_ID, room)
         await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'active-speaker', slot: data.candidate, duration: 60, "action": data.action }));
 })
 
@@ -694,6 +720,8 @@ const defenseSpeech = onlyHost(async (ws, data, ROOM_ID, room) => {
 
             }
         }
+        room.activePlayerSlot = data.candidate
+        room = await updateRoom(ROOM_ID, room)
         await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'active-speaker', slot: data.candidate, duration: 30, "action": 'defense' }));
         let curDay = "D"+room.game.day
         let rounds =  room.game.days[curDay].rounds
@@ -761,7 +789,7 @@ async function checkGameOver(room, ROOM_ID) {
             }
         }
     }
-    console.log('739','red:',redTeam,'black:',blackTeam)
+    // console.log('739','red:',redTeam,'black:',blackTeam)
     if ((redTeam.length > 0) && (blackTeam.length === 0)) {
         host(ROOM_ID, { type: 'team-wins', team: 'red' });
     }
@@ -857,7 +885,7 @@ const nominate = onlyHost(async (ws, data, ROOM_ID, room) => {
 
 const gameSettings = onlyHost(async (ws, data, ROOM_ID, room) => {
     const settings = data.settings
-    console.log('settings:', settings)
+    // console.log('settings:', settings)
     if (!settings?.password) {
         room.game.settings.password = false
     } else if (settings.password.trim() === '') {
@@ -867,6 +895,9 @@ const gameSettings = onlyHost(async (ws, data, ROOM_ID, room) => {
     }
     room.game.settings.registeredOnly = (settings?.registeredOnly === true)
     room.game.settings.sandbox = (settings?.sandbox === true)
+    room.game.settings.autohost = (settings?.autohost === true)
+    room.game.settings.skipRoleShuffle = (settings?.skipRoleShuffle === true)
+
     await updateRoom(ws.roomID, room)
 
 })
@@ -917,85 +948,132 @@ const gameStart = onlyHost(async (ws, data, ROOM_ID, room) => {
 
     await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-phase', phase: 'shuffle', stage: "shuffle-slots" }));
 
-    for (let i= 1; i<=10; i++) {
-        roomState = await getRoom(ROOM_ID)
-        if (i>1) {
-            prevPlayer = roomState.slot[i-1]
-            if (prevPlayer.slot === 'none') {
-                prevPlayer.slot = 'any'
-                roomState.slot[i-1] = prevPlayer;
-                roomState = await updateRoom(ROOM_ID, roomState)
-                let prevUser = clients[prevPlayer.uid]
-                if (prevUser !== undefined) {
-                    await prevUser.send(JSON.stringify({ type: 'game-phase', phase: 'shuffle', stage: "shuffle-slots" }));
-                }
-            }
-        }
-
-        curPlayer = roomState.slot[i]
-        sleepTime = 300; // skip empty slots
-        if ((roomState.game.phase === 'shuffle')
-            && (curPlayer.slot === 'none')) {
-            user = clients[curPlayer.uid]
-            if (user !== undefined) {
-                sleepTime = 5000
-                await user.send(JSON.stringify({ type: 'select-slot', slots: roomState.game.availableSlots }));
-            }
-
-        }
-        await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-phase-slot', slot: i }));
-        await sleep(sleepTime);
-    }
-    //await sleep(3000);
-    roomState = await getRoom(ws.roomID)
-    if (roomState.game.availableSlots.length > 0) {
-        roomState.game.availableSlots = shuffleArray(roomState.game.availableSlots);
-        // console.log('310', roomState.game.availableSlots)
+    if (room.game.settings.skipRoleShuffle) {
+        room.game.availableSlots = shuffleArray(room.game.availableSlots);
+        console.log('925', room.game.availableSlots)
         correctOrder = {}
-        for (const [slot, player] of Object.entries(roomState.slot)) {
+        for (const [slot, player] of Object.entries(room.slot)) {
             if ((player.slot === 'any') || (player.slot === 'none')) {
-                roomState.slot[slot].slot = roomState.game.availableSlots[0]
-                roomState.game.availableSlots = roomState.game.availableSlots.filter(slotID => slotID !== roomState.slot[slot].slot);
+                player.slot = room.game.availableSlots[0]
+                // let player = room.slot[slot]
+                console.log('931', player.slot)
+                let user = clients[player.uid]
+                if (user !== undefined) {
+                    await user.send(JSON.stringify({ type: 'game-phase', phase: 'shuffle', stage: "player-slot", slot: player.slot}));
+                }
+                room.game.availableSlots = room.game.availableSlots.filter(slotID => slotID !== player.slot);
             }
-            correctOrder[roomState.slot[slot].slot] = { ...roomState.slot[slot], initialSlot: slot }
+            correctOrder[room.slot[slot].slot] = { ...player, initialSlot: slot }
         }
-        console.log(968, correctOrder)
-        roomState.slot = correctOrder;
-    }
-    roomState = await updateRoom(ws.roomID, roomState)
-    await broadcastRoom(ws.roomID,JSON.stringify({ type: 'game-order', slots: roomState.slot }));
-    await host(ROOM_ID, { type: 'shuffle-roles-ready' });
-})
-
-const shuffleRoles = onlyHost(async (ws, data, ROOM_ID, room) => {
-
-        ready = true;
-        room.game.availableRoles = shuffleArray(['R','D','B','S','R','B','R','R','R','R']);
-        room.game.availableCards = [1,2,3,4,5,6,7,8,9,10];
-        room.game.stage = "shuffle-roles"
-        room = await updateRoom(ROOM_ID, room)
-        await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'shuffle-roles' }));
-
+        room.slot = correctOrder;
+        roomState = await updateRoom(ws.roomID, room)
+        await sleep(2000);
+        // await sleep(2000)
+    } else {
         for (let i= 1; i<=10; i++) {
             roomState = await getRoom(ROOM_ID)
             if (i>1) {
                 prevPlayer = roomState.slot[i-1]
+                if (prevPlayer.slot === 'none') {
+                    prevPlayer.slot = 'any'
+                    roomState.slot[i-1] = prevPlayer;
+                    roomState = await updateRoom(ROOM_ID, roomState)
+                    let prevUser = clients[prevPlayer.uid]
+                    if (prevUser !== undefined) {
+                        await prevUser.send(JSON.stringify({ type: 'game-phase', phase: 'shuffle', stage: "shuffle-slots" }));
+                    }
+                }
+            }
+
+            curPlayer = roomState.slot[i]
+            sleepTime = 300; // skip empty slots
+            if ((roomState.game.phase === 'shuffle')
+                && (curPlayer.slot === 'none')) {
+                user = clients[curPlayer.uid]
+                if (user !== undefined) {
+                    sleepTime = 5000
+                    await user.send(JSON.stringify({ type: 'select-slot', slots: roomState.game.availableSlots }));
+                }
+
+            }
+            await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-phase-slot', slot: i }));
+            await sleep(sleepTime);
+        }
+        //await sleep(3000);
+        roomState = await getRoom(ws.roomID)
+        if (roomState.game.availableSlots.length > 0) {
+            roomState.game.availableSlots = shuffleArray(roomState.game.availableSlots);
+            // console.log('310', roomState.game.availableSlots)
+            correctOrder = {}
+            for (const [slot, player] of Object.entries(roomState.slot)) {
+                if ((player.slot === 'any') || (player.slot === 'none')) {
+                    roomState.slot[slot].slot = roomState.game.availableSlots[0]
+                    roomState.game.availableSlots = roomState.game.availableSlots.filter(slotID => slotID !== roomState.slot[slot].slot);
+                }
+                correctOrder[roomState.slot[slot].slot] = { ...roomState.slot[slot], initialSlot: slot }
+            }
+            console.log(968, correctOrder)
+            roomState.slot = correctOrder;
+        }
+        roomState = await updateRoom(ws.roomID, roomState)
+    }
+
+    await broadcastRoom(ws.roomID,JSON.stringify({ type: 'game-order', slots: roomState.slot }));
+    await host(ROOM_ID, { type: 'shuffle-roles-ready' });
+
+})
+
+const shuffleRoles = onlyHost(async (ws, data, ROOM_ID, room) => {
+
+    ready = true;
+    room.game.availableRoles = shuffleArray(['R','D','B','S','R','B','R','R','R','R']);
+    room.game.availableCards = [1,2,3,4,5,6,7,8,9,10];
+    room.game.stage = "shuffle-roles"
+    room = await updateRoom(ROOM_ID, room)
+    await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'shuffle-roles' }));
+
+    if (room.game.settings.skipRoleShuffle) {
+        room.game.availableRoles = shuffleArray(room.game.availableRoles);
+        for (let i = 1; i <= 10; i++) {
+
+            let player = room.slot[i];
+            if ((player.role === 'none') && (room.game.availableRoles.length > 0)) {
+                room.slot[i].role = room.game.availableRoles.shift()
+                let cardId = room.game.availableCards.shift()
+                roomState = await updateRoom(ROOM_ID, room)
+                user = clients[player.uid]
+                if (user !== undefined) {
+                    await user.send(JSON.stringify({type: 'game-role', role: roomState.slot[i].role}));
+                }
+                await broadcastRoom(ROOM_ID, JSON.stringify({type: 'game-role-taken', card: cardId}));
+            }
+        }
+        // roomState = await updateRoom(ROOM_ID, roomState)
+    } else {
+        for (let i = 1; i <= 10; i++) {
+            roomState = await getRoom(ROOM_ID)
+            if (i > 1) {
+                prevPlayer = roomState.slot[i - 1]
                 if (prevPlayer.role === 'none') {
-                    roomState.slot[i-1].role = roomState.game.availableRoles.shift()
+                    roomState.slot[i - 1].role = roomState.game.availableRoles.shift()
                     let cardId = roomState.game.availableCards.shift()
                     console.log('350 :', roomState.game.availableRoles)
                     roomState = await updateRoom(ROOM_ID, roomState)
                     let prevUser = clients[prevPlayer.uid]
                     if (prevUser !== undefined) {
-                        await prevUser.send(JSON.stringify({ type: 'game-role', role: roomState.slot[i-1].role }));
-                        await prevUser.send(JSON.stringify({ type: 'game-phase', phase: 'shuffle', stage: "shuffle-roles"  }));
+                        await prevUser.send(JSON.stringify({type: 'game-role', role: roomState.slot[i - 1].role}));
+                        await prevUser.send(JSON.stringify({
+                            type: 'game-phase',
+                            phase: 'shuffle',
+                            stage: "shuffle-roles"
+                        }));
                     }
-                    await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-role-taken', card: cardId }));
+                    await broadcastRoom(ROOM_ID, JSON.stringify({type: 'game-role-taken', card: cardId}));
                 }
             }
 
-            await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-phase-role', slot: i }));
-            if (i===10) {
+            await broadcastRoom(ROOM_ID, JSON.stringify({type: 'game-phase-role', slot: i}));
+            if (i === 10) {
                 curPlayer = roomState.slot[i]
                 sleepTime = 300; // skip empty slots
                 if ((roomState.game.phase === 'shuffle')
@@ -1007,10 +1085,10 @@ const shuffleRoles = onlyHost(async (ws, data, ROOM_ID, room) => {
                     curPlayer = roomState.slot[i]
                     user = clients[curPlayer.uid]
                     if (user !== undefined) {
-                        await user.send(JSON.stringify({ type: 'game-role', role: roomState.slot[i].role }));
-                        await user.send(JSON.stringify({ type: 'game-phase', phase: 'shuffle', stage: "shuffle-roles"  }));
+                        await user.send(JSON.stringify({type: 'game-role', role: roomState.slot[i].role}));
+                        await user.send(JSON.stringify({type: 'game-phase', phase: 'shuffle', stage: "shuffle-roles"}));
                     }
-                    await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-role-taken', card: cardId }));
+                    await broadcastRoom(ROOM_ID, JSON.stringify({type: 'game-role-taken', card: cardId}));
                 }
             } else {
 
@@ -1021,7 +1099,7 @@ const shuffleRoles = onlyHost(async (ws, data, ROOM_ID, room) => {
                     user = clients[curPlayer.uid]
                     if (user !== undefined) {
                         sleepTime = 5000
-                        await user.send(JSON.stringify({ type: 'select-role' }));
+                        await user.send(JSON.stringify({type: 'select-role'}));
                     }
 
                 }
@@ -1032,8 +1110,8 @@ const shuffleRoles = onlyHost(async (ws, data, ROOM_ID, room) => {
         //await sleep(3000);
         roomState = await getRoom(ROOM_ID)
         if (roomState.game.availableRoles.length > 0) {
-            for (let i= 1; i<=10; i++) {
-            // for (const [slot, player] of Object.entries(roomState.slot)) {
+            for (let i = 1; i <= 10; i++) {
+                // for (const [slot, player] of Object.entries(roomState.slot)) {
                 let player = roomState.slot[i];
                 if ((player.role === 'none') && (roomState.game.availableRoles.length > 0)) {
                     roomState.slot[i].role = roomState.game.availableRoles.shift()
@@ -1041,16 +1119,17 @@ const shuffleRoles = onlyHost(async (ws, data, ROOM_ID, room) => {
                     roomState = await updateRoom(ROOM_ID, roomState)
                     user = clients[player.uid]
                     if (user !== undefined) {
-                        await user.send(JSON.stringify({ type: 'game-role', role: roomState.slot[i].role }));
-                        await user.send(JSON.stringify({ type: 'game-phase', phase: 'shuffle', stage: "shuffle-roles"  }));
+                        await user.send(JSON.stringify({type: 'game-role', role: roomState.slot[i].role}));
+                        await user.send(JSON.stringify({type: 'game-phase', phase: 'shuffle', stage: "shuffle-roles"}));
                     }
 
-                    await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-role-taken', card: cardId }));
+                    await broadcastRoom(ROOM_ID, JSON.stringify({type: 'game-role-taken', card: cardId}));
                 }
             }
         }
 
         roomState = await updateRoom(ROOM_ID, roomState)
+    }
         await host(ROOM_ID, { type: 'roles-ready' });
         await broadcastRoom(ROOM_ID,JSON.stringify({ type: 'game-ready', slots: roomState.slot }));
 })

@@ -1,12 +1,13 @@
 const configuration = {
+    // iceTransportPolicy: 'relay',
     iceServers: [
-        {urls: 'stun:stun.l.google.com:19302'},
-        // {urls: 'stun:stun1.l.google.com:19302'},
+        //{urls: 'stun:stun.l.google.com:19302'},
+        //{urls: 'stun:stun1.l.google.com:19302'},
         // {urls: 'stun:stun2.l.google.com:19302'},
         // {urls: 'stun:stun.sipnet.ru:3478'},
         // {urls: 'stun:stun.skylink.ru:3478'},
         // {urls: 'stun:stun.voys.nl:3478'},
-        // {urls: 'stun:mao-dao.com:3478'},
+        {urls: 'stun:mao-dao.com:3478'},
         {
             urls: "turn:194.26.138.209:3478?transport=udp",
             username: "turnuser",
@@ -26,7 +27,8 @@ const constraints = {
         width: { ideal: 192, max: 192 },
         height: { ideal: 108, max: 108 },
         aspectRatio: { ideal: 16 / 9 },
-        frameRate: { ideal: 20, max: 25 },
+        frameRate: { ideal: 20, max: 20 },
+        bitrate: 300000, // Ограничение на 500 kbps
         // facingMode: "user"
     },
     audio: true
@@ -58,6 +60,15 @@ function generateUniqueId() {
     return Math.random().toString(36).substr(2, 9);
 }
 
+const formatBitrate = (bitrate) => {
+    if (bitrate >= 1e6) {
+        return (bitrate / 1e6).toFixed(2) + " Mbps"; // Convert to megabits per second
+    } else if (bitrate >= 1e3) {
+        return (bitrate / 1e3).toFixed(2) + " kbps"; // Convert to kilobits per second
+    } else {
+        return bitrate.toFixed(2) + " bps"; // Display in bits per second
+    }
+};
 // Function to detect Firefox browser
 function isFirefox() {
     return typeof InstallTrigger !== 'undefined';
@@ -124,7 +135,9 @@ function createPeerConnection(peerId, hostID, participant = true, avatar = null)
                 }
 
             } else {
-
+                setTimeout(() => {
+                    checkCodecInUse(peerConnection);
+                }, 3000);
                 if (slot.classList.contains('vbox-H')) {
                     bindHostVideo(peerId, event.streams[0], slot);
                 } else {
@@ -137,6 +150,21 @@ function createPeerConnection(peerId, hostID, participant = true, avatar = null)
     peerConnection.oniceconnectionstatechange = () => {
         if (peerConnection.iceConnectionState === "disconnected") {
             handlePeerLeft(peerId); // `peerId` is captured from the outer scope
+        } else {
+            switch (peerConnection.iceConnectionState) {
+                case 'checking':
+                    console.log('ICE restart initiated: Checking new candidates...');
+                    break;
+                case 'connected':
+                case 'completed':
+                    console.log('ICE successfully reconnected.');
+                    break;
+                case 'failed':
+                    console.error('ICE restart failed.');
+                    break;
+                default:
+                    console.log('ICE state:', peerConnection.iceConnectionState);
+            }
         }
     };
 
@@ -146,7 +174,32 @@ function createPeerConnection(peerId, hostID, participant = true, avatar = null)
             addAvatar(peerId, avatar)
         }
     }
+
     peerConnections[peerId] = peerConnection;
+
+    let previousBytesSent = 0;
+    let previousTimestamp = 0;
+
+    setInterval(async () => {
+
+
+        const stats = await peerConnection.getStats(null);
+        stats.forEach(report => {
+            if (report.type === "outbound-rtp" && report.kind === "video") {
+                const bytesSent = report.bytesSent;
+                const timestamp = report.timestamp;
+
+                if (previousBytesSent && previousTimestamp) {
+                    const bitrate = ((bytesSent - previousBytesSent) * 8) / (timestamp - previousTimestamp) * 1000; // bps
+                    // console.log("Outgoing Bitrate (bps):", formatBitrate(bitrate));
+                    debugToaster(formatBitrate(bitrate), 'info');
+                }
+
+                previousBytesSent = bytesSent;
+                previousTimestamp = timestamp;
+            }
+        });
+    }, 2000); // Poll every second
     return peerConnection;
 }
 
@@ -269,6 +322,11 @@ function joinGameWithPassword(elem) {
 function peerRefresh(elem) {
     slot = elem.parentElement;
     showPopupAlert(slot.getAttribute('data-uid'))
+    if (peerConnections[slot.getAttribute('data-uid')]) {
+        const pc = peerConnections[slot.getAttribute('data-uid')]
+            console.log(pc)
+                pc.restartIce()
+    }
 
 }
 
@@ -565,6 +623,7 @@ function numPadClick(elem) {
             }
             let padSlot = parseInt(videobox.getAttribute('data-slot'), 10);
             ws.send(JSON.stringify({type: 'send-player-comm', 'slot': padSlot, 'pad-number': padNumber, 'pad-color': padColor }));
+            sfx.tweet.play()
         }
         videobox.querySelector('div.number-pad').remove()
     }
@@ -688,6 +747,38 @@ function alertToaster(message, type) {
     var alertElement = document.createElement('div');
     // alertElement.classList.add('alert', 'alert-dismissible', 'fade', 'show');
     alertElement.classList.add('alert', 'alert-dismissible', 'fade', 'show', 'position-fixed', 'top-0', 'end-0');
+
+    // Set the alert type
+    if (type === 'error') {
+        alertElement.classList.add('alert-danger');
+    } else if (type === 'info') {
+        alertElement.classList.add('alert-info');
+    } else if (type === 'success') {
+        alertElement.classList.add('alert-success');
+    } else {
+        alertElement.classList.add('alert-primary');
+    }
+
+    // Add alert content
+    alertElement.innerHTML = `
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    ${message}
+  `;
+
+    // Append the alert to the document body
+    document.body.appendChild(alertElement);
+
+    // Automatically dismiss the alert after 5 seconds
+    setTimeout(function() {
+        alertElement.remove();
+    }, 5000);
+}
+
+function debugToaster(message, type) {
+    // Create the alert element
+    var alertElement = document.createElement('div');
+    // alertElement.classList.add('alert', 'alert-dismissible', 'fade', 'show');
+    alertElement.classList.add('alert', 'alert-dismissible', 'fade', 'show', 'position-fixed', 'top-0', 'start-50', 'translate-middle-x');
 
     // Set the alert type
     if (type === 'error') {
@@ -867,6 +958,21 @@ async function handleGamePhase(data, mode = 'normal') {
     if (data.phase === 'shuffle') {
         resetDisableButtons()
         hideHostVideo()
+        if (data.stage === "player-slot") {
+
+
+            roleSpan = document.querySelector('div.game-deck span.game-role')
+            roleSpan.classList.remove('role-show')
+
+            roleSpan.textContent = data.slot
+            // roleSpan.setAttribute('data-role', 'CITIZEN')
+
+            roleSpan.classList.add('role-show')
+            // setTimeout(() => {
+            //     roleSpan.classList.remove('role-show')
+            // }, 3000);
+
+        }
 
     } else if (data.phase === 'game-over') {
         if (mode !== 'normal') {
@@ -1339,7 +1445,11 @@ function handleGamePlayerStatus(data) {
         // delete peerConnections[uid];
         videobox.setAttribute('data-player-status', 'unknown')
         videobox.setAttribute('data-uid', 'empty')
-        videobox.setAttribute('style', null)
+        if (data?.player?.avatar !== undefined) {
+            videobox.setAttribute('style', (data.player.avatar.length > 10) ? "--g-background-person: url('" + data.player.avatar + "');" : "");
+        } else {
+            videobox.setAttribute('style', null)
+        }
         videobox.setAttribute('id', 'video-'+data.slot+'-empty')
 
         slotStatus.setAttribute('data-status', 'unknown')
@@ -1671,8 +1781,25 @@ function removeVotingResult() {
     })
 }
 
+function passPlayerKillSend(slot) {
+    ws.send(JSON.stringify({type: 'pass-player-kill', slot: slot}));
+    stopCountdown()
+    playerButtonDisable()
+}
+
+function passPlayerLockSend(slot) {
+    ws.send(JSON.stringify({type: 'pass-player-lock', slot: slot}));
+    stopCountdown()
+    playerButtonDisable()
+}
+function passNextSpeakerSend() {
+    ws.send(JSON.stringify({type: 'pass-next-speaker'}));
+    stopCountdown()
+    playerButtonDisable()
+}
 function handleActiveSpeaker(data) {
     stopCountdown()
+    playerButtonDisable()
     removeActiveSpeaker()
     removeVotingResult()
     if ((data.slot !== 0) && (data.duration > 0)) {
@@ -1681,6 +1808,16 @@ function handleActiveSpeaker(data) {
         if (speaker.classList.contains('self-view')) {
             game = document.querySelector('div.game.videos')
             game.classList.add('self-active-speaker')
+            if (data?.action === 'voted') {
+                playerButton('Pass', passPlayerLockSend.bind(null, data.slot))
+            } else if (data?.action === 'killed') {
+                playerButton('Pass', passPlayerKillSend.bind(null, data.slot))
+            } else {
+                playerButton('Pass', passNextSpeakerSend)
+            }
+            setTimeout(() => {
+                playerButtonDisable()
+            }, 1000*(data.duration+2))
         }
         if (data.duration === 10) {
             speaker.classList.add('active-speaker-penalized')
@@ -1766,8 +1903,11 @@ function handlePlayerCommWitness(data) {
 
 function handleSetPlayerName(data) {
     let vBox = document.querySelector('div.videobox[data-slot="'+data.slot+'"]')
-    if (data.reset !== undefined) {
-        slot.setAttribute('style', null);
+    // if (data.reset !== undefined) {
+    //     slot.setAttribute('style', null);
+    // }
+    if (data?.player?.avatar !== undefined) {
+        vBox.setAttribute('style', (data.player.avatar.length > 10) ? "--g-background-person: url('" + data.player.avatar + "');" : "");
     }
     let span = vBox.querySelector('span.game-user')
     span.textContent = data.name
@@ -1861,8 +2001,10 @@ function playerButton(txt, fn) {
 }
 
 function playerButtonDisable() {
-    gStart = document.getElementById('player-button')
-    gStart.classList.remove('active')
+    gStart = document.querySelector('button#player-button.active')
+    if(gStart) {
+        gStart.classList.remove('active')
+    }
 }
 function handleVotingRound(data) {
     if (selfID !== roomEnv.gameHost.uid) {
@@ -2052,11 +2194,25 @@ async function saveMediaSettings() {
 
     // Send the new tracks to the peers
     for (const [uid, peerConnection] of Object.entries(peerConnections)) {
-        const senderVideo = peerConnection.getSenders().find(s => s.track.kind === videoTrack.kind);
-        const senderAudio = peerConnection.getSenders().find(s => s.track.kind === audioTrack.kind);
+        const senderVideo = peerConnection.getSenders().find(s => s.track?.kind === videoTrack.kind);
+        const senderAudio = peerConnection.getSenders().find(s => s.track?.kind === audioTrack.kind);
 
-        senderVideo.replaceTrack(videoTrack);
-        senderAudio.replaceTrack(audioTrack);
+        // Replace or add tracks as needed
+        if (senderVideo) {
+            await senderVideo.replaceTrack(videoTrack);
+            console.log('Replaced video track for peer:', uid);
+        } else {
+            peerConnection.addTrack(videoTrack, localStream);
+            console.log('Added video track for peer:', uid);
+        }
+
+        if (senderAudio) {
+            await senderAudio.replaceTrack(audioTrack);
+            console.log('Replaced audio track for peer:', uid);
+        } else {
+            peerConnection.addTrack(audioTrack, localStream);
+            console.log('Added audio track for peer:', uid);
+        }
     }
     document.querySelector('div#mediaSourcePopup').classList.remove('show')
 };
@@ -2069,6 +2225,8 @@ async function saveGameSettings() {
     const gamePassword = document.getElementById('gamePassword');
     const registeredOnly = document.getElementById('registeredOnly');
     const sandbox = document.getElementById('sandbox');
+    const autohost = document.getElementById('autohost');
+    const skipRoleShuffle = document.getElementById('skipRoleShuffle');
     settings = {}
     if (gamePassword.value.trim() !== '') {
         settings['password'] = gamePassword.value;
@@ -2077,11 +2235,14 @@ async function saveGameSettings() {
     }
     settings['registeredOnly'] = registeredOnly.checked;
     settings['sandbox'] = sandbox.checked;
+
     if(settings['sandbox'] === true) {
         document.documentElement.style.setProperty('--g-settings-sandbox', 'visible');
     } else {
         document.documentElement.style.setProperty('--g-settings-sandbox', 'hidden');
     }
+    settings['autohost'] = autohost.checked;
+    settings['skipRoleShuffle'] = skipRoleShuffle.checked;
 
     ws.send(JSON.stringify({type: 'game-settings', settings: settings}));
     document.querySelector('div#gameSettingsPopup').classList.remove('show')
@@ -2101,6 +2262,35 @@ async function sendJoinGamePassword() {
     joinGamePassword(gameRoomID, gamePassword)
     document.querySelector('div#gamePasswordPopup').classList.remove('show')
 };
+
+function checkMemoryUsage() {
+    if ('memory' in performance) {
+        const memory = performance.memory;
+        console.log("Total Memory:", memory.totalJSHeapSize, "bytes");
+        console.log("Used Memory:", memory.usedJSHeapSize, "bytes");
+        console.log("Memory Limit:", memory.jsHeapSizeLimit, "bytes");
+
+        return memory.jsHeapSizeLimit >= 4000000000; // At least 4 GB
+    } else {
+        console.warn("Memory API is not supported.");
+        return false;
+    }
+}
+
+async function checkCPUPerformance() {
+    const start = performance.now();
+
+    // Simulate a workload (e.g., encoding frames)
+    for (let i = 0; i < 1000000; i++) {
+        Math.sqrt(i);
+    }
+
+    const duration = performance.now() - start;
+    console.log("CPU test duration:", duration, "ms");
+
+    // Threshold for acceptable performance
+    return duration < 100; // Example threshold
+}
 
 
 

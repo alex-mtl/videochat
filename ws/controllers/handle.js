@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const { clients, sessions, rooms } = require('../data');
 const config = require("../../config");
 const WebSocket = require("../../ws");
-console.log('7', config)
+// console.log('7', config)
 function validateString(str) {
     const re = XRegExp("^[\\pL\\-_0-9]+$");
     if(!re.test(str)) {
@@ -30,10 +30,10 @@ function join(ws, data) {
             obj['password'] = false;
         } else {
             obj = JSON.parse(data);
-            console.log('95 ', obj);
+            // console.log('95 ', obj);
             stream = false;
             if (obj.type === 'private') {
-                console.log('97 ', obj.type);
+                // console.log('97 ', obj.type);
                 // sess = getSession(sessionID);
                 sess = ws.req.session
                 pass = false;
@@ -58,7 +58,7 @@ function join(ws, data) {
                     return;
                 }
             } else if (obj.type === 'master') {
-                console.log('115 ', obj.type);
+                // console.log('115 ', obj.type);
                 // sess = getSession(sessionID);
                 sess = ws.req.session
                 pass = false;
@@ -149,7 +149,7 @@ function join(ws, data) {
 
         // Send the new client their ID
         await ws.send(JSON.stringify({type: 'id', id: clientId, room: obj}));
-        console.log('wsid: ', ws.uid, clientId, 'obj :', JSON.stringify(obj));
+        // console.log('wsid: ', ws.uid, clientId, 'obj :', JSON.stringify(obj));
 
         fs.writeFileSync(roomFile, JSON.stringify(obj), 'utf-8');
 

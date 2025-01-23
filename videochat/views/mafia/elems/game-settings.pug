@@ -2,13 +2,19 @@ div.settings-popup#gameSettingsPopup
     h2 Game Settings
     div.mb-3
         label(for="gamePassword" class="form-label") Game password:
-        input#gamePassword.form-control(type="password" name="gamePassword")
+        input#gamePassword.form-control(type="password" name="gamePassword" value=room.game.settings.password)
     div.form-check.mb-3
         label(for="registeredOnly" class="form-check-label") Registered only
-        input#registeredOnly.form-check-input(type="checkbox" name="registeredOnly")
+        input#registeredOnly.form-check-input(type="checkbox" name="registeredOnly" checked=room.game.settings.registeredOnly)
+    div.form-check.mb-3
+        label(for="skipRoleShuffle" class="form-check-label") Skip Role Shuffle
+        input#skipRoleShuffle.form-check-input(type="checkbox" name="skipRoleShuffle" checked=room.game.settings.skipRoleShuffle)
     div.form-check.mb-3
         label(for="sandbox" class="form-check-label") Sandbox mode
-        input#sandbox.form-check-input(type="checkbox" name="sandbox")
+        input#sandbox.form-check-input(type="checkbox" name="sandbox" checked=room.game.settings.sandbox)
+    div.form-check.mb-3
+        label(for="autohost" class="form-check-label") Auto-host (no host)
+        input#autohost.form-check-input(type="checkbox" name="autohost" checked=room.game.settings.autohost)
 
     button#closeButton(onclick="closeGameSettings()") Close
     button#startButton(onclick="saveGameSettings()") Save

@@ -74,7 +74,7 @@ module.exports.homePage = (req, res) => {
     const { username = '', password = '' } = req.query;
     let message = (req.session.errorMessage || (req.query.message || null))
     let user = req.session.user || null
-    console.log('session user: ', user)
+    //console.log('session user: ', user)
     req.session.errorMessage = null
     res.render('mafia/login', {
         sessionID : req.sessionID ,
@@ -87,9 +87,9 @@ module.exports.homePage = (req, res) => {
 };
 
 module.exports.tgAuth = async (req, res) => {
-    console.log('TG body: ', req.query)
+    //console.log('TG body: ', req.query)
     let tgValidation = checkTelegramLogin(req.query)
-    console.log(tgValidation)
+    //console.log(tgValidation)
     if (tgValidation) {
         const { id, first_name, last_name, username, photo_url, auth_date, hash } = req.query;
         let [rows] =  await db.query('SELECT * FROM users WHERE telegram_id = ?', [id]);
@@ -114,7 +114,7 @@ module.exports.tgAuth = async (req, res) => {
 };
 
 module.exports.googleAuth = async (req, res) => {
-    console.log('Google body: ', req.body)
+    // console.log('Google body: ', req.body)
     let payload = null
 
     const ticket = await client.verifyIdToken({
@@ -153,10 +153,10 @@ module.exports.googleAuth = async (req, res) => {
 };
 
 module.exports.login = (req, res) => {
-    console.log('TG body: ', req.query)
+    // console.log('TG body: ', req.query)
     const { username = '', password = '' } = req.query;
     let message = (req.session.errorMessage || (req.query.message || null))
-    console.log('session error 1223: ', message, req.query)
+    // console.log('session error 1223: ', message, req.query)
     req.session.errorMessage = null
     res.render('mafia/login', {
         sessionID : req.sessionID ,
@@ -188,7 +188,7 @@ module.exports.loginPost = async (req, res)  => {
 
     let [rows] =  await db.query('SELECT * FROM users WHERE email = ?', [email]);
     // done(null, rows[0]);
-    console.log('53', email, rows, rows.length )
+    // console.log('53', email, rows, rows.length )
     if (rows.length === 0 ) {
         res.redirect('/login');
     } else {
@@ -213,7 +213,7 @@ module.exports.loginPost = async (req, res)  => {
 module.exports.userProfile = (req, res) => {
     user = req.session.user || null
     if (user) {
-        console.log(user, (user !== {}))
+        // console.log(user, (user !== {}))
         user.stats = getUserStats(user.id)
         user.badges = getUserBadges(user.id)
         userProps = {
@@ -320,7 +320,7 @@ module.exports.registerPost = async (req, res) => {
     }
     if (errors.length === 0) {
         const salt = crypto.randomBytes(16).toString('hex');
-        console.log(salt,`\n`, salt.length)
+        // console.log(salt,`\n`, salt.length)
         const hashPassword = (password, salt) =>
             crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
         const hash = hashPassword(password, salt);
@@ -330,7 +330,7 @@ module.exports.registerPost = async (req, res) => {
         if (rows.length === 0) {
             let nickname = username = email.split('@')[0]
             let avatar_url = await avatar.generateAvatar()
-            console.log(avatar_url)
+            // console.log(avatar_url)
             const [result] = await db.query('INSERT INTO users (nickname, username, email, password_hash, avatar_url) VALUES (?, ?, ?, ?, ?)',
                 [nickname, username, email, password_hash, avatar_url]);
             const [newUser] = await db.query('SELECT * FROM users WHERE id = ?', [result.insertId]);

@@ -13,6 +13,7 @@
     --shootVictim: 'timer_10';
     --g-background-person: url('/static/img/background_replace.svg');
     --g-settings-sandbox: hidden;
+    --g-room-logo:url(/static/img/paypal_donate.png);
 }
 
 .video-grid {
@@ -367,12 +368,20 @@ div.videobox span.slot-role[data-checked-role] {
 }
 
 div.videobox .slot-role[data-role="sheriff"]:before {
-    content: "frame_inspect";
+    /*content: "frame_inspect";*/
+    content: " ";
     /*content: "\1F44D";";*/
     /*content: "\1F46E"; !* police oficer*!*/
     /*  f8a2 */
     /*content: "✡";*/
     /*content: "👍"; !* 👎 *!*/
+    height: 4vw;
+    width: 4vw;
+    background-image: url('/static/img/sheriff-star.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    display: inline-block;
     color: orange;
     visibility: visible;
     /*text-shadow: 1px 1px 2px red;*/
@@ -397,7 +406,15 @@ div.videobox .slot-role[data-role="don"]:before {
     /*content: "frame_person";*/
 
     /*content: "\1F52B"; !* gun pistolet *!*/
-    content: "diamond";
+    /*content: "diamond";*/
+    content: " ";
+    height: 4vw;
+    width: 4vw;
+    background-image: url('/static/img/don-ring.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    display: inline-block;
     color: black;
     visibility: visible;
 }
@@ -463,7 +480,7 @@ div.game.videos:not([data-phase='lobby']) .self-view[data-player-status='alive']
     cursor: pointer; /* Change mouse pointer to hand on hover */
 }
 
-div.game.videos:not([data-phase='lobby']) .shout-out .slot-shout:before {
+div.game.videos[data-phase='day'] .shout-out .slot-shout:before {
     visibility: visible;
     color: var(--g-red);
 }
@@ -599,7 +616,7 @@ div.game.videos[data-phase='lobby'] .host-panel .e-container
     position: relative;
     width:100%;
     height: 100%;
-    background-image: url(/static/img/paypal_donate.png);
+    background-image: var(--g-room-logo);
     /*background-color: var(--g-grey);*/
     background-repeat:no-repeat;
     background-position: center center;
@@ -821,7 +838,7 @@ div.videobox .night {
     position: absolute;
     visibility: hidden;
 }
-.deck-container.deck-active {
+div.deck-container.deck-active:not([data-mode="host"]) {
     visibility: visible;
 }
 .game-deck {
@@ -1044,11 +1061,25 @@ div.videobox span.video-lock {
     visibility: visible;
 }
 
+/*[data-phase="don-check"] div.videobox .video-lock[data-checked-role="S"]:before {*/
+/*    content: "frame_inspect";*/
+/*    color: orange;*/
+/*    visibility: visible;*/
+/*}*/
 [data-phase="don-check"] div.videobox .video-lock[data-checked-role="S"]:before {
-    content: "frame_inspect";
+    content: " ";
+    height: 8vw;
+    width: 8vw;
+    background-image: url('/static/img/sheriff-star.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    display: inline-block;
     color: orange;
     visibility: visible;
 }
+
+
 
 [data-phase="don-check"] div.videobox .video-lock[data-checked-role="NS"]:before {
     content: "frame_person";
@@ -1617,7 +1648,9 @@ div.game:not([data-phase="day"]) span.mafia-shoot[data-victim] {
 }
 
 /* NUMBER PAD START*/
-div.number-pad#num-pad {
+div.number-pad#num-pad,
+div.number-pad
+{
     visibility: hidden;
 }
 
@@ -1634,7 +1667,7 @@ div.videos.game[data-phase="day"] div.videobox:hover div.number-pad {
     /* right: 15%;*/
 }
 
-div.videobox:hover div.number-pad span {
+div.videos.game[data-phase="day"] div.videobox:hover div.number-pad span {
     visibility: visible;
 }
 
