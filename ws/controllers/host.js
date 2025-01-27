@@ -638,6 +638,7 @@ const nextSpeaker = onlyHost(async (ws, data, ROOM_ID, room) => {
             room.game.days[curDay].currentSpeaker = activeSpeaker
             room.game.days[curDay].currentSpeakerStart = Date.now()
             room.game.days[curDay].currentSpeakerEnd = room.game.days[curDay].currentSpeakerStart + (duration * 1000)
+            room.activePlayerSlot = activeSpeaker
             room = await updateRoom(ROOM_ID, room)
             await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'active-speaker', slot: room.game.days[curDay].currentSpeaker, duration: duration }));
         } else {

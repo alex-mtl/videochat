@@ -156,6 +156,45 @@ function joinGame(ws, data) {
 
 }
 
+const restartPeerConnection = async (ws, data) => {
+    try {
+        const ROOM_ID = ws.roomID;
+        const room = await getRoom(ROOM_ID);
+
+        // Locate the target WebSocket
+        const userWS = clients[data.peer];
+        if (userWS !== undefined) {
+            // Send a message to the participant
+            await userWS.send(
+                JSON.stringify({
+                    type: 'participant-joined',
+                    id: ws.uid,
+                    avatar: ws.avatar,
+                    room: room,
+                })
+            );
+        } else {
+            // Handle the error if the WebSocket is not found
+            await ws.send(
+                JSON.stringify({
+                    type: 'error',
+                    message: "Can't find websocket for " + data.peer,
+                })
+            );
+        }
+    } catch (error) {
+        console.error(error.message);
+        // Handle unexpected errors
+        await ws.send(
+            JSON.stringify({
+                type: 'error',
+                message: 'An error occurred while restarting peer connection.',
+            })
+        );
+    }
+};
+
+
 async function gamePlayerStatus(ws, data) {
     room = await getRoom(ws.roomID);
     valid = false
@@ -480,8 +519,9 @@ const shoutOut = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
 const passNextSpeaker = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
     console.log("481",PLAYER.slot,room.game.speakers.at(-1), room.game.speakers)
     if (
-        room.game.speakers.at(-1) == PLAYER.slot
-        && PLAYER.slot === data.slot
+        // room.game.speakers.at(-1) == PLAYER.slot
+        // && PLAYER.slot == data.slot
+        room?.activePlayerSlot == PLAYER.slot
     ) {
         console.log("483")
         data.type = "next-speaker"
@@ -537,15 +577,23 @@ const nominatePlayer = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
             nominees = nominees.filter(slot => slot !== data.slot);
             delete accusers[PLAYER.slot];
         } else if (accusers[PLAYER.slot] ?? null) {
-            console.log(473)
-            nominees = nominees.filter(slot => slot !== accusers[PLAYER.slot]); ;
-            accusers[PLAYER.slot] = data.slot
-            nominees.push(data.slot)
-        } else {
-            console.log(478)
-            if (!nominees.includes(data.slot)) {
+            if (!Object.values(accusers).includes(data.slot)) {
+                console.log(473)
+                nominees = nominees.filter(slot => slot !== accusers[PLAYER.slot]); ;
                 accusers[PLAYER.slot] = data.slot
                 nominees.push(data.slot)
+            } else {
+                console.log(`Slot ${data.slot} is already nominated by another PLAYER.`);
+            }
+        } else {
+            if (!Object.values(accusers).includes(data.slot)) {
+                console.log(478)
+                if (!nominees.includes(data.slot)) {
+                    accusers[PLAYER.slot] = data.slot
+                    nominees.push(data.slot)
+                }
+            } else {
+                console.log(`Slot ${data.slot} is already nominated by another PLAYER.`);
             }
         }
         console.log(484)
@@ -992,6 +1040,7 @@ module.exports = common.addExports(
     getDonCheck,
     shoutOut,
     sendPlayerComm,
+    restartPeerConnection,
     setPlayerName,
     playerVote,
     gameOver,

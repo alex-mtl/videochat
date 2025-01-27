@@ -1,6 +1,6 @@
 let alertTemplate = `
 <div id="popupModalTemplate">
-  <div class="modal fade" id="popupModal" tabindex="-1" aria-labelledby="popupModalLabel" aria-hidden="true">
+  <div class="modal fade" id="popupModal" tabindex="-1" aria-labelledby="popupModalLabel" >
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">

@@ -95,7 +95,12 @@ function sendRequest(ws, data) {
 }
 function createPeerConnection(peerId, hostID, participant = true, avatar = null) {
     const peerConnection = new RTCPeerConnection(configuration);
-
+    peerConnection.isResetting = false
+    if (peerConnections[peerId]) {
+        // peerConnections[peerId].close()
+        // delete(peerConnections[peerId])
+        removePeerConnection(peerId)
+    }
     resizedStream.getTracks().forEach(track => {
         if (participant) {
             peerConnection.addTrack(track, resizedStream);
@@ -105,6 +110,7 @@ function createPeerConnection(peerId, hostID, participant = true, avatar = null)
     peerConnection.ontrack = event => {
         if (document.getElementById('video-' + peerId) === null) {
             slot = document.querySelector('[data-uid="' + peerId+'"]')
+            console.log("Participant joined for slot:", slot)
             if ( slot === null) {
                 for (const [slotN, player] of Object.entries(roomEnv.slot)) {
                     if (player.uid === peerId) {
@@ -149,7 +155,12 @@ function createPeerConnection(peerId, hostID, participant = true, avatar = null)
     };
     peerConnection.oniceconnectionstatechange = () => {
         if (peerConnection.iceConnectionState === "disconnected") {
-            handlePeerLeft(peerId); // `peerId` is captured from the outer scope
+            if (peerConnection.isResetting) {
+                console.log(`PeerConnection for ${peerId} is being reset, ignoring disconnect logic.`);
+                return;
+            } else {
+                handlePeerLeft(peerId); // `peerId` is captured from the outer scope
+            }
         } else {
             switch (peerConnection.iceConnectionState) {
                 case 'checking':
@@ -192,7 +203,7 @@ function createPeerConnection(peerId, hostID, participant = true, avatar = null)
                 if (previousBytesSent && previousTimestamp) {
                     const bitrate = ((bytesSent - previousBytesSent) * 8) / (timestamp - previousTimestamp) * 1000; // bps
                     // console.log("Outgoing Bitrate (bps):", formatBitrate(bitrate));
-                    debugToaster(formatBitrate(bitrate), 'info');
+                    //debugToaster(formatBitrate(bitrate), 'info');
                 }
 
                 previousBytesSent = bytesSent;
@@ -207,6 +218,7 @@ function handlePeerLeft(peerId) {
     console.log(`Peer ${peerId} disconnected`);
     const peerConnection = peerConnections[peerId];
     if (peerConnection) {
+        peerConnection.isResetting = true
         peerConnection.close(); // Clean up the connection
         delete peerConnections[peerId]; // Remove from the map
     }
@@ -319,16 +331,84 @@ function joinGameWithPassword(elem) {
     document.querySelector('div#gamePasswordPopup').classList.add('show')
 }
 
-function peerRefresh(elem) {
+async function peerRefresh(elem) {
     slot = elem.parentElement;
-    showPopupAlert(slot.getAttribute('data-uid'))
-    if (peerConnections[slot.getAttribute('data-uid')]) {
-        const pc = peerConnections[slot.getAttribute('data-uid')]
-            console.log(pc)
-                pc.restartIce()
+    let uid = slot.getAttribute('data-uid')
+    // showPopupAlert(slot.getAttribute('data-uid'))
+    ws.send(JSON.stringify({type: 'restart-peer-connection', 'peer': uid}));
+
+    if (peerConnections[uid]) {
+        let pc = peerConnections[uid];
+        // console.log(pc);
+        console.log(ws, sessionID, uid, pc)
+        pc.isResetting = true
+        pc.close()
+        pc = null
+        newPC = createPeerConnection(uid, roomEnv.host.uid, true);
+        peerConnections[uid] = newPC
+        newPC.onicecandidate = event => {
+            if (event.candidate) {
+                sendIceCandidate(sessionID, uid, event.candidate);
+            }
+        };
+
+        try {
+            await sendOffer(ws, sessionID, uid, newPC);
+
+            // Reuse sendOffer to restart the ICE process
+            // await sendOffer(ws, sessionID, uid, pc);
+        } catch (error) {
+            console.error("Error during ICE restart:", error);
+        }
+    } else {
+        console.error(`No peer connection found for UID: ${uid}`);
     }
+                // peerConnection = createPeerConnection(uid, hostID, participant);
+                // peerConnection.onicecandidate = event => {
+                //     if (event.candidate) {
+                //         sendIceCandidate(sessionID, uid, event.candidate);
+                //     }
+                // };
+                // await sendOffer(ws, clientId, uid, peerConnection);
+    // if (peerConnections[slot.getAttribute('data-uid')]) {
+    //     const pc = peerConnections[slot.getAttribute('data-uid')]
+    //         console.log(pc)
+    //             pc.restartIce()
+    // }
 
 }
+// async function peerRefresh(elem) {
+//     const slot = elem.parentElement;
+//     const uid = slot.getAttribute('data-uid');
+//     // showPopupAlert(uid);
+//
+//     if (peerConnections[uid]) {
+//         let pc = peerConnections[uid];
+//         // console.log(pc);
+//         console.log(ws, sessionID, uid, pc)
+//         pc.close()
+//         pc = null
+//         newPC = createPeerConnection(uid, roomEnv.host.uid, true);
+//         peerConnections[uid] = newPC
+//         newPC.onicecandidate = event => {
+//             if (event.candidate) {
+//                 sendIceCandidate(sessionID, uid, event.candidate);
+//             }
+//         };
+//
+//         try {
+//             await sendOffer(ws, sessionID, uid, newPC);
+//
+//             // Reuse sendOffer to restart the ICE process
+//             // await sendOffer(ws, sessionID, uid, pc);
+//         } catch (error) {
+//             console.error("Error during ICE restart:", error);
+//         }
+//     } else {
+//         console.error(`No peer connection found for UID: ${uid}`);
+//     }
+// }
+
 
 function changeUserStatus(elem) {
     var audioContext = new AudioContext();
@@ -632,6 +712,7 @@ function numPadClick(elem) {
 }
 
 function removePeerConnection(id) {
+    peerConnections[id].isResetting = true
     delete peerConnections[id];
     video = document.getElementById('video-'+id);
     if (video !== null) {
@@ -701,7 +782,7 @@ function handleRedirect(data) {
 
 let alertTemplate = `
 <div id="popupModalTemplate">
-  <div class="modal fade" id="popupModal" tabindex="-1" aria-labelledby="popupModalLabel" aria-hidden="true">
+  <div class="modal fade" id="popupModal" tabindex="-1" aria-labelledby="popupModalLabel" >
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
