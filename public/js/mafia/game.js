@@ -469,13 +469,46 @@ function startSignaling() {
             for (const uid in data.room.users) {
                 if (uid !== sessionID) {
                     const promise = (async () => {
-                        peerConnection = createPeerConnection(uid, hostID, participant);
-                        peerConnection.onicecandidate = event => {
-                            if (event.candidate) {
-                                sendIceCandidate(sessionID, uid, event.candidate);
+                        let wsActiveState = await sendRequest(ws,{type: 'check-ws-active', 'uid': uid })
+                        if (wsActiveState?.status) {
+                            peerConnection = createPeerConnection(uid, hostID, participant);
+                            // peerConnection.onicecandidate = event => {
+                            //     if (event.candidate) {
+                            //         sendIceCandidate(sessionID, uid, event.candidate);
+                            //     }
+                            // };
+                            peerConnection.onicecandidate = async event => {
+                                if (peerConnection.slot) {
+                                    slotInfo(peerConnection.slot, 'new ice candidate generated')
+                                }
+                                if (event.candidate) {
+                                    // if (event.candidate.candidate.includes("::")) {
+                                    //     console.log("Ignoring IPv6 candidate:", event.candidate.candidate);
+                                    //     return;
+                                    // }
+                                    if (event.candidate.candidate.includes("tcp")) {
+                                        console.log("Ignoring TCP candidate:", event.candidate.candidate);
+                                        return;
+                                    }
+                                    if (peerConnection.slot) {
+                                        slotInfo(peerConnection.slot, 'SEND ice candidate')
+                                    }
+                                    await sendIceCandidate(sessionID, uid, event.candidate);
+                                    if (peerConnection.slot) {
+                                        slotInfo(peerConnection.slot, 'ICE candidate SENT')
+                                    }
+                                }
+                            };
+                            if (peerConnection.slot) {
+                                slotInfo(peerConnection.slot, 'SEND offer')
                             }
-                        };
-                        await sendOffer(ws, clientId, uid, peerConnection);
+                            await sendOffer(ws, clientId, uid, peerConnection);
+                        } else {
+                            handlePeerLeft(uid);
+                            console.log('Looks like '+uid+' is not available anymore')
+                        }
+
+
                     })();
                     peersPromises.push(promise);
                 }
@@ -503,9 +536,31 @@ function startSignaling() {
                 }
 
                 // peerConnection = createPeerConnection(clientId, null, null, data.avatar);
-                peerConnection.onicecandidate = event => {
+                // peerConnection.onicecandidate = event => {
+                //     if (event.candidate) {
+                //         sendIceCandidate(sessionID, clientId, event.candidate);
+                //     }
+                // };
+                peerConnection.onicecandidate = async event => {
+                    if (peerConnection.slot) {
+                        slotInfo(peerConnection.slot, 'new ice candidate generated')
+                    }
                     if (event.candidate) {
-                        sendIceCandidate(sessionID, clientId, event.candidate);
+                        // if (event.candidate.candidate.includes("::")) {
+                        //     console.log("Ignoring IPv6 candidate:", event.candidate.candidate);
+                        //     return;
+                        // }
+                        if (event.candidate.candidate.includes("tcp")) {
+                            console.log("Ignoring TCP candidate:", event.candidate.candidate);
+                            return;
+                        }
+                        if (peerConnection.slot) {
+                            slotInfo(peerConnection.slot, 'SEND ice candidate')
+                        }
+                        await sendIceCandidate(sessionID, clientId, event.candidate);
+                        if (peerConnection.slot) {
+                            slotInfo(peerConnection.slot, 'ICE candidate SENT')
+                        }
                     }
                 };
             }
@@ -567,6 +622,10 @@ function startSignaling() {
             handleShuffleRolesReady(data);
         } else if (data.type === 'roles-ready') {
             hostRolesReady(data);
+        } else if (data.type === 'sherif-made-check') {
+            madeCheck(data);
+        } else if (data.type === 'don-made-check') {
+            madeCheck(data);
         } else if (data.type === 'game-phase-role') {
             handleGamePhaseRole(data);
         } else if (data.type === 'select-role') {
@@ -768,14 +827,18 @@ async function checkRole(el) {
     switch(response.role) {
         case 'S':
             sfx.donCheckSheriff.play()
+            gameMessage(''+slot+' is a SHERIFF', 2)
             break;
         case 'NS':
+            gameMessage(''+slot+' NOT a SHERIFF', 2)
             sfx.donCheckNotSheriff.play()
             break;
         case 'B':
+            gameMessage(''+slot+' is MAFIA', 2)
             sfx.sheriffCheckMafia.play()
             break;
         case 'R':
+            gameMessage(''+slot+' is CITIZEN', 2)
             sfx.sheriffCheckCitizen.play()
             break;
     }

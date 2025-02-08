@@ -6,6 +6,7 @@
     span.refresh.g-mask.material-symbols-outlined(onclick="peerRefresh(this)")
     .slot.g-mask= slot
     span.game-user.g-mask= player.name
+    span.game-info
     input.game-user.g-mask(type="text", minlength="15", value=player.name, onblur="setPlayerName(this)")
     span.player-name-confirm
     input.g-mask#volumeSlider(type='range' min='0' max='1' step='0.05' value='1' onchange="adjustVolume(this.parentElement.querySelector('video'), this.value )")

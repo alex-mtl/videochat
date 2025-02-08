@@ -74,13 +74,19 @@ async function checkCodecInUse(peerConnection) {
                     codecInfo = innerReport;
                 }
             });
+        } else if (report.kind === 'video') {
+            console.log('Report type:', report.type)
         }
     });
 
     if (codecInfo) {
         console.log(`Codec in use: ${codecInfo.mimeType}, Payload Type: ${codecInfo.payloadType}`);
     } else {
-        console.log('No codec information found for the incoming video stream.');
+        if (peerConnection?.slot) {
+            slotInfo(peerConnection.slot, 'No codec information')
+        }
+        console.log('No codec information found for the incoming video stream. Slot:', peerConnection?.slot);
+        console.log(stats);
     }
 }
 

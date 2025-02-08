@@ -3,6 +3,7 @@
     --g-grey: rgba(211, 211, 211, 0.5);
     --g-grey-solid: rgba(211, 211, 211);
     --g-dark-grey: hsl(0, 0%, 40%);
+    --g-light-black: #131314;
     --g-green: #72d972;
     --g-success: #198754;
     --g-success-hover: #157347;
@@ -18,7 +19,7 @@ body {
     padding: 0;
 }
 .header, .footer {
-    background-color: var(--g-dark-grey);
+    background-color: var(--g-light-black);
     color: #fff;
     padding: 10px;
     position: fixed;

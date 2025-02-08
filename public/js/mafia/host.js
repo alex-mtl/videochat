@@ -168,6 +168,7 @@ function showStartDay() {
 
 function startDay() {
     ws.send(JSON.stringify({type: 'start-day'}));
+    hideMainButton()
 }
 function startSitdown() {
     hideMainButton()
@@ -198,9 +199,11 @@ function startSheriffCheck() {
 
 function startVotingSend() {
     ws.send(JSON.stringify({type: 'start-voting'}));
+    hideMainButton()
 }
 function startNight() {
     ws.send(JSON.stringify({type: 'start-night'}));
+    hideMainButton()
 }
 
 function startVoteSend() {
@@ -286,7 +289,11 @@ function handleLockAllWinners(data) {
 
 
 function handleVotingRoundReady(data) {
-    mainButton('Vote '+data.candidate, startVoteSend)
+    if (data?.skip === true) {
+        startVoteSend();
+    } else {
+        mainButton('Vote ' + data.candidate, startVoteSend);
+    }
 }
 
 function handleLastSpeechVoted(data) {
@@ -371,4 +378,30 @@ function playerLock(el) {
 function playerRestore(el) {
     let slot = el.parentElement.getAttribute('data-slot')
     ws.send(JSON.stringify({type: 'player-restore', slot: slot}));
+}
+
+async function madeCheck(data) {
+
+    let el = document.querySelector('div.videobox[data-slot="'+data.slot+'"] span.video-lock')
+
+    switch(data.role) {
+        case 'S':
+            //sfx.donCheckSheriff.play()
+            gameMessage(''+data.slot+' is a SHERIFF', 2)
+            break;
+        case 'NS':
+            gameMessage(''+data.slot+' NOT a SHERIFF', 2)
+            //sfx.donCheckNotSheriff.play()
+            break;
+        case 'B':
+            gameMessage(''+data.slot+' is MAFIA', 2)
+            //sfx.sheriffCheckMafia.play()
+            break;
+        case 'R':
+            gameMessage(''+data.slot+' is CITIZEN', 2)
+            //sfx.sheriffCheckCitizen.play()
+            break;
+    }
+
+    el.setAttribute('data-checked-role', data.role)
 }

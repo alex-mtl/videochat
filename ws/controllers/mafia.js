@@ -571,7 +571,7 @@ const nominatePlayer = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
     let nominees =  room.game.days[curDay].nominees
     let accusers =  room.game.days[curDay].accusers
     console.log(467, PLAYER, accusers, nominees)
-    if (PLAYER.status === 'alive') {
+    if (PLAYER.status === 'alive' && room.game.stage === '') {
         if (nominees.includes(data.slot) && ((accusers[PLAYER.slot] ?? null) === data.slot)) {
             console.log(469)
             nominees = nominees.filter(slot => slot !== data.slot);
@@ -748,6 +748,7 @@ const getSheriffCheck = onlySheriff(async (ws, data, ROOM_ID, room, PLAYER, TEAM
         room = await updateRoom(ROOM_ID, room)
         let response = {type: 'request-response', requestId: data.requestId, role: room.game.days["D"+room.game.day].sheriffCheck[data.slot]}
         await ws.send(JSON.stringify(response));
+        await host(ROOM_ID, { type: 'sherif-made-check', slot: data.slot, role: room.game.days["D"+room.game.day].sheriffCheck[data.slot] })
         setTimeout(async () => {
             room = await getRoom(ROOM_ID);
             if (room.game.phase === 'sheriff-check') {
@@ -777,13 +778,15 @@ const getDonCheck = onlyDon(async (ws, data, ROOM_ID, room, PLAYER, TEAM) => {
         room = await updateRoom(ROOM_ID, room)
         let response = {type: 'request-response', requestId: data.requestId, role: room.game.days["D"+room.game.day].donCheck[data.slot]}
         await ws.send(JSON.stringify(response));
-        // setTimeout(async () => {
-        //     room = await getRoom(ROOM_ID);
-        //     if (room.game.phase === 'don-check') {
-        //
-        //         await hostModule.startDay(ws, {type: 'start-day', host: room.gameHost.uid});
-        //     }
-        // }, 3000)
+        await host(ROOM_ID, { type: 'don-made-check', slot: data.slot, role: room.game.days["D"+room.game.day].donCheck[data.slot] })
+        setTimeout(async () => {
+            room = await getRoom(ROOM_ID);
+            if (room.game.phase === 'don-check') {
+
+                await hostModule.startSheriffCheck(ws, {type: 'start-sheriff-check', host: room.gameHost.uid});
+            }
+        }, 3000)
+
     } else {
         let response = {type: 'request-response', requestId: data.requestId, role: donChecks[data.slot] ?? 'none'}
         await ws.send(JSON.stringify(response));

@@ -337,82 +337,119 @@ const startVoting = onlyHost(async (ws, data, ROOM_ID, room) => {
 const startVotingRound = onlyHost(async (ws, data, ROOM_ID, room) => {
 // async function startVotingRound(ws, data) {
 
-        let curDay = "D"+room.game.day
-        let rounds =  room.game.days[curDay].rounds
-        let roundN = Object.keys(rounds).length - 1
-        let curRound = rounds[roundN]
-        let candidateSlot = curRound.nominees[curRound.next]
+    let curDay = "D" + room.game.day
+    let rounds = room.game.days[curDay].rounds
+    let roundN = Object.keys(rounds).length - 1
+    let curRound = rounds[roundN]
+    let candidateSlot = curRound.nominees[curRound.next]
 
-        if (candidateSlot === curRound.nominees.at(-1)) {
-            // The last candidate receives all the votes from players who have not yet voted
-            let votes = []
-            for (const [slot, player] of Object.entries(room.slot)) {
-                if ((!curRound.voted.includes(slot))
-                    && (player.status === 'alive')
-                ) {
-                    votes.push(slot)
-                    curRound.voted.push(slot)
-                    await broadcastRoom(ROOM_ID, JSON.stringify({
-                        type: 'player-vote',
-                        player: slot,
-                        candidate: candidateSlot
-                    }));
-                }
-            }
-            curRound['V'+curRound.next] = {
-                state: 'END',
-                slot: candidateSlot,
-                votes: votes
-            }
-            room = await updateRoom(ROOM_ID, room)
+    let remainingVoters = Object.entries(room.slot).filter(([slot, player]) =>
+        (!curRound.voted.includes(slot)) && (player.status === 'alive')
+    );
 
-            await broadcastRoom(ws.roomID, JSON.stringify({
-                type: 'voting-round-result',
-                round: (roundN + 1),
-                candidate: candidateSlot,
-                votes: room.game.days[curDay].rounds[roundN]['V' + (curRound.next)].votes
-            }));
-            // Let's find out who gets the most votes
-            let maxVotes = 0
-            // Object.keys(curRound).forEach(([key, value]) => {
-            for (const [key, value] of Object.entries(curRound)) {
-                // console.log('574', key)
-                if (key.startsWith('V')) {
-                    // console.log('576', key)
-                    if ((value.votes.length > 0)
-                        && (value.votes.length >= maxVotes)) {
-                        if (value.votes.length === maxVotes) {
-                            curRound.winners.push(value.slot)
-                        } else {
-                            curRound.winners = [value.slot]
-                            maxVotes = value.votes.length
-                        }
+    if (candidateSlot === curRound.nominees.at(-1)) {
+        // The last candidate receives all the votes from players who have not yet voted
+        let votes = []
+        for (const [slot, player] of Object.entries(room.slot)) {
+            if ((!curRound.voted.includes(slot))
+                && (player.status === 'alive')
+            ) {
+                votes.push(slot)
+                curRound.voted.push(slot)
+                await broadcastRoom(ROOM_ID, JSON.stringify({
+                    type: 'player-vote',
+                    player: slot,
+                    candidate: candidateSlot
+                }));
+            }
+        }
+        curRound['V' + curRound.next] = {
+            state: 'END',
+            slot: candidateSlot,
+            votes: votes
+        }
+        room = await updateRoom(ROOM_ID, room)
+
+        await broadcastRoom(ws.roomID, JSON.stringify({
+            type: 'voting-round-result',
+            round: (roundN + 1),
+            candidate: candidateSlot,
+            votes: room.game.days[curDay].rounds[roundN]['V' + (curRound.next)].votes
+        }));
+        // Let's find out who gets the most votes
+        let maxVotes = 0
+        // Object.keys(curRound).forEach(([key, value]) => {
+        for (const [key, value] of Object.entries(curRound)) {
+            // console.log('574', key)
+            if (key.startsWith('V')) {
+                // console.log('576', key)
+                if ((value.votes.length > 0)
+                    && (value.votes.length >= maxVotes)) {
+                    if (value.votes.length === maxVotes) {
+                        curRound.winners.push(value.slot)
+                    } else {
+                        curRound.winners = [value.slot]
+                        maxVotes = value.votes.length
                     }
-                    // console.log(value)
                 }
-            };
-            room.game.days[curDay].rounds[roundN] = curRound
-            room = await updateRoom(ROOM_ID, room)
-            curRound = room.game.days[curDay].rounds[roundN]
-            if (curRound.winners.length === 1) {
-                // one player has been voted out
-                await host(ROOM_ID, { type: 'last-speech-voted', candidate: curRound.winners[0], action: 'voted' });
-            } else {
-                if (
-                    (roundN === 0) ||
-                    ((roundN > 0) &&
-                    (curRound.winners.length < room.game.days[curDay].rounds[roundN - 1].winners.length))
-                ) {
-                    curRound.split = []
-                    room.game.days[curDay].rounds[roundN] = curRound
-                    room = await updateRoom(ROOM_ID, room)
-                    curRound = room.game.days[curDay].rounds[roundN]
-                    await host(ROOM_ID, { type: 'split-speech', winners: curRound.winners, split: curRound.split });
-                } else {
-                    await host(ROOM_ID, { type: 'lock-all-winners', winners: curRound.winners, split: curRound.split });
-                }
+                // console.log(value)
             }
+        }
+        ;
+        room.game.days[curDay].rounds[roundN] = curRound
+        room = await updateRoom(ROOM_ID, room)
+        curRound = room.game.days[curDay].rounds[roundN]
+        if (curRound.winners.length === 1) {
+            // one player has been voted out
+            await host(ROOM_ID, {type: 'last-speech-voted', candidate: curRound.winners[0], action: 'voted'});
         } else {
+            if (
+                (roundN === 0) ||
+                ((roundN > 0) &&
+                    (curRound.winners.length < room.game.days[curDay].rounds[roundN - 1].winners.length))
+            ) {
+                curRound.split = []
+                room.game.days[curDay].rounds[roundN] = curRound
+                room = await updateRoom(ROOM_ID, room)
+                curRound = room.game.days[curDay].rounds[roundN]
+                await host(ROOM_ID, {type: 'split-speech', winners: curRound.winners, split: curRound.split});
+            } else {
+                await host(ROOM_ID, {type: 'lock-all-winners', winners: curRound.winners, split: curRound.split});
+            }
+        }
+    } else if (remainingVoters.length === 0) {
+        curRound['V' + curRound.next] = {
+            state: 'END',
+            slot: candidateSlot,
+            votes: []
+        }
+        room.game.days[curDay].rounds[roundN].next++
+        room = await updateRoom(ROOM_ID, room)
+
+        await broadcastRoom(ws.roomID, JSON.stringify({
+            type: 'voting-round-result',
+            round: (roundN + 1),
+            candidate: candidateSlot,
+            votes: []
+        }));
+        nextCandidate = room.game.days[curDay].rounds[roundN].nominees[room.game.days[curDay].rounds[roundN].next]
+        if (nextCandidate !== undefined) {
+            await host(ROOM_ID, {
+                type: 'voting-round-ready',
+                round: roundN,
+                candidate: nextCandidate,
+                skip: true,
+            });
+        } else {
+            await host(ROOM_ID, {
+                type: 'error',
+                message: 'Next candidate to vote not found!',
+                data: room.game.days
+            });
+            console.log('Next candidate to vote not found!')
+        }
+
+    } else {
             curRound['V'+curRound.next] = {
                 state: 'START',
                 slot: candidateSlot,

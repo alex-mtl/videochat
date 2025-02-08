@@ -286,9 +286,54 @@ async function checkUserConnection(ws, data) {
     }
 }
 
+const checkWsActive = async (ws, data) => {
+    let room = await getRoom(ws.roomID);
+    let status = false
+    if (room.users.hasOwnProperty(data.uid)) {
+        userConn = clients[ data.uid ];
+        if (userConn === undefined) {
+            delete room.users[data.uid]
+            delete room.spectators[data.uid]
+            room = await updateRoom(ws.roomID, room)
+            console.log("Fresh user list: ", room.users)
+
+        } else {
+            status = true
+            console.log("Seems connection still available: ", data.uid)
+        }
+    } else {
+        console.log("Failed to check user: ", data.uid, room.users, room.users.hasOwnProperty(data.uid))
+    }
+    let response = {type: 'request-response', requestId: data.requestId, status: status}
+    await ws.send(JSON.stringify(response));
+};
+
+const getSlotUid = async (ws, data) => {
+    let room = await getRoom(ws.roomID);
+    let slotUID = false
+    if (room?.slot[data.slot]?.uid &&
+        room?.slot[data.slot]?.uid !== 'empty') {
+
+        userConn = clients[ data.uid ];
+        if (userConn === undefined) {
+            delete room.users[data.uid]
+            delete room.spectators[data.uid]
+            room = await updateRoom(ws.roomID, room)
+        } else {
+            slotUID = room.slot[data.slot].uid
+        }
+    } else {
+        console.log("Failed to find uid for slot : ", data.slot)
+    }
+    let response = {type: 'request-response', requestId: data.requestId, uid: slotUID}
+    await ws.send(JSON.stringify(response));
+};
+
 function addExports(exports) {
     exp = {
         checkUserConnection,
+        checkWsActive,
+        getSlotUid,
         grantAccess
     }
     for (const key in exp) {
@@ -323,6 +368,7 @@ module.exports = {
     onlySheriff,
     onlyDon,
     checkUserConnection,
+    checkWsActive,
     sleep,
     globalContext,
     addExports

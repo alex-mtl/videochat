@@ -1,13 +1,13 @@
 const configuration = {
     // iceTransportPolicy: 'relay',
     iceServers: [
-        //{urls: 'stun:stun.l.google.com:19302'},
+        {urls: 'stun:stun.l.google.com:19302'},
         //{urls: 'stun:stun1.l.google.com:19302'},
         // {urls: 'stun:stun2.l.google.com:19302'},
         // {urls: 'stun:stun.sipnet.ru:3478'},
         // {urls: 'stun:stun.skylink.ru:3478'},
         // {urls: 'stun:stun.voys.nl:3478'},
-        {urls: 'stun:mao-dao.com:3478'},
+        // {urls: 'stun:mao-dao.com:3478'},
         {
             urls: "turn:194.26.138.209:3478?transport=udp",
             username: "turnuser",
@@ -83,6 +83,8 @@ function isTelegramInAppBrowser() {
     return userAgent.includes("Telegram");
 }
 
+
+
 // Function to send a request and return a Promise
 function sendRequest(ws, data) {
     return new Promise((resolve, reject) => {
@@ -93,9 +95,57 @@ function sendRequest(ws, data) {
         ws.send(JSON.stringify({ ...data, requestId }));
     });
 }
+
+const slotTimeouts = {};
+
+function slotInfo(slot, info) {
+    let slotInfoSpan = document.querySelector('div.videobox[data-slot="'+slot+'"] span.game-info');
+
+    if (slotInfoSpan) {
+        slotInfoSpan.textContent = info;
+
+        // Clear previous timeout if it exists
+        if (slotTimeouts[slot]) {
+            clearTimeout(slotTimeouts[slot]);
+        }
+
+        // Set new timeout and store its reference
+        slotTimeouts[slot] = setTimeout(() => {
+            slotInfoSpan.textContent = "";
+            delete slotTimeouts[slot]; // Cleanup
+        }, 2000);
+
+    } else {
+        alertToaster("Slot "+slot+" not found. "+info, 'error');
+    }
+}
 function createPeerConnection(peerId, hostID, participant = true, avatar = null) {
     const peerConnection = new RTCPeerConnection(configuration);
+    const dataChannel = peerConnection.createDataChannel("customData");
+    peerConnection.dc = dataChannel;
     peerConnection.isResetting = false
+    peerConnection.uid = peerId
+
+    dataChannel.onopen = () => {
+        console.log("Data channel is open!");
+        dataChannel.send("Hello from offerer!");  // Sending custom data
+    };
+
+    dataChannel.onmessage = (event) => {
+        slotInfo(dataChannel?.slot, event.data)
+        console.log("Received message:", event.data);
+    };
+
+    peerSlot = document.querySelector('[data-uid="' + peerId+'"]')
+    if (peerSlot) {
+        peerSlotN = peerSlot.getAttribute('data-slot')
+        if (peerSlotN) {
+            peerConnection.slot = peerSlotN
+            dataChannel.slot = peerSlotN
+            slotInfo(peerSlotN, 'New peer connection created')
+        }
+
+    }
     if (peerConnections[peerId]) {
         // peerConnections[peerId].close()
         // delete(peerConnections[peerId])
@@ -114,6 +164,8 @@ function createPeerConnection(peerId, hostID, participant = true, avatar = null)
             if ( slot === null) {
                 for (const [slotN, player] of Object.entries(roomEnv.slot)) {
                     if (player.uid === peerId) {
+                        peerConnection.slot = slotN
+                        slotInfo(slotN, 'ontrack')
                         slot = document.querySelector('div.videobox[data-slot="' + slotN+'"]');
                         slot.setAttribute('data-name', player.name || "unknown");
                         if (player.avatar) {
@@ -127,6 +179,8 @@ function createPeerConnection(peerId, hostID, participant = true, avatar = null)
             }
             if ( slot === null) {
                 if (participant && (peerId === hostID)) {
+                    peerConnection.slot = 'H'
+                    slotInfo('H', 'ontrack')
                     // bindHostVideo(peerId, event.streams[0], document.getElementById('game-host'));
                     bindHostVideo(peerId, event.streams[0], document.querySelector('div.videobox[data-slot="H"]'));
                 } else {
@@ -154,13 +208,32 @@ function createPeerConnection(peerId, hostID, participant = true, avatar = null)
         }
     };
     peerConnection.oniceconnectionstatechange = () => {
+        if (peerConnection.slot) {
+            slotInfo(peerConnection.slot, peerConnection.iceConnectionState)
+        }
         if (peerConnection.iceConnectionState === "disconnected") {
             if (peerConnection.isResetting) {
                 console.log(`PeerConnection for ${peerId} is being reset, ignoring disconnect logic.`);
                 return;
             } else {
-                handlePeerLeft(peerId); // `peerId` is captured from the outer scope
+                setTimeout(() => {
+                    if (peerConnection.iceConnectionState === "disconnected") {
+                        console.log("Still disconnected. Restarting ICE...");
+                        if (peerConnection.slot) {
+                            slotInfo(peerConnection.slot, "Still disconnected. Restarting ICE...")
+                            peerConnection.close()
+                        }
+                        handlePeerLeft(peerId); // `peerId` is captured from the outer scope
+                    } else {
+                        if (peerConnection.slot) {
+                            slotInfo(peerConnection.slot, peerConnection.iceConnectionState)
+                        }
+                    }
+                }, 5000); // Wait 3 seconds before restarting
+
             }
+        } else if (peerConnection.iceConnectionState === "closed") {
+            handlePeerLeft(peerId);
         } else {
             switch (peerConnection.iceConnectionState) {
                 case 'checking':
@@ -344,6 +417,18 @@ async function peerRefresh(elem) {
         pc.isResetting = true
         pc.close()
         pc = null
+    } else {
+        console.error(`No peer connection found for UID: ${uid}`);
+        if (slotN = slot.getAttribute('data-slot')) {
+            let slotUID = await sendRequest(ws, {type: 'get-slot-uid', slot: slotN})
+            uid = slotUID.uid
+            if (uid === false) {
+                slotInfo(slotN,'No connection')
+                return;
+            }
+        }
+
+    }
         newPC = createPeerConnection(uid, roomEnv.host.uid, true);
         peerConnections[uid] = newPC
         newPC.onicecandidate = event => {
@@ -360,9 +445,7 @@ async function peerRefresh(elem) {
         } catch (error) {
             console.error("Error during ICE restart:", error);
         }
-    } else {
-        console.error(`No peer connection found for UID: ${uid}`);
-    }
+
                 // peerConnection = createPeerConnection(uid, hostID, participant);
                 // peerConnection.onicecandidate = event => {
                 //     if (event.candidate) {
@@ -712,8 +795,11 @@ function numPadClick(elem) {
 }
 
 function removePeerConnection(id) {
-    peerConnections[id].isResetting = true
-    delete peerConnections[id];
+    if (peerConnections.hasOwnProperty(id)) {
+        peerConnections[id].isResetting = true
+        delete peerConnections[id];
+    }
+
     video = document.getElementById('video-'+id);
     if (video !== null) {
         video.id = 'video-'+video.getAttribute('data-slot')+'-empty'
@@ -1118,7 +1204,7 @@ async function handleGamePhase(data, mode = 'normal') {
             showDonWatch()
         }
         gameMessage('Mafia')
-        gameMessage('cahoot sitdown', 2)
+        gameMessage('Plotting the Crime', 2)
 
 
     } else if (data.phase === 'don-watch') {
@@ -2077,7 +2163,10 @@ function handlePlayerStatus(data) {
 function playerButton(txt, fn) {
     gStart = document.getElementById('player-button')
     gStart.textContent = txt
-    gStart.onclick = fn
+    gStart.onclick = () => {
+        fn();  // Execute the original function
+        playerButtonDisable(); // Disable the button after execution
+    };
     gStart.classList.add('active')
 }
 
@@ -2127,7 +2216,7 @@ function handleLockWinnersVote(data) {
         gameMessage('Lock')
         gameMessage(data.winners.join(', '),2)
 
-        playerButton("Vote", () => { voteLockWinners(data.candidate) });
+        playerButton("Lock ALL ("+data.winners.join(',')+")", () => { voteLockWinners(data.candidate) });
 
         setTimeout(() => {
             playerButtonDisable()

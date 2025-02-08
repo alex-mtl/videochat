@@ -3,6 +3,7 @@
     --g-grey: rgba(211, 211, 211, 0.5);
     --g-grey-solid: rgba(211, 211, 211);
     --g-dark-grey: hsl(0, 0%, 40%);
+    --g-light-black: #131314;
     --g-green: #72d972;
     --g-success: #198754;
     --g-success-hover: #157347;
@@ -46,6 +47,9 @@ video {
     margin: 0.1vw;
     width: 100%;
     aspect-ratio: 16/9;
+    border-radius: 1vw;
+    overflow: hidden;
+
 }
 
 video.active-speaker {
@@ -86,6 +90,18 @@ div.videobox[data-uid="empty"] video {
     border-color: var(--g-grey);
 }
 
+div.videobox:has(.slot-role[data-role="citizen"]) video,
+div.videobox:has(.slot-role[data-role="sheriff"]) video
+{
+    border: 0.5vw solid var(--g-failure);
+}
+
+div.videobox:has(.slot-role[data-role="don"]) video,
+div.videobox:has(.slot-role[data-role="mafia"]) video
+{
+    border: 0.5vw solid var(--g-dark-grey);
+}
+
 video:not(.play) {
     opacity: 10%;
 }
@@ -104,6 +120,7 @@ div.videobox {
     background-repeat: no-repeat;
     background-position: center center;
     background-size: 50% auto;
+    display: flex;
 }
 
 [data-phase="shooting"] div.videobox,
@@ -202,7 +219,7 @@ div.videobox span.toggle-video:not(.muted)
 .game.videos[data-phase="lobby"] div.videobox:not(.no-video):hover span.toggle-audio,
 .game.videos[data-phase="lobby"] div.videobox:not(.no-video):hover span.toggle-video,
 .game.videos[data-phase="lobby"] div.videobox.self-view:not(.no-video):hover span.settings,
-div.videobox:not(.self-view):not(.no-video):hover span.refresh
+div.videobox:not(.self-view):hover span.refresh
 {
     visibility: visible;
 }
@@ -245,8 +262,8 @@ div .videobox input#volumeSlider{
 
 div.slot {
     position: absolute;
-    top: 0.1vw;
-    right: 0.1vw;
+    top: 0.2vw;
+    right: 0.11vw;
     background-color: var(--g-grey);
     color: black;
     /* padding: 10px; */
@@ -257,6 +274,7 @@ div.slot {
     width: 2.5vw;
     height: 2.5vw;
     line-height: 2.5vw;
+    border-radius: 0.5vw;
     display: inline-block;
 }
 
@@ -266,8 +284,9 @@ span.game-user {
     display: flex;
     max-width:18vw;
     max-height: 3vw;
-    bottom: 5%; 
-    left: 1%; 
+    bottom: 0.2vw;
+    left: 0.3vw;
+    border-radius: 1vw;
     background-color: rgba(30, 30, 30, 0.5); 
     color: rgba(211, 211, 211, 0.5); /* Text color */
     padding-left: 0.1vw;
@@ -284,8 +303,8 @@ input.game-user {
     max-width:16vw;
     /*bottom: 0.7vw;*/
     /*left: 0.7vw;*/
-    bottom: 5%;
-    left: 1%;
+    bottom: 0.2vw;
+    left: 0.3vw;
     background-color: white;
     color: var(--g-dark-grey); /* Text color */
     padding-left: 0.1vw;
@@ -300,7 +319,7 @@ input.game-user {
 }
 
 .game.videos div.videobox.self-view video {
-     transform: scaleX(-1);
+     /*transform: scaleX(-1);*/
 }
 
 
@@ -311,7 +330,7 @@ div.videobox.self-view span.game-user {
 span.slot-status,
 div.videobox.vbox-H span.game-settings {
     position: absolute;
-    bottom: 1vw;
+    bottom: 0.5vw;
     right: 0.5vw;
     background-color: transparent; 
     color: rgba(211, 211, 211, 0.5); /* Text color */
@@ -587,7 +606,7 @@ body.g-mafia, html {
     justify-content: center;
     align-items: center;
     flex-direction: column;
-    background-color: var(--g-dark-grey);
+    background-color: var(--g-light-black);
 }
 
 /*body {*/
@@ -602,7 +621,7 @@ body.g-mafia, html {
     position: relative;
 }
 
-.equalizer {
+div.game-panel[data-mode='host'] .equalizer {
     position: absolute;
     width: 20%;
     height: 100%; 
@@ -611,7 +630,11 @@ body.g-mafia, html {
     border: 1px solid var(--g-grey);
 }
 
-.game-actions {
+div.game-panel:not([data-mode='host']) .equalizer {
+    display: none;
+}
+
+div.game-panel[data-mode='host'] div.game-actions {
     position: absolute;
     width: 20%;
     height: 100%; 
@@ -620,6 +643,9 @@ body.g-mafia, html {
     border: 1px var(--g-grey);
 }
 
+div.game-panel:not([data-mode='host']) div.game-actions {
+    display: none;
+}
 .g-action {
     position: absolute;
     height: 20%;
@@ -634,7 +660,7 @@ div.game.videos[data-phase='lobby'] .host-panel .e-container
     position: relative;
     width:100%;
     height: 100%;
-    background-image: var(--g-room-logo);
+    /*background-image: var(--g-room-logo);*/
     /*background-color: var(--g-grey);*/
     background-repeat:no-repeat;
     background-position: center center;
@@ -667,11 +693,21 @@ div.full-size {
     margin: auto auto;
 }
 
-.player-panel, .host-panel {
+.player-panel {
+    visibility: hidden;
+    position: absolute;
+    width: 100%;
+    height: 100%; 
+    left: 0;
+    top: 0;
+    border: 1px solid var(--g-grey);
+}
+
+.host-panel {
     visibility: hidden;
     position: absolute;
     width: 60%;
-    height: 100%; 
+    height: 100%;
     left: 20%;
     top: 0;
     border: 1px solid var(--g-grey);
@@ -755,7 +791,7 @@ div.middle {
     bottom: 0;
     height: 100%;
     width:100%;
-    background-color: var(--g-dark-grey);
+    background-color: var(--g-light-black);
     border: 1px var(--g-grey);
     font-size: 1vw;
     line-height: 1.1vw;
@@ -838,6 +874,25 @@ div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-H) span.
 div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-H) span.slot-mic[data-mic="off"]:before,
 div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-H) div.game-user {
     visibility: hidden;
+}
+
+div.videobox span.game-info {
+    position: absolute;
+    display: flex;
+    max-width:18vw;
+    max-height: 3vw;
+    top: 0.2vw;
+    left: 0.3vw;
+    border-radius: 1vw;
+    background-color: rgba(30, 30, 30, 0.5);
+    color: rgba(211, 211, 211, 0.5); /* Text color */
+    padding-left: 0.1vw;
+    padding-right: 0.1vw;
+    font-size: 1.2vw;
+    font-weight: bold; /* Bold font */
+    visibility: visible;
+    max-width: 20vw;
+    overflow: hidden;
 }
 
 div.videobox .night {
@@ -1271,11 +1326,24 @@ span.slot-warn-remove {
 
 span.slot-nominate {
     visibility: hidden;
-    display: flex;
+    /*display: flex;*/
     position: absolute;
 }
 
-span.slot-nominate {
+div.game.self-active-speaker[data-mode="player"] span.slot-nominate {
+    position: absolute;
+    visibility: hidden;
+
+    top: 3.5vw;
+    width: 100%;
+    text-align: center;
+    background-color: transparent;
+    color: var(--g-green);
+    font-size: 8vw;
+    font-weight: bold; /* Bold font */
+}
+
+div.game[data-mode="host"] span.slot-nominate {
     position: absolute;
     right: 0.7vw;
     top: 0.7vw;
