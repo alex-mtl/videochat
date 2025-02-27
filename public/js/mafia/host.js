@@ -320,7 +320,8 @@ function handleMafiaShoot(data) {
 }
 
 function handleTeamWins(data) {
-    secondaryButton(data.team.toUpperCase() + ' team wins!', teamWins, [data.team])
+    teamWins(data.team)
+    // secondaryButton(data.team.toUpperCase() + ' team wins!', teamWins, [data.team])
 }
 
 

@@ -1349,9 +1349,21 @@ async function handleGamePhase(data, mode = 'normal') {
 
     } else if (data.phase === 'lobby') {
         muteAllSfx()
+        let videoBoxes = document.querySelectorAll('div.videobox[data-slot]:not([data-player-status="unknown"]):not([data-player-status="ready"])')
+        videoBoxes.forEach( videoBox => {
+            videoBox.setAttribute('data-player-status','unknown')
+        })
         let videoElems = document.querySelectorAll('div.videobox[data-slot]:not([data-slot="game-host"]) .g-mask')
         videoElems.forEach( elem => {
             elem.classList.remove('night')
+        })
+        let roleSlots = document.querySelectorAll('div.videobox[data-slot]:not([data-slot="game-host"]) .slot-role')
+        roleSlots.forEach( roleSlot => {
+            roleSlot.setAttribute('data-role', 'none')
+        })
+        let warnSlots = document.querySelectorAll('div.videobox[data-slot]:not([data-slot="game-host"]) .slot-warn')
+        warnSlots.forEach( warnSlot => {
+            warnSlot.classList.remove('warn-1', 'warn-2', 'warn-3', 'warn-4')
         })
         let videos = document.querySelectorAll('video.active-speaker')
         videos.forEach(video => {

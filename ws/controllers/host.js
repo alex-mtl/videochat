@@ -1189,7 +1189,9 @@ const gameStop = onlyHost(async (ws, data, ROOM_ID, room) => {
         room.slot[slot].slot = 'none';
         room.slot[slot].role = 'none';
         room.slot[slot].status = 'unknown';
-        room.slot[slot].mic === 'off';
+        room.slot[slot].mic = 'off';
+        room.slot[slot].warn = false;
+
 
         await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-player-status', uid: player.uid, status: 'unknown' }));
     }
