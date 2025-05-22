@@ -45,6 +45,7 @@ function joinGame(ws, data) {
     let clientId = generateClientId();
     roomID = data.roomId;
     sessionID = (data.chatSessionID === undefined) ? data.sessionID : data.chatSessionID;
+    ws.mduid = ws.req.session?.user?.mduid || null;
     var roomFile = config.roomsFolder+'/'+roomID+'.json';
     var room = {};
     fs.readFile(roomFile, 'utf8', async function (err, data) {
@@ -69,6 +70,8 @@ function joinGame(ws, data) {
                         // clientId = room.host.uid;
                         room.gameHost.uid = clientId
                         room.host.uid = clientId
+                        room.host.mduid = ws.mduid
+                        room.gameHost.mduid = ws.mduid
 
                     } else {
                         console.log('WS 51 conn: ', typeof conn)
@@ -103,6 +106,7 @@ function joinGame(ws, data) {
                         if (ws.req.session.user) {
                             player.name = ws.req.session.user.nickname || ws.req.session.user.username
                             player.avatar = ws.req.session.user.avatar_url
+                            player.mduid = ws.req.session.user.mduid
                         }
                         emptySlot = false
                         break
@@ -114,6 +118,7 @@ function joinGame(ws, data) {
                             player.uid = clientId;
                             player.name = ws.req.session?.user?.nickname || ws.req.session?.user?.username || 'unknown'
                             player.avatar = ws.req.session?.user?.avatar_url || '/static/img/avatar/d450356dc7cb3609.png';
+                            player.mduid = ws.req.session?.user?.mduid || null;
                             player.sessionID = sessionID;
                             emptySlot = false;
                             break;
@@ -141,6 +146,7 @@ function joinGame(ws, data) {
         ws.uid = clientId;
         // console.log(ws.req.session)
         ws.avatar = ws.req.session?.user?.avatar_url || '/static/img/avatar/d450356dc7cb3609.png';
+
 
         ws.roomID = roomID;
         rooms[roomID] = room;

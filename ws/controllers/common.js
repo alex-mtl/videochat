@@ -115,7 +115,8 @@ async function host(roomID, message, log = true) {
         hostWS = clients[ room.gameHost.uid ];
         if (hostWS !== undefined) {
             if (log) {
-                room.log.push(message)
+                // temporary disable room log
+                // room.log.push(message)
                 room = await updateRoom(roomID, room);
             }
             await hostWS.send(JSON.stringify(message));

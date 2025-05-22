@@ -1,0 +1,24 @@
+
+.col-md-6
+    .card.mb-4.mb-md-0
+        .card-body
+            h3.text-primary.mb-4 History
+            .table-responsive
+                table.table.table-sm(style="font-size: 0.77rem;")
+                    thead
+                        tr
+                            th(scope="col") #
+                            th(scope="col") Role
+                            th(scope="col") Slot
+                            th(scope="col") Result
+                            th(scope="col") State
+                    tbody
+                        each game, index in games
+                            tr
+                                td #{index + 1}
+                                td !{game.role}
+                                td #{game.slot}
+                                td
+                                    span.badge(class=game.result === 'win' ? 'bg-success' : 'bg-danger')
+                                        | #{game.result}
+                                td #{game.state}

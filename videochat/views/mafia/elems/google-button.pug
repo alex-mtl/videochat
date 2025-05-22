@@ -1,6 +1,6 @@
 #g_id_onload(
     data-client_id=process.env.GOOGLE_CLIENT_ID
-    data-login_uri="https://video.ttl10.net/auth/google"
+    data-login_uri=process.env.GOOGLE_CALLBACK_URL
     data-auto_prompt="false"
     data-scope="https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
 )

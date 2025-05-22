@@ -13,7 +13,7 @@ html(lang="en")
   body
     script let chatSessionID = "#{sessionID}"; var websocketUrl = "#{wssURL}";
     - var title = "User Profile"
-    include elems/layout-header
+    include ../elems/layout-header
     section
       .container
         .row
@@ -28,9 +28,9 @@ html(lang="en")
                 button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target="#uploadModal") Upload Image
                 button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target="#editUserModal") Edit Info
 
-                include elems/upload-avatar
-                include elems/edit-user-info
-                include elems/form-erorrs-modal
+                include upload-avatar
+                include edit-user-info
+                include ../elems/form-erorrs-modal
             .card.mb-4
               .card-body.text-center
                 span.email-confirm.material-symbols-outlined(class={ confirmed: user.email_confirmed })
@@ -41,10 +41,12 @@ html(lang="en")
             .card.mb-4
               .card-body
                 each propValue, propName in userProps
-                  include elems/card-row
+                  include ../elems/card-row
             .row
               - var card = user.stats || {}
-              include elems/user-stats
-              - var card = user.badges || {}
-              include elems/user-badges
+              include user-stats
+              // - var card = user.badges || {}
+              // include elems/user-badges
+              - var games = user.games || {}
+              include user-games
     .footer © MAO Game Platform

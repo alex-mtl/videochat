@@ -1,3 +1,4 @@
+const { storeGameResult } = require('../services/gameStorage');
 const crypto = require('crypto');
 const {getRoom,
     updateRoom,
@@ -19,8 +20,11 @@ const showRoles = onlyHost(async (ws, data, ROOM_ID, room) => {
 
 const teamWins = onlyHost(async (ws, data, ROOM_ID, room) => {
     room.game.phase = 'game-over'
+    room.game.result = {team: data.team}
     room = await updateRoom(ROOM_ID, room)
     await broadcastRoom(ROOM_ID, JSON.stringify({type: 'game-over', players: room.slot, team: data.team }));
+    const rID = ws.uid+'-'+crypto.randomBytes(4).toString('hex');
+    await storeGameResult(rID, 'mafia', room);
 })
 
 const startSitdown = onlyHost(async (ws, data, ROOM_ID, room) => {
@@ -827,7 +831,7 @@ async function checkGameOver(room, ROOM_ID) {
             }
         }
     }
-    // console.log('739','red:',redTeam,'black:',blackTeam)
+    console.log('739','red:',redTeam,'black:',blackTeam)
     if ((redTeam.length > 0) && (blackTeam.length === 0)) {
         host(ROOM_ID, { type: 'team-wins', team: 'red' });
     }
@@ -942,6 +946,7 @@ const gameSettings = onlyHost(async (ws, data, ROOM_ID, room) => {
 
 const gameStart = onlyHost(async (ws, data, ROOM_ID, room) => {
     ready = true;
+    room.game.size = 0;
     for (const [slot, player] of Object.entries(room.slot)) {
         room.slot[slot].slot = 'none';
         room.slot[slot].role = 'none';
@@ -961,6 +966,7 @@ const gameStart = onlyHost(async (ws, data, ROOM_ID, room) => {
             user = clients[player.uid]
             if (user !== undefined) {
                 await user.send(JSON.stringify({ type: 'mute-mic' }));
+                room,game.size++
             } else {
                 player.mic === 'off'
                 room.slot[slot].uid = 'empty';
@@ -982,6 +988,18 @@ const gameStart = onlyHost(async (ws, data, ROOM_ID, room) => {
     room.game.phase = 'shuffle';
     room.game.stage = "shuffle-slots"
     room.game.availableSlots = [1,2,3,4,5,6,7,8,9,10]
+    // if (room.game.size < 10) {
+    //     if (room.game.size <= 3) {
+    //         room.game.availableSlots = [1,2,3]
+    //     } else {
+    //
+    //     }
+    //
+    // }
+    // room.game.availableSlots = Array.from(
+    //     { length: room.game.size <= 3 ? 3 : room.game.size },
+    //     (_, i) => i + 1
+    // );
     room = await updateRoom(ROOM_ID, room);
 
     await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-phase', phase: 'shuffle', stage: "shuffle-slots" }));

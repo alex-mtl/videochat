@@ -11,7 +11,7 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 
 function checkTelegramLogin(data, botToken) {
-    const secretKey = crypto.createHash('sha256').update(config.tg_token).digest();
+    const secretKey = crypto.createHash('sha256').update(process.env.TG_TOKEN).digest();
     const checkString = Object.keys(data)
         .filter(key => key !== 'hash')
         .map(key => `${key}=${data[key]}`)
@@ -25,27 +25,216 @@ function checkTelegramLogin(data, botToken) {
     return hash === data.hash;
 }
 
-function getUserStats(userId) {
-
-    stats = {
-        title: 'Game statistics',
-        data: [
-            {type: 'Wins / Total', value: [Math.floor(Math.random() * 101),100]},
-            {type: 'Red', value: [Math.floor(Math.random() * 101),100]},
-            {type: 'Sheriff', value: [Math.floor(Math.random() * 101),100]},
-            {type: 'Mafia', value: [Math.floor(Math.random() * 101),100]},
-            {type: 'Don', value: [Math.floor(Math.random() * 101),100]}
-        ]
+async function getUserStats(req, mduid ) {
+    if (!mduid) {
+        throw new Error('User not authenticated');
     }
-    stats.data.forEach(stat => {
-        if (stat.value[1] === 0) {
-            stat.value.push(0)
-        } else {
-            let progress = (stat.value[0] / stat.value[1]) * 100
-            stat.value.push(Math.floor(progress))
-        }
-    })
-    return stats;
+
+    // Query to get aggregated stats for the user
+    const query = `
+        WITH player_games AS (
+            SELECT
+                JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.game.result.team')) AS game_result,
+                player.role
+            FROM
+                games g,
+                JSON_TABLE(
+                    JSON_EXTRACT(g.data, '$.slot'),
+                    '$.*' COLUMNS(
+                        role VARCHAR(10) PATH '$.role',
+                        mduid VARCHAR(20) PATH '$.mduid'
+                    )
+                ) AS player
+            WHERE
+                player.mduid = ?
+                AND g.g_type = 'mafia'
+        )
+        SELECT 
+            COUNT(*) AS total_games,
+            SUM(CASE WHEN (game_result = 'red' AND role IN ('R', 'S')) 
+                      OR (game_result = 'black' AND role IN ('B', 'D'))
+                 THEN 1 ELSE 0 END) AS total_wins,
+            SUM(CASE WHEN role = 'R' THEN 1 ELSE 0 END) AS games_as_r,
+            SUM(CASE WHEN role = 'S' THEN 1 ELSE 0 END) AS games_as_s,
+            SUM(CASE WHEN role = 'B' THEN 1 ELSE 0 END) AS games_as_b,
+            SUM(CASE WHEN role = 'D' THEN 1 ELSE 0 END) AS games_as_d,
+            SUM(CASE WHEN game_result = 'red' AND role = 'R' THEN 1 ELSE 0 END) AS wins_as_r,
+            SUM(CASE WHEN game_result = 'red' AND role = 'S' THEN 1 ELSE 0 END) AS wins_as_s,
+            SUM(CASE WHEN game_result = 'black' AND role = 'B' THEN 1 ELSE 0 END) AS wins_as_b,
+            SUM(CASE WHEN game_result = 'black' AND role = 'D' THEN 1 ELSE 0 END) AS wins_as_d
+        FROM 
+            player_games
+    `;
+
+    try {
+        const [stats] = await db.query(query, [mduid]);
+        const {
+            total_games = 0,
+            total_wins = 0,
+            games_as_r = 0, wins_as_r = 0,
+            games_as_s = 0, wins_as_s = 0,
+            games_as_b = 0, wins_as_b = 0,
+            games_as_d = 0, wins_as_d = 0
+        } = stats[0] || {};
+
+        const result = {
+            title: 'Game statistics',
+            data: [
+                { type: 'Wins / Total', value: [total_wins, total_games] },
+                { type: 'Red', value: [wins_as_r, games_as_r] },
+                { type: 'Sheriff', value: [wins_as_s, games_as_s] },
+                { type: 'Mafia', value: [wins_as_b, games_as_b] },
+                { type: 'Don', value: [wins_as_d, games_as_d] }
+            ]
+        };
+
+        // Calculate percentages
+        result.data.forEach(stat => {
+            if (stat.value[1] === 0) {
+                stat.value.push(0); // No games in this role
+            } else {
+                const progress = (stat.value[0] / stat.value[1]) * 100;
+                stat.value.push(Math.floor(progress));
+            }
+        });
+
+        return result;
+    } catch (error) {
+        console.error('Error fetching user stats:', error);
+        throw error;
+    }
+}
+
+function getRoleIcon(role) {
+    const icons = {
+        'R': 'frame_person',
+        'S': 'security',
+        'B': 'group',
+        'D': 'skull'
+    };
+    return icons[role] || 'person';
+}
+
+function getRoleColor(role) {
+    const colors = {
+        'R': 'var(--g-failure)',
+        'S': 'var(--g-warning)',
+        'B': 'var(--g-primary)',
+        'D': 'var(--g-dark)'
+    };
+    return colors[role] || 'var(--g-text)';
+}
+
+function getRoleLabel(role) {
+    const ROLE_CONFIG = {
+        'R': `<span class="d-flex align-items-center gap-2">
+                <span class="material-symbols-outlined" style="color: var(--g-failure);">
+                  frame_person
+                </span>
+                <span>Citizen</span>
+              </span>
+            `,
+        'S': `<span class="d-flex align-items-center gap-2">
+                <span style="
+                  display: inline-block;
+                  height: 1.2rem;
+                  width: 1.2rem;
+                  background-image: url('/static/img/sheriff-star.png');
+                  background-size: contain;
+                  background-repeat: no-repeat;
+                  background-position: center;
+                "></span>
+                <span>Sheriff</span>
+              </span>
+            `,
+        'B': `<span class="d-flex align-items-center gap-2">
+                <span class="material-symbols-outlined" style="color: black;">
+                  frame_person
+                </span>
+                <span>Mafia</span>
+              </span>
+            `,
+        'D': `<span class="d-flex align-items-center gap-2">
+                <span style="
+                  display: inline-block;
+                  height: 1.2rem;
+                  width: 1.2rem;
+                  background-image: url('/static/img/don-ring.png');
+                  background-size: contain;
+                  background-repeat: no-repeat;
+                  background-position: center;
+                "></span>
+                <span>Don</span>
+              </span>
+            `,
+    };
+    return ROLE_CONFIG[role];
+}
+async function getPlayerGameHistory(mduid) {
+    if (!mduid) {
+        throw new Error('User not authenticated');
+    }
+
+    // Query to get game history for the user
+    const query = `
+        SELECT 
+            g.id,
+            g.room_id,
+            g.created_at,
+            JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.game.result.team')) AS game_result,
+            player.role,
+            player.slot,
+            player.status,
+--             JSON_EXTRACT(g.data, '$.host.userName') AS host_name,
+            JSON_EXTRACT(g.data, '$.game.phase') AS game_phase
+        FROM 
+            games g,
+            JSON_TABLE(
+                JSON_EXTRACT(g.data, '$.slot'),
+                '$.*' COLUMNS(
+                    slot VARCHAR(10) PATH '$.slot',
+                    role VARCHAR(10) PATH '$.role',
+                    status VARCHAR(20) PATH '$.status',
+                    mduid VARCHAR(20) PATH '$.mduid',
+                    name VARCHAR(100) PATH '$.name'
+                )
+            ) AS player
+        WHERE 
+            player.mduid = ?
+            AND g.g_type = 'mafia'
+        ORDER BY 
+            g.created_at DESC
+        LIMIT 10`;
+
+    try {
+        const [games] = await db.query(query, [mduid]);
+        // Transform raw data into table-friendly format
+        const playerGames = games.map((game, index) => {
+            const winStatus = determineWinStatus(game.role, game.game_result);
+
+            return {
+                number: index + 1,
+                role: getRoleLabel(game.role),
+                slot: game.slot,
+                result: winStatus,
+                state: game.status,
+                timestamp: game.created_at,
+                room_id: game.room_id,
+                host: game.host_name
+            };
+        });
+        return playerGames
+    } catch (error) {
+        console.error('Error fetching player game history:', error);
+        throw error;
+    }
+}
+
+// Helper functions
+function determineWinStatus(role, gameResult) {
+    if (gameResult === 'red' && ['R', 'S'].includes(role)) return 'win';
+    if (gameResult === 'black' && ['B', 'D'].includes(role)) return 'win';
+    return 'lose';
 }
 
 function getUserBadges(userId) {
@@ -210,12 +399,14 @@ module.exports.loginPost = async (req, res)  => {
 
 };
 
-module.exports.userProfile = (req, res) => {
+module.exports.userProfile = async (req, res) => {
     user = req.session.user || null
     if (user) {
         // console.log(user, (user !== {}))
-        user.stats = getUserStats(user.id)
+        user.stats = await getUserStats(user.id, user.mduid)
         user.badges = getUserBadges(user.id)
+        user.games = await getPlayerGameHistory(user.mduid)
+
         userProps = {
             'Username_Nickname': [
                 user.username,
@@ -233,7 +424,7 @@ module.exports.userProfile = (req, res) => {
             'Country': countries[(user.country || 'US')]
         }
 
-        res.render('mafia/user', {
+        res.render('mafia/user/user', {
             sessionID : req.sessionID ,
             wssURL : config.wssURL,
             username: user.username,
