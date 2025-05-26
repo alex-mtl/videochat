@@ -29,6 +29,14 @@ app.use(session({
     saveUninitialized: true,
 }));
 
+const jsDir = path.join(__dirname, 'public/js/mafia');
+global.ver = Date.now();
+fs.watch(jsDir, (eventType, filename) => {
+    if (filename && filename.endsWith('.js')) {
+        global.ver = Date.now();
+        console.log(`${filename} был изменён. Новая версия: ${global.ver}`);
+    }
+});
 app.use((req, res, next) => {
     if (!req.path.startsWith('/static')) {
         res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -89,6 +97,7 @@ app.get('/user', home.userProfile);
 
 app.get('/rooms', roomList.page )
 app.get('/mafia', mafia.home )
+app.get('/history', mafia.history )
 app.get('/m/:room', mafia.game )
 app.get('/p/:room', publicRoom.room)
 app.get('/s/:room', publicRoom.stream)

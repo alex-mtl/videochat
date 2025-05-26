@@ -287,6 +287,16 @@ async function checkUserConnection(ws, data) {
     }
 }
 
+async function cleanUsers(room) {
+    for (const uid in room.users) {
+        if (!clients[uid]) {  // If connection doesn't exist
+            delete room.users[uid];
+            delete room.spectators[uid];  // Also remove from spectators if present
+        }
+    }
+    return room;
+}
+
 const checkWsActive = async (ws, data) => {
     let room = await getRoom(ws.roomID);
     let status = false
@@ -372,5 +382,6 @@ module.exports = {
     checkWsActive,
     sleep,
     globalContext,
-    addExports
+    addExports,
+    cleanUsers
 }

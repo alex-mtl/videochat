@@ -4,9 +4,9 @@ html(lang="en")
     meta(charset="UTF-8")
     meta(name="viewport", content="width=device-width, initial-scale=1.0")
     title Mafia Game : #{roomID} : Mao Dao Game Platform
-    script(src="/static/js/mafia/util.js", defer)
-    script(src="/static/js/vc-utils.js", defer)
-    script(src="/static/js/mafia/game.js", defer)
+    script(src=`/static/js/mafia/util.js?ver=${ver}`, defer)
+    script(src=`/static/js/vc-utils.js?ver=${ver}`, defer)
+    script(src=`/static/js/mafia/game.js?ver=${ver}`, defer)
     script(src="/static/js/mafia/host.js", defer)
     script(src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js")
 

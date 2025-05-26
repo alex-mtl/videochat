@@ -1,9 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
-// Path to the rooms folder
-//const roomsFolder = '../../rooms';
 const config = require('../../config');
+const db = require('../../db')
 
 module.exports.home = (req, res) => {
     let nickname = '';
@@ -64,6 +63,30 @@ module.exports.home = (req, res) => {
         });
 };
 
+module.exports.history = (req, res) => {
+    // console.log(req.session.user)
+    getGameHistory()
+        .then(roomList => {
+
+
+            let data = {
+                sessionID: req.sessionID,
+                wssURL: config.wssURL,
+                roomList,
+                nickname
+            };
+
+            data = {...data, user: req.session.user || null}
+
+
+            res.render('mafia/history', data)
+        })
+        .catch(error => {
+            console.error('120 Error retrieving games:', error);
+            res.status(500).send('Internal Server Error');
+        });
+};
+
 module.exports.game = (req, res) => {
     roomFile = config.roomsFolder+'/'+req.params.room+'.json';
     if (!fs.existsSync(roomFile)) {
@@ -77,6 +100,7 @@ module.exports.game = (req, res) => {
             res.render('mafia/game', {
                 sessionID: req.sessionID,
                 wssURL: config.wssURL,
+                ver: global.ver,
                 roomID: req.params.room,
                 room,
                 user
@@ -133,3 +157,54 @@ function getActiveRooms() {
 
 
 
+async function getGameHistory() {
+    if (!mduid) {
+        throw new Error('User not authenticated');
+    }
+
+    // Query to get game history for the user
+    const query = `
+        SELECT
+            g.id,
+            g.room_id,
+            g.created_at,
+
+            JSON_OBJECT(
+                    'name', JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.slot."1".name')),
+                    'mduid', JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.slot."1".mduid')),
+                    'avatar', JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.slot."1".avatar')),
+                    'role', JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.slot."1".role'))
+            ) AS slot1,
+
+        FROM
+            games g
+        WHERE
+            g.g_type = 'mafia'
+        ORDER BY
+            g.created_at DESC
+            LIMIT 100;
+    `;
+
+    try {
+        const [games] = await db.query(query, [mduid]);
+        // Transform raw data into table-friendly format
+        const playerGames = games.map((game, index) => {
+            const winStatus = determineWinStatus(game.role, game.game_result);
+
+            return {
+                number: index + 1,
+                role: getRoleLabel(game.role),
+                slot: game.slot,
+                result: winStatus,
+                state: game.status,
+                timestamp: game.created_at,
+                room_id: game.room_id,
+                host: game.host_name
+            };
+        });
+        return playerGames
+    } catch (error) {
+        console.error('Error fetching player game history:', error);
+        throw error;
+    }
+}

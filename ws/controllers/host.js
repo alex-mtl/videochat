@@ -966,7 +966,7 @@ const gameStart = onlyHost(async (ws, data, ROOM_ID, room) => {
             user = clients[player.uid]
             if (user !== undefined) {
                 await user.send(JSON.stringify({ type: 'mute-mic' }));
-                room,game.size++
+                room.game.size++
             } else {
                 player.mic === 'off'
                 room.slot[slot].uid = 'empty';

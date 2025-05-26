@@ -3,8 +3,8 @@ function handleOffer(offer) {
     if (peerConnection == undefined) {
         console.error('Peer  connection ', offer.from, 'undefined');
     } else {
-        peerConnection.setRemoteDescription(new RTCSessionDescription(offer.description));
-        peerConnection.createAnswer()
+        peerConnection.setRemoteDescription(new RTCSessionDescription(offer.description))
+            .then(() => peerConnection.createAnswer())
             .then(answer => peerConnection.setLocalDescription(answer))
             .then(() => {
                 sendAnswer(offer.from, peerConnection.localDescription);
@@ -21,11 +21,11 @@ function handleOffer(offer) {
 //     peerConnection.setRemoteDescription(new RTCSessionDescription(answer.description));
 // }
 
-function handleAnswer(answer) {
+async function handleAnswer(answer) {
     const peerConnection = peerConnections[answer.from];
 
     // Modify the SDP to prioritize codecs
-    const preferredCodecs = ["video/VP9", "video/VP8", "video/H264"];
+    const preferredCodecs = ["video/H264", "video/VP8", "video/VP9"];
     const modifiedSDP = prioritizeCodecs(answer.description.sdp, preferredCodecs);
 
     // Set the modified SDP as the remote description
@@ -33,9 +33,23 @@ function handleAnswer(answer) {
         type: 'answer',
         sdp: modifiedSDP
     });
-    peerConnection.setRemoteDescription(modifiedAnswer)
-        .then(() => console.log("Remote description set successfully."))
-        .catch(error => console.error("Error setting remote description:", error));
+
+    if (peerConnection.signalingState === 'have-local-offer') {
+        await peerConnection.setRemoteDescription(modifiedAnswer);
+    } else {
+        console.error("Ошибка: соединение не ожидает answer. Текущее состояние:", peerConnection.signalingState);
+
+        if (peerConnection?.slot) {
+            slotInfo(peerConnection.slot, 'State: ' + peerConnection.signalingState)
+            // let slotElem = document.querySelector('div.videobox[data-slot="'+peerConnection.slot+'"] span.game-info');
+            // await peerRefresh(slotElem)
+        }
+
+        // Варианты восстановления:
+        // 1. Создать новый offer
+        // 2. Перезапустить соединение
+    }
+
 }
 
 function prioritizeCodecs(sdp, codecs) {
@@ -75,18 +89,23 @@ async function checkCodecInUse(peerConnection) {
                 }
             });
         } else if (report.kind === 'video') {
-            console.log('Report type:', report.type)
+            // console.log('Report type:', report.type)
         }
     });
 
     if (codecInfo) {
-        console.log(`Codec in use: ${codecInfo.mimeType}, Payload Type: ${codecInfo.payloadType}`);
+        console.log(`Codec in use: ${codecInfo.mimeType}, Payload Type: ${codecInfo.payloadType}`, peerConnection?.slot);
     } else {
         if (peerConnection?.slot) {
             slotInfo(peerConnection.slot, 'No codec information')
+
+            // let slotElem = document.querySelector('div.videobox[data-slot="'+peerConnection.slot+'"] span.game-info');
+            // await peerRefresh(slotElem)
         }
-        console.log('No codec information found for the incoming video stream. Slot:', peerConnection?.slot);
-        console.log(stats);
+        peerConnection.iceConnectionState
+        // console.log('ICE connection state:', peerConnection.iceConnectionState);
+        // console.log('No codec information found for the incoming video stream. Slot:', peerConnection?.slot);
+        // console.log(stats);
     }
 }
 
@@ -127,13 +146,16 @@ async function sendOffer(ws, from, to, peerConnection) {
         iceRestart: true
     };
     const offer = await peerConnection.createOffer(offerOptions);
+    // const vp9Sdp = forceVP9(offer.sdp);
     // console.log(offer.sdp)
+    // await peerConnection.setLocalDescription({offer, sdp: vp9Sdp});
     await peerConnection.setLocalDescription(offer);
-    peerConnection.onicecandidate = event => {
-        if (event.candidate) {
-            sendIceCandidate(from, to, event.candidate);
-        }
-    };
+    // peerConnection.onicecandidate = event => {
+    //     console.log(254, 'Candidate:', event.candidate)
+    //     if (event.candidate) {
+    //         sendIceCandidate(from, to, event.candidate);
+    //     }
+    // };
     ws.send(JSON.stringify({type: 'offer', from, to, offer}));
 }
 

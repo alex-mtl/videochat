@@ -1,19 +1,23 @@
 const configuration = {
     // iceTransportPolicy: 'relay',
+    iceCandidatePoolSize: 0,
     iceServers: [
         {urls: 'stun:stun.l.google.com:19302'},
-        //{urls: 'stun:stun1.l.google.com:19302'},
+        // {urls: 'stun:stun1.l.google.com:19302'},
         // {urls: 'stun:stun2.l.google.com:19302'},
         // {urls: 'stun:stun.sipnet.ru:3478'},
-        // {urls: 'stun:stun.skylink.ru:3478'},
-        // {urls: 'stun:stun.voys.nl:3478'},
-        // {urls: 'stun:mao-dao.com:3478'},
+        {urls: 'stun:mao-dao.com:3478'},
+        // {
+        //     urls: "turn:194.26.138.209:3478?transport=udp",
+        //     username: "turnuser",
+        //     credential: "turnpassword",
+        // },
         {
-            urls: "turn:194.26.138.209:3478?transport=udp",
-            username: "turnuser",
-            credential: "turnpassword",
-        }
-        // ,
+            urls: "turn:188.225.37.129:3478?transport=udp",
+            username: "turnuserjustice",
+            credential: "passjustice",
+        },
+        // // ,
         // {
         //     urls: "turn:mao-dao.com:3478?transport=udp",
         //     username: "maodao",
@@ -113,13 +117,13 @@ function slotInfo(slot, info) {
         slotTimeouts[slot] = setTimeout(() => {
             slotInfoSpan.textContent = "";
             delete slotTimeouts[slot]; // Cleanup
-        }, 2000);
+        }, 5000);
 
     } else {
         alertToaster("Slot "+slot+" not found. "+info, 'error');
     }
 }
-function createPeerConnection(peerId, hostID, participant = true, avatar = null) {
+async function createPeerConnection(peerId, hostID, participant = true, avatar = null) {
     const peerConnection = new RTCPeerConnection(configuration);
     const dataChannel = peerConnection.createDataChannel("customData");
     peerConnection.dc = dataChannel;
@@ -157,10 +161,48 @@ function createPeerConnection(peerId, hostID, participant = true, avatar = null)
         }
     });
 
+
+    peerConnection.getTransceivers().forEach(transceiver => {
+        if (transceiver.sender.track?.kind === 'video') {
+            const supportedCodecs = RTCRtpSender.getCapabilities('video').codecs;
+            // console.log(175, 'Supported video codecs:', supportedCodecs);
+
+            // Filter and order codecs by desired preference
+            const preferredCodecs = [
+                ...supportedCodecs.filter(c => c.mimeType === 'video/VP8'),
+                ...supportedCodecs.filter(c => c.mimeType === 'video/VP9'),
+                ...supportedCodecs.filter(c => c.mimeType === 'video/H264')
+            ];
+
+            if (preferredCodecs.length > 0) {
+                transceiver.setCodecPreferences(preferredCodecs);
+                // console.log('Set codec preference order: VP8 → VP9 → H264');
+            } else {
+                // console.warn('No preferred video codecs supported.');
+            }
+        }
+    });
+
+    peerConnection.onicecandidate = event => {
+        if (event.candidate) {
+            // console.log(186,event.candidate.candidate)
+            const parts = event.candidate.candidate.split(" ");
+            const candidateType = parts[7]; // "host", "srflx", "prflx", "relay"
+
+            // console.log(190,'Candidate type to send:', candidateType);
+            // if (candidateType !== 'host') {
+            //     sendIceCandidate(sessionID, peerConnection.uid, event.candidate);
+            // } else {
+                // console.log("Отфильтрован локальный кандидат:", event.candidate.candidate);
+            // }
+            sendIceCandidate(sessionID, peerConnection.uid, event.candidate);
+        }
+    };
+
     peerConnection.ontrack = event => {
         if (document.getElementById('video-' + peerId) === null) {
             slot = document.querySelector('[data-uid="' + peerId+'"]')
-            console.log("Participant joined for slot:", slot)
+            // console.log("Participant joined for slot:", slot)
             if ( slot === null) {
                 for (const [slotN, player] of Object.entries(roomEnv.slot)) {
                     if (player.uid === peerId) {
@@ -213,7 +255,7 @@ function createPeerConnection(peerId, hostID, participant = true, avatar = null)
         }
         if (peerConnection.iceConnectionState === "disconnected") {
             if (peerConnection.isResetting) {
-                console.log(`PeerConnection for ${peerId} is being reset, ignoring disconnect logic.`);
+                // console.log(`PeerConnection for ${peerId} is being reset, ignoring disconnect logic.`);
                 return;
             } else {
                 setTimeout(() => {
@@ -408,7 +450,7 @@ async function peerRefresh(elem) {
     slot = elem.parentElement;
     let uid = slot.getAttribute('data-uid')
     // showPopupAlert(slot.getAttribute('data-uid'))
-    ws.send(JSON.stringify({type: 'restart-peer-connection', 'peer': uid}));
+
 
     if (peerConnections[uid]) {
         let pc = peerConnections[uid];
@@ -417,6 +459,8 @@ async function peerRefresh(elem) {
         pc.isResetting = true
         pc.close()
         pc = null
+
+        await ws.send(JSON.stringify({type: 'restart-peer-connection', 'peer': uid}));
     } else {
         console.error(`No peer connection found for UID: ${uid}`);
         if (slotN = slot.getAttribute('data-slot')) {
@@ -429,13 +473,9 @@ async function peerRefresh(elem) {
         }
 
     }
-        newPC = createPeerConnection(uid, roomEnv.host.uid, true);
+        newPC = await createPeerConnection(uid, roomEnv.host.uid, true);
         peerConnections[uid] = newPC
-        newPC.onicecandidate = event => {
-            if (event.candidate) {
-                sendIceCandidate(sessionID, uid, event.candidate);
-            }
-        };
+
 
         try {
             await sendOffer(ws, sessionID, uid, newPC);
@@ -446,52 +486,7 @@ async function peerRefresh(elem) {
             console.error("Error during ICE restart:", error);
         }
 
-                // peerConnection = createPeerConnection(uid, hostID, participant);
-                // peerConnection.onicecandidate = event => {
-                //     if (event.candidate) {
-                //         sendIceCandidate(sessionID, uid, event.candidate);
-                //     }
-                // };
-                // await sendOffer(ws, clientId, uid, peerConnection);
-    // if (peerConnections[slot.getAttribute('data-uid')]) {
-    //     const pc = peerConnections[slot.getAttribute('data-uid')]
-    //         console.log(pc)
-    //             pc.restartIce()
-    // }
-
 }
-// async function peerRefresh(elem) {
-//     const slot = elem.parentElement;
-//     const uid = slot.getAttribute('data-uid');
-//     // showPopupAlert(uid);
-//
-//     if (peerConnections[uid]) {
-//         let pc = peerConnections[uid];
-//         // console.log(pc);
-//         console.log(ws, sessionID, uid, pc)
-//         pc.close()
-//         pc = null
-//         newPC = createPeerConnection(uid, roomEnv.host.uid, true);
-//         peerConnections[uid] = newPC
-//         newPC.onicecandidate = event => {
-//             if (event.candidate) {
-//                 sendIceCandidate(sessionID, uid, event.candidate);
-//             }
-//         };
-//
-//         try {
-//             await sendOffer(ws, sessionID, uid, newPC);
-//
-//             // Reuse sendOffer to restart the ICE process
-//             // await sendOffer(ws, sessionID, uid, pc);
-//         } catch (error) {
-//             console.error("Error during ICE restart:", error);
-//         }
-//     } else {
-//         console.error(`No peer connection found for UID: ${uid}`);
-//     }
-// }
-
 
 function changeUserStatus(elem) {
     var audioContext = new AudioContext();
@@ -1607,7 +1602,7 @@ function handleGameReady(data) {
 
 function handleGamePlayerMic(data) {
     slotMic = document.querySelector('div.videobox[data-uid="'+data.uid+'"] span.slot-mic')
-    slotN = slotMic.parentElement.getAttribute('data-slot')
+    // slotN = slotMic.parentElement.getAttribute('data-slot')
     if (slotMic) {
         slotMic.setAttribute('data-mic', data.mic)
     }
@@ -2475,11 +2470,51 @@ async function checkCPUPerformance() {
 }
 
 
+async function testIceServer(iceServer) {
+    return new Promise((resolve) => {
+        const pc = new RTCPeerConnection({
+            iceServers: [iceServer],
+            iceCandidatePoolSize: 0
+        });
 
+        let success = false;
 
+        pc.onicecandidate = event => {
+            if (event.candidate) {
+                const candidateType = event.candidate.candidate.split(' ')[7]; // 'host', 'srflx', 'relay'
+                console.log(`✅ ${iceServer.urls} returned candidate: ${candidateType}`);
+                success = true;
+            }
+        };
 
+        pc.onicegatheringstatechange = () => {
+            if (pc.iceGatheringState === 'complete') {
+                pc.close();
+                resolve(success);
+            }
+        };
 
+        // Trigger ICE gathering
+        pc.createDataChannel("test");
+        pc.createOffer().then(offer => pc.setLocalDescription(offer));
 
+        // Fallback timeout
+        setTimeout(() => {
+            if (pc.iceGatheringState !== 'complete') {
+                console.warn(`⚠️ Timeout on server: ${iceServer.urls}`);
+                pc.close();
+                resolve(false);
+            }
+        }, 5000);
+    });
+}
 
+const iceServers = configuration.iceServers;
+async function checkAllServers() {
+    for (const server of iceServers) {
+        const ok = await testIceServer(server);
+        console.log(`${server.urls} is ${ok ? '✅ working' : '❌ not working'}`);
+    }
+}
 
-
+//checkAllServers();

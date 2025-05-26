@@ -10,3 +10,8 @@ sudo cp /etc/letsencrypt/live/mao-dao.com/privkey.pem keys/key.pem
 # Restart PM2 WebSocket server
 pm2 restart mao-dao-ws
 pm2 restart mao-dao-vc
+
+sudo cp /etc/letsencrypt/live/mao-dao.com/fullchain.pem /etc/coturn-keys/cert.pem
+sudo cp /etc/letsencrypt/live/mao-dao.com/privkey.pem /etc/coturn-keys/key.pem
+
+sudo systemctl restart coturn

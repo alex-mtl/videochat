@@ -151,6 +151,8 @@ function joinGame(ws, data) {
         ws.roomID = roomID;
         rooms[roomID] = room;
 
+        room = await cleanUsers(room);
+
         // Send the new client their ID
         await ws.send(JSON.stringify({type: 'id', id: clientId, room: room}));
         // console.log('wsid: ', ws.uid, clientId, 'room :', JSON.stringify(room));

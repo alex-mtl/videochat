@@ -346,6 +346,7 @@ function startSignaling() {
             offerToReceiveVideo: 1
         };
         const offer = await peerConnection.createOffer(offerOptions);
+
         await peerConnection.setLocalDescription(offer);
         peerConnection.onicecandidate = event => {
             if (event.candidate) {

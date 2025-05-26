@@ -383,6 +383,42 @@ function updateStatuses() {
     }
 }
 
+async function initializePeerConnectionsSequentially(ws, clientId, users) {
+    const uids = Object.keys(users).filter(uid => uid !== sessionID);
+
+    for (const uid of uids) {
+        try {
+            // Check if user is still active
+            const wsActiveState = await sendRequest(ws, {
+                type: 'check-ws-active',
+                uid: uid
+            });
+
+            if (!wsActiveState?.status) {
+                handlePeerLeft(uid);
+                console.log(`User ${uid} is not available anymore`);
+                continue;
+            }
+            const peerConnection = await createPeerConnection(uid, hostID, participant);
+
+            if (peerConnection.slot) {
+                slotInfo(peerConnection.slot, 'SEND offer');
+            }
+
+            // Send offer
+            await sendOffer(ws, clientId, uid, peerConnection);
+
+            console.log(`Successfully initialized connection with ${uid}`);
+        } catch (error) {
+            console.error(`Failed to initialize connection with ${uid}:`, error);
+            handlePeerLeft(uid);
+        }
+    }
+    handleGamePhase(roomEnv.game, 'reload');
+}
+
+// Usage:
+
 function startSignaling() {
     wsConnRetry++;
     // Create WebSocket connection using the retrieved URL
@@ -401,7 +437,7 @@ function startSignaling() {
 
     };
 
-    ws.onmessage = event => {
+    ws.onmessage = async(event) => {
         const data = JSON.parse(event.data);
         if (data.type === 'id') {
             // Assign the unique ID received from the server
@@ -466,61 +502,8 @@ function startSignaling() {
 
             }
             const peersPromises = [];
-            for (const uid in data.room.users) {
-                if (uid !== sessionID) {
-                    const promise = (async () => {
-                        let wsActiveState = await sendRequest(ws,{type: 'check-ws-active', 'uid': uid })
-                        if (wsActiveState?.status) {
-                            peerConnection = createPeerConnection(uid, hostID, participant);
-                            // peerConnection.onicecandidate = event => {
-                            //     if (event.candidate) {
-                            //         sendIceCandidate(sessionID, uid, event.candidate);
-                            //     }
-                            // };
-                            peerConnection.onicecandidate = async event => {
-                                if (peerConnection.slot) {
-                                    slotInfo(peerConnection.slot, 'new ice candidate generated')
-                                }
-                                if (event.candidate) {
-                                    // if (event.candidate.candidate.includes("::")) {
-                                    //     console.log("Ignoring IPv6 candidate:", event.candidate.candidate);
-                                    //     return;
-                                    // }
-                                    if (event.candidate.candidate.includes("tcp")) {
-                                        console.log("Ignoring TCP candidate:", event.candidate.candidate);
-                                        return;
-                                    }
-                                    if (peerConnection.slot) {
-                                        slotInfo(peerConnection.slot, 'SEND ice candidate')
-                                    }
-                                    await sendIceCandidate(sessionID, uid, event.candidate);
-                                    if (peerConnection.slot) {
-                                        slotInfo(peerConnection.slot, 'ICE candidate SENT')
-                                    }
-                                }
-                            };
-                            if (peerConnection.slot) {
-                                slotInfo(peerConnection.slot, 'SEND offer')
-                            }
-                            await sendOffer(ws, clientId, uid, peerConnection);
-                        } else {
-                            handlePeerLeft(uid);
-                            console.log('Looks like '+uid+' is not available anymore')
-                        }
+            await initializePeerConnectionsSequentially(ws, clientId,data.room.users);
 
-
-                    })();
-                    peersPromises.push(promise);
-                }
-            }
-            Promise.all(peersPromises)
-                .then(() => {
-                    handleGamePhase(roomEnv.game, 'reload')
-                    console.log('All peer connections initialized and offers sent.');
-                })
-                .catch(error => {
-                    console.error('Error initializing peer connections:', error);
-                });
 
 
         } else if (data.type === 'participant-joined') {
@@ -530,39 +513,11 @@ function startSignaling() {
             roomEnv = data.room;
             if (sessionID != clientId) {
                 if (clientId === data.room.gameHost.uid) {
-                    peerConnection = createPeerConnection(clientId, clientId);
+                    peerConnection = await createPeerConnection(clientId, clientId);
                 } else {
-                    peerConnection = createPeerConnection(clientId);
+                    peerConnection = await createPeerConnection(clientId);
                 }
 
-                // peerConnection = createPeerConnection(clientId, null, null, data.avatar);
-                // peerConnection.onicecandidate = event => {
-                //     if (event.candidate) {
-                //         sendIceCandidate(sessionID, clientId, event.candidate);
-                //     }
-                // };
-                peerConnection.onicecandidate = async event => {
-                    if (peerConnection.slot) {
-                        slotInfo(peerConnection.slot, 'new ice candidate generated')
-                    }
-                    if (event.candidate) {
-                        // if (event.candidate.candidate.includes("::")) {
-                        //     console.log("Ignoring IPv6 candidate:", event.candidate.candidate);
-                        //     return;
-                        // }
-                        if (event.candidate.candidate.includes("tcp")) {
-                            console.log("Ignoring TCP candidate:", event.candidate.candidate);
-                            return;
-                        }
-                        if (peerConnection.slot) {
-                            slotInfo(peerConnection.slot, 'SEND ice candidate')
-                        }
-                        await sendIceCandidate(sessionID, clientId, event.candidate);
-                        if (peerConnection.slot) {
-                            slotInfo(peerConnection.slot, 'ICE candidate SENT')
-                        }
-                    }
-                };
             }
 
         } else if (data.type === 'request-response') {
