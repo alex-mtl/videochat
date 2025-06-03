@@ -94,6 +94,7 @@ app.get('/policy', home.privacyPolicy);
 app.post('/user/avatar/upload', user.upload);
 app.post('/user/edit', user.updateUser);
 app.get('/user', home.userProfile);
+app.get('/u/:mduid', home.userPublic )
 
 app.get('/rooms', roomList.page )
 app.get('/mafia', mafia.home )

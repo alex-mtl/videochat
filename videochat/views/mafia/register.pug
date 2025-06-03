@@ -12,7 +12,7 @@ html(lang="en")
   body
     script let chatSessionID = "#{sessionID}"; var websocketUrl = "#{wssURL}";
     include elems/layout-header
-    .container
+    .container.signup
       if errors
         each message in errors
           include elems/alert-message

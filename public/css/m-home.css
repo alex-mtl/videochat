@@ -114,13 +114,30 @@ body {
 }
 .footer {
     bottom: 0;
+    height: 3vw;
+    font-size: 1vw;
+    text-align: center;
 }
+
 .container {
-    /*max-width: 800px;*/
-    max-width: 90vw;
-    margin: 5.2vw auto; /* Adjust margin to make space for header and footer */
+    /*margin: 5.2vw auto; !* Adjust margin to make space for header and footer *!*/
     padding: 10px;
 }
+.container.homepage,
+.container.signup,
+.container.login,
+.container.user {
+    max-width: 80vw;
+    margin-top: 5vw;
+    margin-bottom: 3vw;
+    max-height: calc(100vh - 8.2vw); /* Viewport minus header+footer */
+    overflow-y: hidden;
+}
+
+/*.container.homepage .table-container{*/
+/*    overflow: hidden;*/
+/*}*/
+
 form {
     max-width: 600px;
     margin: auto;
@@ -132,10 +149,20 @@ form {
     width: auto; /* Adjust button width */
 }
 .table-container {
-    max-height: calc(100vh - 4vw); /* Adjust maximum height for scroll */
+    max-height: calc(100vh - 11vw); /* Adjust maximum height for scroll */
     overflow-y: auto; /* Enable vertical scrolling */
-    margin-top: 2vw; /* Adjust margin to avoid overlapping with header */
-    margin-bottom: 2vw; /* Adjust margin to avoid overlapping with footer */
+    /*margin-top: 2vw; !* Adjust margin to avoid overlapping with header *!*/
+    /*margin-bottom: 2vw; !* Adjust margin to avoid overlapping with footer *!*/
+}
+
+.th-host, .th-club, .th-result, .th-phase  {
+    width: 5vw;
+}
+.th-users {
+    width: 32vw;
+}
+.th-actions {
+    width: 10vw;
 }
 
 /* Game Password Popup*/
@@ -200,3 +227,150 @@ span.pwd:before {
     content: 'password';
     vertical-align: middle;
 }
+
+tr {
+    vertical-align: middle;
+}
+#history-tab td {
+    /*padding: 0;*/
+}
+
+.player-slots-cell {
+    white-space: nowrap; /* Prevent wrapping */
+    overflow-x: auto; /* Enable horizontal scrolling if needed */
+    padding: 0;
+    width: 32vw;
+}
+
+.player-slots-container {
+    display: inline-flex; /* Horizontal layout */
+    overflow-y: hidden;
+
+
+}
+
+.player-slot {
+    position: relative;
+    display: inline-block;
+    flex-direction: column;
+    align-items: center;
+    width: 4vw;
+    flex-shrink: 0;
+    margin-left: -1vw;
+}
+
+.player-slot.first {
+    margin-left: 0;
+}
+
+.avatar-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    background: white;
+}
+
+.role-badge {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 1.5vw;
+    height: 1.5vw;
+
+    border-radius: 25%;
+    border: 0.1vw solid white;
+    /*transform: translate(-25%, 25%);*/
+    z-index: 2;
+    background-size: contain;
+    background: white;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+/* Role-specific styling using classes */
+/*.role-badge.R {*/
+/*    background-color: var(--g-failure);*/
+/*    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4z'/%3E%3C/svg%3E");*/
+/*}*/
+.role-badge.R:before {
+    content: "frame_person";
+    color: var(--g-failure);
+    font-size: 1.4vw;
+    vertical-align: top;
+}
+
+.role-badge.S {
+    background-image: url('/static/img/sheriff-star.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center
+}
+
+/*.role-badge.B {*/
+/*    background-color: black;*/
+/*    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4z'/%3E%3C/svg%3E");*/
+/*}*/
+
+.role-badge.B:before {
+    content: "frame_person";
+    color: black;
+    fonnt-weight: 800;
+    font-size: 1.4vw;
+    vertical-align: top;
+}
+
+.role-badge.H {
+    visibility: hidden;
+}
+
+.role-badge.H:before {
+    content: "frame_person_mic";
+    color: var(--g-green);
+    fonnt-weight: 800;
+    font-size: 1.4vw;
+    vertical-align: top;
+
+}
+
+.role-badge.unknown:before {
+    content: "check_circle";
+    color: var(--g-dark-grey);
+    font-size: 1.4vw;
+    vertical-align: top;
+}
+
+.role-badge.ready:before {
+    content: "check_circle";
+    color: var(--g-success);
+    font-size: 1.4vw;
+    vertical-align: top;
+}
+.role-badge.D {
+
+    background-image: url('/static/img/don-ring.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+td.game-result:before {
+    content: "frame_person";
+    font-size: 4vw;
+    font-weight: 800;
+}
+
+td.game-result[data-result="red"] {
+    color: var(--g-failure);
+}
+
+td.game-result[data-result="black"] {
+    color: black;
+}
+

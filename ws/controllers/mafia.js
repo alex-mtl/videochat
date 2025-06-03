@@ -71,6 +71,7 @@ function joinGame(ws, data) {
                         room.gameHost.uid = clientId
                         room.host.uid = clientId
                         room.host.mduid = ws.mduid
+                        room.host.avatar = ws.req.session?.user?.avatar_url || '/static/img/avatar/d450356dc7cb3609.png';
                         room.gameHost.mduid = ws.mduid
 
                     } else {
@@ -866,7 +867,13 @@ async function createGame(sender, data) {
         sender.req.session.userName = room.host
         sender.req.session.newRoom = room.name
 
-        room.host = { uid: clientId, userName: room.host, sessionID: room.chatSessionID };
+        room.host = {
+            uid: clientId,
+            userName: room.host,
+            mduid: sender.req.session?.user?.mduid || null,
+            avatar: sender.req.session?.user?.avatar_url || '/static/img/avatar/d450356dc7cb3609.png',
+            sessionID: room.chatSessionID
+        };
         room.gameHost = {uid: clientId, name: sender.userName, sessionID: room.chatSessionID, status: "unknown" }
         room.link = config.chatHost+'m/'+room.name;
         room.size = 1;

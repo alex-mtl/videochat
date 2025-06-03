@@ -9,6 +9,8 @@ const validator = require('validator');
 const { OAuth2Client } = require('google-auth-library');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+const { determineWinStatus, getRoleLabel, getUserByMduid } = require('../utils/mafia.helpers')
+
 
 function checkTelegramLogin(data, botToken) {
     const secretKey = crypto.createHash('sha256').update(process.env.TG_TOKEN).digest();
@@ -125,51 +127,7 @@ function getRoleColor(role) {
     return colors[role] || 'var(--g-text)';
 }
 
-function getRoleLabel(role) {
-    const ROLE_CONFIG = {
-        'R': `<span class="d-flex align-items-center gap-2">
-                <span class="material-symbols-outlined" style="color: var(--g-failure);">
-                  frame_person
-                </span>
-                <span>Citizen</span>
-              </span>
-            `,
-        'S': `<span class="d-flex align-items-center gap-2">
-                <span style="
-                  display: inline-block;
-                  height: 1.2rem;
-                  width: 1.2rem;
-                  background-image: url('/static/img/sheriff-star.png');
-                  background-size: contain;
-                  background-repeat: no-repeat;
-                  background-position: center;
-                "></span>
-                <span>Sheriff</span>
-              </span>
-            `,
-        'B': `<span class="d-flex align-items-center gap-2">
-                <span class="material-symbols-outlined" style="color: black;">
-                  frame_person
-                </span>
-                <span>Mafia</span>
-              </span>
-            `,
-        'D': `<span class="d-flex align-items-center gap-2">
-                <span style="
-                  display: inline-block;
-                  height: 1.2rem;
-                  width: 1.2rem;
-                  background-image: url('/static/img/don-ring.png');
-                  background-size: contain;
-                  background-repeat: no-repeat;
-                  background-position: center;
-                "></span>
-                <span>Don</span>
-              </span>
-            `,
-    };
-    return ROLE_CONFIG[role];
-}
+
 async function getPlayerGameHistory(mduid) {
     if (!mduid) {
         throw new Error('User not authenticated');
@@ -231,12 +189,6 @@ async function getPlayerGameHistory(mduid) {
 }
 
 // Helper functions
-function determineWinStatus(role, gameResult) {
-    if (gameResult === 'red' && ['R', 'S'].includes(role)) return 'win';
-    if (gameResult === 'black' && ['B', 'D'].includes(role)) return 'win';
-    return 'lose';
-}
-
 function getUserBadges(userId) {
     stats = {
         title: 'Badges',
@@ -441,6 +393,42 @@ module.exports.userProfile = async (req, res) => {
     }
 };
 
+
+
+module.exports.userPublic = async (req, res) => {
+    let user = req.session.user || null
+    let mduid  = req.params.mduid
+    console.log(mduid)
+    if (mduid) {
+        let publicUser = await getUserByMduid(mduid);
+        if (publicUser) {
+            // console.log(user, (user !== {}))
+            publicUser.stats = await getUserStats(publicUser.id, mduid)
+            publicUser.badges = getUserBadges(publicUser.id)
+            publicUser.games = await getPlayerGameHistory(mduid)
+
+            publicProps = {
+                'Username_Nickname': [
+                    publicUser.username,
+                    publicUser.nickname
+                ],
+                'Country': countries[(publicUser.country || 'US')]
+            }
+
+            res.render('mafia/user/user-public', {
+                sessionID : req.sessionID ,
+                wssURL : config.wssURL,
+                publicProps,
+                user,
+                publicUser
+            })
+        }
+
+    } else {
+        req.session.errorMessage = "You need to login first";
+        res.redirect('/login', {user});
+    }
+};
 
 
 module.exports.logout = (req, res) => {

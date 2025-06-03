@@ -4,65 +4,64 @@ const path = require('path');
 const config = require('../../config');
 const db = require('../../db')
 
-module.exports.home = (req, res) => {
-    let nickname = '';
-    if (req.session.user) {
-        nickname = req.session.user.nickname || req.session.user.username;
-    }
-    // console.log(req.session.user)
-    getActiveRooms()
-        .then(roomList => {
-            roomList = roomList.filter(room => room.type === 'mafia' && room.hidden !== true);
+const helpers = require('../utils/mafia.helpers')
+module.exports.home = async (req, res) => {
+    try {
+        let nickname = '';
+        if (req.session.user) {
+            nickname = req.session.user.nickname || req.session.user.username;
+        }
 
-            roomList.forEach( room => {
-                if (room.host.sessionID !== req.sessionID) {
-                    delete room.host.sessionID;
-                }
-                room.userCount = Object.keys(room.users).length
-                room.aliveCount = (() => {
-                    let count = 0
-                    for (const [slot, player] of Object.entries(room.slot)) {
-                        if (player.status === 'alive') {
-                            count++
-                        }
-                    }
-                    console.log('VC 26', count)
-                    return count
-                })()
-            })
-            console.log(roomList)
-            // console.log('VC 19', req.sessionID)
-            // console.log('VC 20', req.session)
-            req.session.test = 'lets check'
+        // Get both active rooms and history in parallel
+        const [roomList, historyList] = await Promise.all([
+            getActiveRooms(),
+            getHistoryRooms() // You'll need to implement this function
+        ]);
 
-            let data = {
-                sessionID: req.sessionID,
-                wssURL: config.wssURL,
-                roomList,
-                nickname
-            };
+        // Process active rooms
+        const filteredRooms = roomList.filter(room => room.type === 'mafia' && room.hidden !== true);
 
-            data = {...data, user: req.session.user || null}
-
-            if (req.session.hasOwnProperty('error')) {
-                error = req.session.error ;
-                console.log('error message', error);
-                //delete res.session.error;
-                //if (error !== undefined && error !== null) {
-                    data['error'] = error;
-                    delete req.session.error;
-                //}
+        filteredRooms.forEach(room => {
+            if (room.host.sessionID !== req.sessionID) {
+                delete room.host.sessionID;
             }
-            console.log('VC 38 ',data)
-            res.render('mafia/home-mafia', data)
-            // res.render('mafia/home', data)
-        })
-        .catch(error => {
-            console.error('Error retrieving active rooms:', error);
-            res.status(500).send('Internal Server Error');
+            room.userCount = Object.keys(room.users).length;
+            room.aliveCount = (() => {
+                let count = 0;
+                for (const [slot, player] of Object.entries(room.slot)) {
+                    if (player.status === 'alive') {
+                        count++;
+                    }
+                }
+                return count;
+            })();
         });
-};
 
+        req.session.test = 'lets check';
+
+        let data = {
+            sessionID: req.sessionID,
+            wssURL: config.wssURL,
+            roomList: filteredRooms,
+            ver: global.ver,
+            historyList, // Add the history list to the data
+            nickname
+        };
+
+        data = {...data, user: req.session.user || null};
+
+        if (req.session.hasOwnProperty('error')) {
+            const error = req.session.error;
+            console.log('error message', error);
+            data['error'] = error;
+            delete req.session.error;
+        }
+        res.render('mafia/home-mafia', data);
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Internal Server Error');
+    }
+};
 module.exports.history = (req, res) => {
     // console.log(req.session.user)
     getGameHistory()
@@ -134,6 +133,7 @@ function getActiveRooms() {
                             if(!room.hasOwnProperty('name')) {
                                 room.name = file.replace('.json','');
                             }
+                            console.log(135,room)
                             rooms.push(room);
                             resolveFile();
                         } catch (error) {
@@ -156,50 +156,69 @@ function getActiveRooms() {
 }
 
 
-
-async function getGameHistory() {
-    if (!mduid) {
-        throw new Error('User not authenticated');
-    }
+async function getHistoryRooms() {
+    // if (!mduid) {
+    //     throw new Error('User not authenticated');
+    // }
 
     // Query to get game history for the user
-    const query = `
+    let query = `
         SELECT
             g.id,
             g.room_id,
             g.created_at,
-
+            JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.name')) as name,
+            JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.game.result.team')) as result,
+            
+        `
+    for (let i = 0; i < 10; i++) {
+        query += `
             JSON_OBJECT(
-                    'name', JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.slot."1".name')),
-                    'mduid', JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.slot."1".mduid')),
-                    'avatar', JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.slot."1".avatar')),
-                    'role', JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.slot."1".role'))
-            ) AS slot1,
-
+                    'name', JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.slot."${i + 1}".name')),
+                    'mduid', JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.slot."${i + 1}".mduid')),
+                    'avatar', JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.slot."${i + 1}".avatar')),
+                    'role', JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.slot."${i + 1}".role'))
+            ) AS slot${i + 1},
+        `
+    }
+    query += `
+            JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.host.userName')) AS host_name,  
+            JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.host.mduid')) AS host_mduid,
+            JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.host.avatar')) AS host_avatar
+              
         FROM
             games g
         WHERE
             g.g_type = 'mafia'
         ORDER BY
             g.created_at DESC
-            LIMIT 100;
+            LIMIT 20;
     `;
 
     try {
-        const [games] = await db.query(query, [mduid]);
-        // Transform raw data into table-friendly format
-        const playerGames = games.map((game, index) => {
-            const winStatus = determineWinStatus(game.role, game.game_result);
+        const [games] = await db.query(query);
 
+        //return games;
+
+        const playerGames = games.map((game, index) => {
+            console.log(game.id, game.host_name, game.host_mduid, game.host_avatar) //
+            const players = [ game.slot1, game.slot2, game.slot3, game.slot4, game.slot5, game.slot6, game.slot7, game.slot8, game.slot9, game.slot10 ];
             return {
                 number: index + 1,
-                role: getRoleLabel(game.role),
+                role: helpers.getRoleLabel(game.role),
+                name: game.name,
                 slot: game.slot,
-                result: winStatus,
+                players,
+                result: game.result,
                 state: game.status,
                 timestamp: game.created_at,
                 room_id: game.room_id,
-                host: game.host_name
+                host: {
+                    name: game.host_name,
+                    mduid: game.host_mduid,
+                    avatar: game.host_avatar
+
+                }
             };
         });
         return playerGames

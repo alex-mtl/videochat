@@ -1,0 +1,39 @@
+doctype html
+html(lang="en")
+    head
+        meta(charset="UTF-8")
+        meta(name="viewport", content="width=device-width, initial-scale=1.0")
+        title Public Profile
+        link(href="/static/css/m-home.css", rel="stylesheet")
+        link(href="/static/css/m-user.css", rel="stylesheet")
+        link(href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined", rel="stylesheet")
+        link(href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css", rel="stylesheet", integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN", crossorigin="anonymous")
+        script(src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js", defer)
+
+    body
+        - var title = "Public Profile"
+        include ../elems/layout-header
+
+        section
+            .container.user
+                .row
+                    .col-lg-4
+                        .card.mb-4
+                            .card-body.text-center
+                                img(src=publicUser.avatar_url, alt="avatar", class="rounded-circle img-fluid", style="width: 150px;")
+                                h5.my-3 #{publicUser.username}
+                                p.text-muted.mb-1 #{publicUser.level || ''}
+                                p.text-muted.mb-4 #{publicUser.country || ''}
+
+                    .col-lg-8
+                        .card.mb-4
+                            .card-body
+                                each propValue, propName in publicProps
+                                    include ../elems/card-row
+                        .row
+                            - var card = publicUser.stats || {}
+                            include user-stats
+                            - var games = publicUser.games || {}
+                            include user-games
+
+        .footer © MAO Game Platform

@@ -17,7 +17,7 @@ html(lang="en")
     script let chatSessionID = "#{sessionID}"; var websocketUrl = "#{wssURL}";
     -var title = "Login"
     include elems/layout-header
-    .container
+    .container.login
       if message
         include elems/alert-message
       form#login(action="/login" method='post')
