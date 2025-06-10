@@ -81,7 +81,7 @@ function startSignaling() {
     ws = new WebSocket(websocketUrl);
 
     ws.onopen = () => {
-        ws.send(JSON.stringify({type: 'connect'}));
+        ws.send(JSON.stringify({type: 'connect', page: 'mafia-home'}));
     };
 
     ws.onmessage = event => {
@@ -96,6 +96,8 @@ function startSignaling() {
             handleError(data, 'error');
         } else if (data.type === 'info') {
             handleError(data, 'info');
+        } else if (data.type === 'game-player-status') {
+            handleGamePlayerStatus(data);
         } else if (data.type === 'access-grant') {
             handleAccessGrant(data);
         }
@@ -112,6 +114,16 @@ function startSignaling() {
         } else {
             console.log(data.to+" was denied to "+data.roomId+" room","info")
             alertToaster(data.to+" was granted permission to "+data.roomId+" room", "error");
+        }
+    }
+    function handleGamePlayerStatus(data) {
+        const selector = `#active-tab tr#roomID-${data.roomID} div.player-slot[data-slot="${data.slot}"] div.role-badge`;
+        const playerRoleBadge = document.querySelector(selector);
+        console.log(selector);
+        if (playerRoleBadge) {
+            playerRoleBadge.setAttribute('data-status', data.status);
+        } else {
+            console.log(selector, "not found");
         }
     }
 
@@ -136,30 +148,30 @@ function startSignaling() {
                     }
                 },
                 () => {
-                    tableBody = document.getElementById('room-list').querySelector('.table tbody');
-                    var newRow = document.createElement('tr');
-                    if (data.room.game.type === 'public') {
-                        type = 'Open';
-                        pwd = '';
-                        btn = '<button class="btn btn-primary" onClick="joinGame(this)" type="button">Join Room</button>';
-                    } else if (data.room.game.type === 'private') {
-                        type = 'Private';
-                        pwd = '<input id="r-pass-'+data.room.name+'" type="text" size="32" placeholder="$ecr3t p@ssw0rd">';
-                        btn = '<button class="btn btn-primary" onClick="joinGame(this)" type="button">Join Room</button>';
-                    } else if (data.room.game.type === 'master') {
-                        type = 'Admission';
-                        pwd = '<input id="r-admit-'+data.room.name+'" type="text" size="32" placeholder="May I join the room?">';
-                        btn = '<button class="btn btn-primary" onClick="requestJoinRoom(this)" type="button">Join Room</button>';
-                    }
-
-                    newRow.id = 'roomID-'+data.room.name;
-                    newRow.innerHTML = '<td>'+data.room.name+'</td>'
-                        +'<td>'+data.room.host.userName+'</td>'
-                        +'<td>'+type+'</td>'
-                        +'<td>'+pwd+'</td>'
-                        +'<td>'+btn+'</td>'
-                    ;
-                    tableBody.prepend(newRow);
+                    // tableBody = document.getElementById('room-list').querySelector('.table tbody');
+                    // var newRow = document.createElement('tr');
+                    // if (data.room.game.type === 'public') {
+                    //     type = 'Open';
+                    //     pwd = '';
+                    //     btn = '<button class="btn btn-primary" onClick="joinGame(this)" type="button">Join Room</button>';
+                    // } else if (data.room.game.type === 'private') {
+                    //     type = 'Private';
+                    //     pwd = '<input id="r-pass-'+data.room.name+'" type="text" size="32" placeholder="$ecr3t p@ssw0rd">';
+                    //     btn = '<button class="btn btn-primary" onClick="joinGame(this)" type="button">Join Room</button>';
+                    // } else if (data.room.game.type === 'master') {
+                    //     type = 'Admission';
+                    //     pwd = '<input id="r-admit-'+data.room.name+'" type="text" size="32" placeholder="May I join the room?">';
+                    //     btn = '<button class="btn btn-primary" onClick="requestJoinRoom(this)" type="button">Join Room</button>';
+                    // }
+                    //
+                    // newRow.id = 'roomID-'+data.room.name;
+                    // newRow.innerHTML = '<td>'+data.room.name+'</td>'
+                    //     +'<td>'+data.room.host.userName+'</td>'
+                    //     +'<td>'+type+'</td>'
+                    //     +'<td>'+pwd+'</td>'
+                    //     +'<td>'+btn+'</td>'
+                    // ;
+                    // tableBody.prepend(newRow);
                 }
             );
         } else {

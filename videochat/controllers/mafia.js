@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const config = require('../../config');
+require('dotenv').config();
 const db = require('../../db')
 
 const helpers = require('../utils/mafia.helpers')
@@ -41,7 +41,7 @@ module.exports.home = async (req, res) => {
 
         let data = {
             sessionID: req.sessionID,
-            wssURL: config.wssURL,
+            wssURL: process.env.WSS_URL,
             roomList: filteredRooms,
             ver: global.ver,
             historyList, // Add the history list to the data
@@ -70,7 +70,7 @@ module.exports.history = (req, res) => {
 
             let data = {
                 sessionID: req.sessionID,
-                wssURL: config.wssURL,
+                wssURL: process.env.WSS_URL,
                 roomList,
                 nickname
             };
@@ -87,7 +87,7 @@ module.exports.history = (req, res) => {
 };
 
 module.exports.game = (req, res) => {
-    roomFile = config.roomsFolder+'/'+req.params.room+'.json';
+    roomFile = process.env.ROOMS_DIR+'/'+req.params.room+'.json';
     if (!fs.existsSync(roomFile)) {
         req.session.error = "Room "+req.params.room+" does not exist!";
         res.redirect('/mafia');
@@ -98,7 +98,7 @@ module.exports.game = (req, res) => {
             const user = req.session.user || null;
             res.render('mafia/game', {
                 sessionID: req.sessionID,
-                wssURL: config.wssURL,
+                wssURL: process.env.WSS_URL,
                 ver: global.ver,
                 roomID: req.params.room,
                 room,
@@ -111,7 +111,7 @@ module.exports.game = (req, res) => {
 function getActiveRooms() {
     return new Promise((resolve, reject) => {
         let rooms = [];
-        fs.readdir(config.roomsFolder, (err, files) => {
+        fs.readdir(process.env.ROOMS_DIR, (err, files) => {
             if (err) {
                 console.error('Error reading rooms folder:', err);
                 reject(err);
@@ -120,7 +120,7 @@ function getActiveRooms() {
 
             const jsonFiles = files.filter(file => file.endsWith('.json'));
             const promises = jsonFiles.map(file => {
-                const filePath = path.join(config.roomsFolder, file);
+                const filePath = path.join(process.env.ROOMS_DIR, file);
                 return new Promise((resolveFile, rejectFile) => {
                     fs.readFile(filePath, 'utf8', (err, data) => {
                         if (err) {

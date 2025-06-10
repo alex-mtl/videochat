@@ -15,6 +15,7 @@
     --g-background-person: url('/static/img/background_replace.svg');
     --g-settings-sandbox: hidden;
     --g-room-logo:url(/static/img/paypal_donate.png);
+    --g-self-view-mirror-mode: 1;
 }
 
 .video-grid {
@@ -135,7 +136,8 @@ div.videobox[data-uid="empty"]:not([data-player-status="alive"]):not([data-playe
 
 div.videobox span.toggle-audio,
 div.videobox span.toggle-video,
-div.videobox span.settings
+div.videobox span.settings,
+div.videobox span.mirror
 
 {
     position: absolute;
@@ -152,6 +154,7 @@ div.videobox span.settings
 div.videobox span.toggle-audio:hover,
 div.videobox span.toggle-video:hover,
 div.videobox span.settings:hover,
+div.videobox span.mirror:hover,
 div.videobox span.refresh:hover
 
 {
@@ -161,6 +164,11 @@ div.videobox span.refresh:hover
 
 div.videobox span.toggle-audio {
     left: 7.5vw;
+}
+
+div.videobox span.mirror {
+    left: 10.5vw;
+    color:var(--g-green);
 }
 
 div.videobox span.settings {
@@ -197,6 +205,10 @@ div.videobox span.toggle-video:before {
     content: 'videocam';
 }
 
+div.videobox.self-view span.mirror:before {
+    content: 'swap_horiz';
+}
+
 div.videobox span.settings:before {
     content: 'settings_video_camera';
 }
@@ -222,6 +234,7 @@ div.videobox span.toggle-video:not(.muted)
 .game.videos[data-phase="lobby"] div.videobox:not(.no-video):hover span.toggle-audio,
 .game.videos[data-phase="lobby"] div.videobox:not(.no-video):hover span.toggle-video,
 .game.videos[data-phase="lobby"] div.videobox.self-view:not(.no-video):hover span.settings,
+.game.videos[data-phase="lobby"] div.videobox.self-view:not(.no-video):hover span.mirror,
 div.videobox:not(.self-view):hover span.refresh
 {
     visibility: visible;
@@ -322,7 +335,8 @@ input.game-user {
 }
 
 .game.videos div.videobox.self-view video {
-     /*transform: scaleX(-1);*/
+    transform: scaleX(var(--g-self-view-mirror-mode));
+    transition: transform 0.3s ease;
 }
 
 
@@ -555,7 +569,7 @@ span.slot-comm {
 }
 
 
-div.game.videos[data-phase='day']:not([data-mode="host"]) .videobox[data-player-status='alive']:not(.self-view):not(.vbox-H):hover .slot-comm:before {
+div.game.videos[data-phase='day']:not([data-mode="host"]):not(.self-active-speaker) .videobox[data-player-status='alive']:not(.self-view):not(.vbox-H):hover .slot-comm:before {
     content: "leak_add";
     visibility: visible;
     cursor: pointer; /* Change mouse pointer to hand on hover */
@@ -1336,7 +1350,6 @@ span.slot-nominate {
 div.game.self-active-speaker[data-mode="player"] span.slot-nominate {
     position: absolute;
     visibility: hidden;
-
     top: 3.5vw;
     width: 100%;
     text-align: center;
@@ -1359,7 +1372,7 @@ div.game[data-mode="host"] span.slot-nominate {
 }
 
 [data-mode="host"][data-phase="day"] .videobox:not(.vbox-H):hover .slot-nominate:before,
-div.game.self-active-speaker[data-mode="player"][data-phase="day"] .videobox[data-player-status="alive"]:not(.vbox-H):hover .slot-nominate:before
+div.game.self-active-speaker[data-mode="player"][data-phase="day"][data-action=""] .videobox[data-player-status="alive"]:not(.vbox-H):hover .slot-nominate:before
 {
     content: "frame_person_mic";
     visibility: visible;

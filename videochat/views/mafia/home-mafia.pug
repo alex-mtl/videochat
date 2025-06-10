@@ -63,19 +63,19 @@ html(lang="en")
                     td.player-slots-cell
                       .player-slots-container
                         - for (let i = 1; i < 11; i++)
-                          .player-slot(class=i === 1 ? 'first' : '')
+                          .player-slot(class=i === 1 ? 'first' : '', data-slot=i)
                             if r.slot[i].mduid && r.slot[i].mduid !== 'null'
                               a.player-slot-link(href="/u/" + r.slot[i].mduid)
                                 .avatar-container
                                   img.avatar(src=r.slot[i].avatar || "/static/img/avatar/d450356dc7cb3609.png", alt=`${r.slot[i].name}` tooltip=`${r.slot[i].name}`)
-                                  .role-badge.material-symbols-outlined(class=r.slot[i].status)
+                                  .role-badge.material-symbols-outlined(data-status=r.slot[i].status)
                             else
                               .avatar-container
-                                if r.slot[i].uid !== "empty"
-                                  img.avatar(src=r.slot[i].avatar || "/static/img/avatar/d450356dc7cb3609.png", alt=`${r.slot[i].name}` tooltip=`${r.slot[i].name}`)
-                                  .role-badge.material-symbols-outlined(class=r.slot[i].status)
-                                else
-                                  img.avatar(src="/static/img/avatar/d450356dc7cb3609.png", alt="Empty slot")
+                                //if r.slot[i].uid !== "empty"
+                                img.avatar(src=r.slot[i].avatar || "/static/img/avatar/d450356dc7cb3609.png", alt=`${r.slot[i].name}` tooltip=`${r.slot[i].name}`)
+                                .role-badge.material-symbols-outlined(data-status=r.slot[i].status)
+                                //else
+                                //  img.avatar(src="/static/img/avatar/d450356dc7cb3609.png", alt="Empty slot")
 
 
 

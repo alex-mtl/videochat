@@ -462,13 +462,15 @@ async function peerRefresh(elem) {
 
         await ws.send(JSON.stringify({type: 'restart-peer-connection', 'peer': uid}));
     } else {
-        console.error(`No peer connection found for UID: ${uid}`);
+        console.log(`No peer connection found for UID: ${uid}`);
         if (slotN = slot.getAttribute('data-slot')) {
             let slotUID = await sendRequest(ws, {type: 'get-slot-uid', slot: slotN})
             uid = slotUID.uid
             if (uid === false) {
                 slotInfo(slotN,'No connection')
                 return;
+            } else {
+                slot.setAttribute('data-uid', uid)
             }
         }
 
@@ -1935,6 +1937,7 @@ function removeActiveSpeaker() {
     videos.forEach(video => {
         video.classList.remove('active-speaker')
         video.classList.remove('active-speaker-penalized')
+        video.setAttribute('data-action', '')
     })
     let eBars = document.querySelectorAll('div.e-bar')
     eBars.forEach(eBar => {
@@ -1982,6 +1985,7 @@ function handleActiveSpeaker(data) {
         if (speaker.classList.contains('self-view')) {
             game = document.querySelector('div.game.videos')
             game.classList.add('self-active-speaker')
+            game.setAttribute('data-action', data?.action || '')
             if (data?.action === 'voted') {
                 playerButton('Pass', passPlayerLockSend.bind(null, data.slot))
             } else if (data?.action === 'killed') {
@@ -2330,6 +2334,17 @@ function handleVotingRoundResult(data) {
 /* media source settings */
 let videoSelect, audioSelect;
 
+async function toggleMirrorMode() {
+    let currentMode = parseInt(localStorage.getItem('self-view-mirror-mode')) || 1;
+    const newMode = currentMode === 1 ? -1 : 1;
+    localStorage.setItem('self-view-mirror-mode', newMode);
+    applyMirrorMode();
+}
+
+function applyMirrorMode() {
+    const mode = parseInt(localStorage.getItem('self-view-mirror-mode')) || 1;
+    document.documentElement.style.setProperty('--g-self-view-mirror-mode', mode);
+}
 
 async function saveMediaSettings() {
     const videoSource = videoSelect.value;

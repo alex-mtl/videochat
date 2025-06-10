@@ -16,7 +16,7 @@ module.exports.page = (req, res) => {
             })
             data = {
                 sessionID: req.sessionID,
-                wssURL: config.wssURL,
+                wssURL: process.env.WSS_URL,
                 roomList
             };
             if (req.session.hasOwnProperty('error')) {
@@ -40,7 +40,7 @@ module.exports.page = (req, res) => {
 function getActiveRooms() {
     return new Promise((resolve, reject) => {
         let rooms = [];
-        fs.readdir(config.roomsFolder, (err, files) => {
+        fs.readdir(process.env.ROOMS_DIR, (err, files) => {
             if (err) {
                 console.error('Error reading rooms folder:', err);
                 reject(err);
@@ -49,7 +49,7 @@ function getActiveRooms() {
 
             const jsonFiles = files.filter(file => file.endsWith('.json'));
             const promises = jsonFiles.map(file => {
-                const filePath = path.join(config.roomsFolder, file);
+                const filePath = path.join(process.env.ROOMS_DIR, file);
                 return new Promise((resolveFile, rejectFile) => {
                     fs.readFile(filePath, 'utf8', (err, data) => {
                         if (err) {

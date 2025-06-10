@@ -10,7 +10,7 @@ async function sleep(millis) {
 
 
 async function getRoom(roomID) {
-    roomFile = config.roomsFolder+'/'+roomID+'.json';
+    roomFile = process.env.ROOMS_DIR+'/'+roomID+'.json';
     if (fs.existsSync(roomFile)) {
         let content = await fs.readFileSync(roomFile, 'utf8')
         room = JSON.parse(content);
@@ -20,7 +20,7 @@ async function getRoom(roomID) {
 }
 
 async function updateRoom(roomID, room) {
-    roomFile = config.roomsFolder+'/'+roomID+'.json';
+    roomFile = process.env.ROOMS_DIR+'/'+roomID+'.json';
     if (fs.existsSync(roomFile)) {
         await fs.writeFileSync(roomFile, JSON.stringify(room) , 'utf-8');
     }
@@ -107,6 +107,18 @@ async function broadcastRoom(roomID, message, ws = null) {
         await Promise.all(sendPromises);
     }
     // return room
+};
+
+async function mafiaHome(message, ws = null) {
+    const sendPromises = [];
+    // for (const userConn in clients) {
+    for (const [connKey, conn] of Object.entries(clients)) {
+        if (conn !== undefined && conn?.subscribe === 'mafia-home') {
+            sendPromises.push(await conn.send(message));
+        }
+    }
+    await Promise.all(sendPromises);
+
 };
 
 async function host(roomID, message, log = true) {
@@ -371,6 +383,7 @@ module.exports = {
     // getSession,
     // updateSession,
     broadcastRoom,
+    mafiaHome,
     host,
     slotSend,
     onlyHost,

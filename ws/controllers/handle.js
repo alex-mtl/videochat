@@ -26,7 +26,7 @@ function join(ws, data) {
             obj['size'] = 1;
             obj['name'] = roomID;
             obj['type'] = 'public';
-            obj['link'] = config.chatHost + 'p/' + roomID;
+            obj['link'] = process.env.APP_URL + 'p/' + roomID;
             obj['password'] = false;
         } else {
             obj = JSON.parse(data);
@@ -275,6 +275,7 @@ function grantAccess(sender, data) {
 function connect(sender, data) {
     clientID = generateClientId();
     sender.uid = clientID;
+    sender.subscribe = data?.page || null
     clients[clientID] = sender;
     console.log('Sender : ',sender.uid, 'connected');
 }
@@ -295,7 +296,7 @@ function createRoom(sender, data) {
         sender.send(JSON.stringify({ type: 'error', message: "Validation failed for '"+room.name+"' or '"+ room.host + "'" }));
         return;
     }
-    roomFile = config.roomsFolder+'/'+room.name+'.json';
+    roomFile = process.env.ROOMS_DIR+'/'+room.name+'.json';
     if (fs.existsSync(roomFile)) {
         sender.send(JSON.stringify({ type: 'error', message: "Room '"+room.name+"' already exists" }));// ...
     } else {
@@ -311,7 +312,7 @@ function createRoom(sender, data) {
         sender.req.session.newRoom = room.name
 
         room.host = { uid: clientId, userName: room.host, sessionID: room.chatSessionID };
-        room.link = config.chatHost+'p/'+room.name;
+        room.link = process.env.APP_URL+'p/'+room.name;
         room.size = 1;
         room.log = []
         console.log('302',room);
@@ -319,7 +320,7 @@ function createRoom(sender, data) {
             console.log('304', room.stream);
 
             room.type = 'stream';
-            room.link = config.chatHost+'s/'+room.name;
+            room.link = process.env.APP_URL+'s/'+room.name;
         } else if (room.password.trim() === '' && room.valid ==='Off') {
             console.log('304', room.stream);
             room.type = 'public';
@@ -367,7 +368,7 @@ function joinRoom(sender, data) {
         sender.send(JSON.stringify({ type: 'error', message: "Room ID failed for "+roomID }));
         return;
     }
-    roomFile = config.roomsFolder+'/'+roomID+'.json';
+    roomFile = process.env.ROOMS_DIR+'/'+roomID+'.json';
     if (fs.existsSync(roomFile)) {
         fs.readFile(roomFile, 'utf8', function (err, roomData) {
             room = JSON.parse(roomData);
@@ -458,7 +459,7 @@ function joinRoom(sender, data) {
 // }
 
 function getRoom(roomID) {
-    roomFile = config.roomsFolder+'/'+roomID+'.json';
+    roomFile = process.env.ROOMS_DIR+'/'+roomID+'.json';
     if (fs.existsSync(roomFile)) {
         fs.readFile(roomFile, 'utf8', function (err, roomData) {
             room = JSON.parse(roomData);
@@ -480,7 +481,7 @@ async function sendChatMessage(sender, data) {
     ts = new Date();
     time = ts.toLocaleTimeString('it-IT');
     const now = Date.now();
-    roomFile = config.roomsFolder + '/' + sender.roomID + '.json';
+    roomFile = process.env.ROOMS_DIR + '/' + sender.roomID + '.json';
     console.log('473 ', sender.roomID);
     if (roomID === undefined) {
         return;
@@ -503,7 +504,7 @@ async function sendChatMessage(sender, data) {
 
 function answer(sender, data) {
     const recipient = clients[data.to];
-    roomFile = config.roomsFolder+'/'+roomID+'.json';
+    roomFile = process.env.ROOMS_DIR+'/'+roomID+'.json';
     console.log('472',roomFile)
     if (fs.existsSync(roomFile)) {
 
@@ -542,7 +543,7 @@ function removeClient(ws) {
     if (roomID === undefined) {
         return;
     }
-    var roomFile = config.roomsFolder+'/'+roomID+'.json';
+    var roomFile = process.env.ROOMS_DIR+'/'+roomID+'.json';
 
     if (!fs.existsSync(roomFile)) {
         console.log('Room ', roomFile, ' does not exist!');

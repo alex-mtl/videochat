@@ -331,6 +331,7 @@ function selfSlotDetection(selfID) {
         for (const [slotN, player] of Object.entries(roomEnv.slot)) {
             if (player.uid === selfID) {
                 localVideo.classList.add('play', 'self-view')
+                applyMirrorMode();
 
                 if (player.mic === 'on') {
                     localVideo.classList.remove('muted')

@@ -339,19 +339,49 @@ tr {
 
 }
 
-.role-badge.unknown:before {
-    content: "check_circle";
+.role-badge[data-status="unknown"]:before {
+    content: "circle";
     color: var(--g-dark-grey);
     font-size: 1.4vw;
     vertical-align: top;
 }
 
-.role-badge.ready:before {
+.role-badge[data-status="ready"]:before {
     content: "check_circle";
     color: var(--g-success);
     font-size: 1.4vw;
     vertical-align: top;
 }
+
+.role-badge[data-status="alive"]:before {
+    content: "frame_person";
+    color: var(--g-success);
+    font-size: 1.4vw;
+    vertical-align: top;
+}
+
+.role-badge[data-status="locked"]:before {
+    content: "grid_4x4";
+    color: var(--g-failure);
+    font-size: 1.4vw;
+    vertical-align: top;
+}
+
+.role-badge[data-status="killed"]:before {
+    content: "motion_sensor_active";
+    color: var(--g-failure);
+    font-size: 1.4vw;
+    vertical-align: top;
+}
+
+.role-badge[data-status="disqualified"]:before {
+    content: "bolt";
+    color: var(--g-failure);
+    font-size: 1.4vw;
+    vertical-align: top;
+}
+
+
 .role-badge.D {
 
     background-image: url('/static/img/don-ring.png');

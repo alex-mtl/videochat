@@ -16,6 +16,7 @@ FILES_TO_DEPLOY=(
   "./videochat.js"
   "./ws.js"
   "./db.js"
+  "./cron-60.js"
 )
 
 # --------------------------

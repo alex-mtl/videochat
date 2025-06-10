@@ -10,7 +10,7 @@ const {getRoom,
     checkUserConnection,
     sleep,
     onlyHost,
-    onlyPlayer
+    onlyPlayer, mafiaHome
 } = require("./common");
 
 
@@ -263,6 +263,7 @@ const startDayOne = onlyHost(async (ws, data, ROOM_ID, room) => {
     for (const [slot, player] of Object.entries(room.slot)) {
         player.status = 'alive'
         await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'player-alive', slot: slot, status: 'alive' }));
+        await mafiaHome(JSON.stringify({ type: 'game-player-status', roomID: ROOM_ID, slot: slot, status: 'alive' }));
     }
     room = await updateRoom(ROOM_ID, room)
     await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-phase', phase: room.game.phase, day: room.game.day }));
@@ -800,6 +801,7 @@ const warnAdd = onlyHost(async (ws, data, ROOM_ID, room) => {
             warn: warn,
             status: player.status
         }));
+        await mafiaHome(JSON.stringify({ type: 'game-player-status', roomID: ROOM_ID, slot: data.slot, status: player.status }));
         if (player.status === 'disqualified') {
             await checkGameOver(room, ROOM_ID)
         }
@@ -814,6 +816,8 @@ const playerKill = onlyHost(async (ws, data, ROOM_ID, room) => {
         room = await updateRoom(ws.roomID, room)
         player = room.slot[data.slot]
         await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'player-kill', slot: data.slot, status: player.status }));
+        await mafiaHome(JSON.stringify({ type: 'game-player-status', roomID: ROOM_ID, slot: data.slot, status: player.status }));
+
         await checkGameOver(room, ROOM_ID)
     }
 })
@@ -863,6 +867,7 @@ const playerLock = onlyHost(async (ws, data, ROOM_ID, room) => {
         room = await updateRoom(ws.roomID, room)
         player = room.slot[data.slot]
         await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'player-lock', slot: data.slot, status: player.status }));
+        await mafiaHome(JSON.stringify({ type: 'game-player-status', roomID: ROOM_ID, slot: data.slot, status: player.status }));
         if ((curRound !== undefined) && curRound.hasOwnProperty('winners') && (curRound.winners !== undefined)) {
             if (Number(curRound.winners[curRound.winners.length - 1]) === Number(data.slot)) {
                 await host(ROOM_ID, { type: 'ready-to-night' });
@@ -887,6 +892,7 @@ const playerRestore = onlyHost(async (ws, data, ROOM_ID, room) => {
         room = await updateRoom(ws.roomID, room)
         player = room.slot[data.slot]
         await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'player-alive', slot: data.slot, status: player.status }));
+        await mafiaHome(JSON.stringify({ type: 'game-player-status', roomID: ROOM_ID, slot: data.slot, status: 'alive' }));
     }
 })
 
@@ -905,6 +911,7 @@ const warnRemove = onlyHost(async (ws, data, ROOM_ID, room) => {
         room = await updateRoom(ws.roomID, room)
         warn = room.slot[data.slot].warn
         await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'player-warn', slot: data.slot, warn: warn, status: player.status }));
+        await mafiaHome(JSON.stringify({ type: 'game-player-status', roomID: ROOM_ID, slot: data.slot, status: player.status }));
     }
 })
 
@@ -947,6 +954,7 @@ const gameSettings = onlyHost(async (ws, data, ROOM_ID, room) => {
 const gameStart = onlyHost(async (ws, data, ROOM_ID, room) => {
     ready = true;
     room.game.size = 0;
+
     for (const [slot, player] of Object.entries(room.slot)) {
         room.slot[slot].slot = 'none';
         room.slot[slot].role = 'none';
@@ -988,18 +996,6 @@ const gameStart = onlyHost(async (ws, data, ROOM_ID, room) => {
     room.game.phase = 'shuffle';
     room.game.stage = "shuffle-slots"
     room.game.availableSlots = [1,2,3,4,5,6,7,8,9,10]
-    // if (room.game.size < 10) {
-    //     if (room.game.size <= 3) {
-    //         room.game.availableSlots = [1,2,3]
-    //     } else {
-    //
-    //     }
-    //
-    // }
-    // room.game.availableSlots = Array.from(
-    //     { length: room.game.size <= 3 ? 3 : room.game.size },
-    //     (_, i) => i + 1
-    // );
     room = await updateRoom(ROOM_ID, room);
 
     await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-phase', phase: 'shuffle', stage: "shuffle-slots" }));

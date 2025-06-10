@@ -24,7 +24,7 @@ app.use(session({
         path: process.env.SESSIONS_DIR, // Directory to store session files
         ttl: 2592000, // Session expiration time (in seconds)
     }),
-    secret: config.secret,
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: true,
 }));
@@ -104,6 +104,7 @@ app.get('/p/:room', publicRoom.room)
 app.get('/s/:room', publicRoom.stream)
 app.get('/w/:room', publicRoom.watch)
 
-app.listen(config.port, () => {
-    console.log(`Example app listening on port ${config.port}`)
+const port = process.env.APP_PORT;
+app.listen(port, () => {
+    console.log(`Example app listening on port ${port}`)
 })

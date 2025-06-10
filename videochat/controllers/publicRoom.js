@@ -10,7 +10,7 @@ module.exports.room = (req, res) => {
     } else {
         res.render('p-room', {
             sessionID: req.sessionID,
-            wssURL : config.wssURL,
+            wssURL : process.env.WSS_URL,
             roomID : req.params.room
         })
     }
@@ -24,7 +24,7 @@ module.exports.stream = (req, res) => {
     } else {
         res.render('stream', {
             sessionID: req.sessionID,
-            wssURL : config.wssURL,
+            wssURL : process.env.WSS_URL,
             roomID : req.params.room
         })
     }
@@ -38,7 +38,7 @@ module.exports.watch = (req, res) => {
     } else {
         res.render('watch', {
             sessionID: req.sessionID,
-            wssURL : config.wssURL,
+            wssURL : process.env.WSS_URL,
             roomID : req.params.room
         })
     }

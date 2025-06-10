@@ -219,7 +219,7 @@ module.exports.homePage = (req, res) => {
     req.session.errorMessage = null
     res.render('mafia/login', {
         sessionID : req.sessionID ,
-        wssURL : config.wssURL,
+        wssURL : process.env.WSS_URL,
         username,
         password,
         message,
@@ -248,7 +248,7 @@ module.exports.tgAuth = async (req, res) => {
 
         res.render('mafia/alert', {
                 sessionID : req.sessionID ,
-                wssURL : config.wssURL,
+                wssURL : process.env.WSS_URL,
                 message: "Attempt to hijack via telegram account!"
             })
     }
@@ -287,7 +287,7 @@ module.exports.googleAuth = async (req, res) => {
 
         res.render('mafia/alert', {
                 sessionID : req.sessionID ,
-                wssURL : config.wssURL,
+                wssURL : process.env.WSS_URL,
                 message: "Attempt to hijack via google account!"
             })
     }
@@ -301,7 +301,7 @@ module.exports.login = (req, res) => {
     req.session.errorMessage = null
     res.render('mafia/login', {
         sessionID : req.sessionID ,
-        wssURL : config.wssURL,
+        wssURL : process.env.WSS_URL,
         username,
         password,
         message,
@@ -312,7 +312,7 @@ module.exports.login = (req, res) => {
 module.exports.privacyPolicy = (req, res) => {
     res.render('mafia/privacy-policy', {
         sessionID : req.sessionID ,
-        wssURL : config.wssURL,
+        wssURL : process.env.WSS_URL,
         user: req.session.user || null
     })
 };
@@ -378,7 +378,7 @@ module.exports.userProfile = async (req, res) => {
 
         res.render('mafia/user/user', {
             sessionID : req.sessionID ,
-            wssURL : config.wssURL,
+            wssURL : process.env.WSS_URL,
             username: user.username,
             email: user.email,
             avatar: user.avatar_url,
@@ -417,7 +417,7 @@ module.exports.userPublic = async (req, res) => {
 
             res.render('mafia/user/user-public', {
                 sessionID : req.sessionID ,
-                wssURL : config.wssURL,
+                wssURL : process.env.WSS_URL,
                 publicProps,
                 user,
                 publicUser
@@ -458,7 +458,7 @@ module.exports.register = (req, res) => {
 
     res.render('mafia/register', {
         sessionID : req.sessionID ,
-        wssURL : config.wssURL,
+        wssURL : process.env.WSS_URL,
         title: 'Sign Up',
         user: req.session.user || null
     })
@@ -519,7 +519,7 @@ module.exports.registerPost = async (req, res) => {
             errors.push('An account with these details may already exist.')
             res.render('mafia/register', {
                 sessionID : req.sessionID ,
-                wssURL : config.wssURL,
+                wssURL : process.env.WSS_URL,
                 title: 'Sign Up',
                 email,
                 password,
@@ -532,7 +532,7 @@ module.exports.registerPost = async (req, res) => {
     } else {
         res.render('mafia/register', {
             sessionID : req.sessionID ,
-            wssURL : config.wssURL,
+            wssURL : process.env.WSS_URL,
             title: 'Sign Up',
             email,
             password,

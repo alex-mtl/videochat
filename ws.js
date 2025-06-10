@@ -15,7 +15,7 @@ app.use(session({
         path: process.env.SESSIONS_DIR, // Directory to store session files
         ttl: 86400, // Session expiration time (in seconds)
     }),
-    secret: config.secret,
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: true,
 }));
@@ -23,8 +23,8 @@ app.use(session({
 // Load SSL certificate and private key
 // const privateKey = fs.readFileSync('video-key.pem', 'utf8');
 // const certificate = fs.readFileSync('video-cert.pem', 'utf8');
-const privateKey = fs.readFileSync(config.ssl_key, 'utf8');
-const certificate = fs.readFileSync(config.ssl_cert, 'utf8');
+const privateKey = fs.readFileSync(process.env.SSL_KEY, 'utf8');
+const certificate = fs.readFileSync(process.env.SSL_CERT, 'utf8');
 const credentials = { key: privateKey, cert: certificate };
 
 const server = https.createServer(credentials, app);
@@ -38,7 +38,7 @@ const sessionParser = session({
         path: process.env.SESSIONS_DIR, // Directory to store session files
         ttl: 2592000, // Session expiration time (in seconds)
     }),
-    secret: config.secret,
+    secret: process.env.SESSION_SECRET,
     resave: true,
     saveUninitialized: true,
     cookie: {httpOnly: true}
@@ -83,7 +83,7 @@ wss.on('connection', (ws, req) => {
 });
 
 
-const port = process.env.PORT || config.ws_port;
+const port = process.env.PORT;
 server.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });

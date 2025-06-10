@@ -1,15 +1,14 @@
 const fs = require('fs');
 const path = require('path');
 
-
-const config = require('./config');
+require('dotenv').config();
 
 // Get the current time in milliseconds
 const currentTime = Date.now();
 
 // Function to remove files modified more than 60 minutes ago
 function removeOldRooms() {
-    const directoryPath = config.roomsFolder
+    const directoryPath = process.env.ROOMS_DIR
     // check outdated rooms
     fs.readdir(directoryPath, (err, files) => {
         if (err) {
@@ -50,7 +49,8 @@ function removeOldRooms() {
 
 function removeOldSessions() {
     // check outdated rooms
-    const directoryPath = config.sessionsFolder;
+    console.log(process.env.SESSIONS_FOLDER)
+    const directoryPath = process.env.SESSIONS_FOLDER;
     fs.readdir(directoryPath, (err, files) => {
         if (err) {
             console.error('Error reading directory:', err);

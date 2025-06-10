@@ -20,6 +20,7 @@ const hostModule = require('./host');
 const {
     getRoom,
     broadcastRoom,
+    mafiaHome,
     sleep,
     onlyHost,
     startDay,
@@ -46,7 +47,7 @@ function joinGame(ws, data) {
     roomID = data.roomId;
     sessionID = (data.chatSessionID === undefined) ? data.sessionID : data.chatSessionID;
     ws.mduid = ws.req.session?.user?.mduid || null;
-    var roomFile = config.roomsFolder+'/'+roomID+'.json';
+    var roomFile = process.env.ROOMS_DIR+'/'+roomID+'.json';
     var room = {};
     fs.readFile(roomFile, 'utf8', async function (err, data) {
         if (err) {
@@ -266,6 +267,12 @@ async function gamePlayerStatus(ws, data) {
             slot: slotRes,
             player: (({ role, ...rest } = {}) => rest)( player )
         }));
+        await mafiaHome(JSON.stringify({
+            type: 'game-player-status',
+            roomID: ws.roomID,
+            status: data.status,
+            slot: slotRes
+        }));
     } else {
         await ws.send(JSON.stringify({ type: 'error', message: "Something went wrong. Can't change your status..." }));
     }
@@ -301,6 +308,9 @@ async function gamePlayerMic(ws, data) {
 
 async function gameReserveSlot(ws, data) {
     let room = await getRoom(ws.roomID);
+    console.log('room.game.availableSlots',room.game.availableSlots)
+    console.log('slot ID',data.slotID)
+    // let slotID = parseInt(data.slotID)
     if (!room.game.availableSlots.includes(data.slotID)) {
         await ws.send(JSON.stringify({ type: 'error', message: "Slot "+data.slotID+" is not available..." }));
         return
@@ -853,7 +863,7 @@ async function createGame(sender, data) {
         await sender.send(JSON.stringify({ type: 'error', message: "Validation failed for '"+room.name+"' or '"+ room.host + "'" }));
         return;
     }
-    roomFile = config.roomsFolder+'/'+room.name+'.json';
+    roomFile = process.env.ROOMS_DIR+'/'+room.name+'.json';
     if (fs.existsSync(roomFile)) {
         await sender.send(JSON.stringify({ type: 'error', message: "Room '"+room.name+"' already exists" }));// ...
     } else {
@@ -875,7 +885,7 @@ async function createGame(sender, data) {
             sessionID: room.chatSessionID
         };
         room.gameHost = {uid: clientId, name: sender.userName, sessionID: room.chatSessionID, status: "unknown" }
-        room.link = config.chatHost+'m/'+room.name;
+        room.link = process.env.APP_URL+'m/'+room.name;
         room.size = 1;
         room.type = 'mafia';
         room.game = {};
@@ -919,6 +929,7 @@ async function createGame(sender, data) {
         console.log('Room file written ',roomFile);
         // console.log('Session ID ', req.sessionID);
         await sender.send(JSON.stringify({ type: 'room-ready', room: room, info: '1:'+(room.name !== '')+'2:'+(room.host !== '') }));
+        await mafiaHome(JSON.stringify({ type: 'new-room', roomID: room.name, room: room }))
 
     }
 
@@ -948,7 +959,7 @@ async function joinRoomGame(sender, data) {
         await sender.send(JSON.stringify({ type: 'error', message: "Room ID failed for "+roomID }));
         return;
     }
-    roomFile = config.roomsFolder+'/'+roomID+'.json';
+    roomFile = process.env.ROOMS_DIR+'/'+roomID+'.json';
     if (fs.existsSync(roomFile)) {
         fs.readFile(roomFile, 'utf8', async function (err, roomData) {
             room = JSON.parse(roomData);

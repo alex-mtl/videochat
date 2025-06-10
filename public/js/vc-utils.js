@@ -41,8 +41,8 @@ async function handleAnswer(answer) {
 
         if (peerConnection?.slot) {
             slotInfo(peerConnection.slot, 'State: ' + peerConnection.signalingState)
-            // let slotElem = document.querySelector('div.videobox[data-slot="'+peerConnection.slot+'"] span.game-info');
-            // await peerRefresh(slotElem)
+            let slotElem = document.querySelector('div.videobox[data-slot="'+peerConnection.slot+'"] span.game-info');
+            await peerRefresh(slotElem)
         }
 
         // Варианты восстановления:
