@@ -313,8 +313,8 @@ if (isFirefox()) {
 
         })
         .catch(error => {
-            console.error('Error accessing media devices:', error.message);
-            document.querySelector('settings-popup').classList.add('show');
+            console.log('Error accessing media devices:', error.message, 'video: ',constraints.video, 'audio: ', constraints.audio);
+            document.querySelector('div#mediaSourcePopup').classList.add('show');
         });
 }
 
@@ -348,6 +348,8 @@ function selfSlotDetection(selfID) {
 
                 slot.setAttribute('data-uid', selfID)
                 slot.setAttribute('data-name', player.name || 'unknown')
+                slot.style.setProperty('--g-background-person', `url('${player.avatar}')`);
+
                 if (['killed', 'disqualified', 'locked'].includes(slot.getAttribute('data-player-status'))) {
                     localVideo.origSrcObject = localVideo.srcObject
                     localVideo.srcObject = null

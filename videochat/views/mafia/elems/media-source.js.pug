@@ -1,23 +1,51 @@
 // script.pug
 script.
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {  // >>> Added 'async'
         videoSelect = document.querySelector('select#videoSource');
         audioSelect = document.querySelector('select#audioSource');
-        //
-        // getStream();
 
-        navigator.mediaDevices.enumerateDevices()
-            .then(devices => {
-                devices.forEach(device => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
+        // >>> Replace enumerateDevices() with this:
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const activeDevices = {video: [], audio: []};
+
+            // >>> Check each device's availability
+            for (const device of devices) {
+                try {
                     if (device.kind === 'videoinput') {
-                        option.text = device.label || `Camera ${videoSelect.length + 1}`;
-                        videoSelect.appendChild(option);
+                        const stream = await navigator.mediaDevices.getUserMedia({
+                            video: {deviceId: {exact: device.deviceId}}
+                        });
+                        stream.getTracks().forEach(track => track.stop()); // >>> Cleanup
+                        activeDevices.video.push(device);
                     } else if (device.kind === 'audioinput') {
-                        option.text = device.label || `Microphone ${audioSelect.length + 1}`;
-                        audioSelect.appendChild(option);
+                        const stream = await navigator.mediaDevices.getUserMedia({
+                            audio: {deviceId: {exact: device.deviceId}}
+                        });
+                        stream.getTracks().forEach(track => track.stop()); // >>> Cleanup
+                        activeDevices.audio.push(device);
                     }
-                });
+                } catch (err) {
+                    console.log(`Skipping inactive device: ${device.label || device.kind}`);
+                }
+            }
+
+            // >>> Populate ONLY active devices
+            activeDevices.video.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `Camera ${videoSelect.length + 1}`;
+                videoSelect.appendChild(option);
             });
+
+            activeDevices.audio.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `Mic ${audioSelect.length + 1}`;
+                audioSelect.appendChild(option);
+            });
+
+        } catch (error) {
+            console.error('Error detecting devices:', error);
+        }
     });

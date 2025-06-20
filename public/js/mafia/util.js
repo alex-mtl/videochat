@@ -17,12 +17,18 @@ const configuration = {
             username: "turnuserjustice",
             credential: "passjustice",
         },
+        {
+            urls: "turn:188.225.37.129:3478?transport=tcp",
+            username: "turnuserjustice",
+            credential: "passjustice",
+        },
+
         // // ,
-        // {
-        //     urls: "turn:mao-dao.com:3478?transport=udp",
-        //     username: "maodao",
-        //     credential: "coturn",
-        // }
+        {
+            urls: "turn:mao-dao.com:3478?transport=tcp",
+            username: "maodao",
+            credential: "coturn",
+        }
     ]
 };
 
