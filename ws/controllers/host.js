@@ -91,7 +91,9 @@ const startShooting = onlyHost(async (ws, data, ROOM_ID, room) => {
         let curDay = room.game.days["D"+room.game.day]
         let victim = 'none'
         let missed= 'none'
+        let shots = 0
         for (const [maf, shootVictim] of Object.entries(curDay.shoot)) {
+            shots++
             if (shootVictim !== 'none') {
                 if (missed === 'none') {
                     victim = shootVictim
@@ -109,7 +111,7 @@ const startShooting = onlyHost(async (ws, data, ROOM_ID, room) => {
                 await sleep(100);
             }
         }
-        if (missed !== true) {
+        if (missed !== true && shots === Object.keys(mafTeam).length) {
             curDay.victim = victim
         }
         room.game.stage = "shooting-is-over"
@@ -283,7 +285,7 @@ const startDay = onlyHost(async (ws, data, ROOM_ID, room) => {
 
     room = await updateRoom(ROOM_ID, room)
     room = await broadcastRoom(ROOM_ID,  JSON.stringify({ type: 'game-phase', phase: room.game.phase, day: room.game.day }));
-    if ((victim !== undefined) && (victim !== 'none')) {
+    if (victim && (victim !== undefined) && (victim !== 'none')) {
         await host(ROOM_ID, { type: 'last-speech-killed', victim: victim, action: 'killed' });
     }
 })
@@ -331,10 +333,21 @@ const startVoting = onlyHost(async (ws, data, ROOM_ID, room) => {
         }
         room.game.days[curDay].rounds.push(round)
         room.game.stage = "voting"
-        roomState = await updateRoom(ROOM_ID, room)
+        room = await updateRoom(ROOM_ID, room)
         // console.log("WS 354", roomState.game.days[curDay].rounds)
-        nominees =  roomState.game.days[curDay].rounds[curRound].nominees
+        nominees =  room.game.days[curDay].rounds[curRound].nominees
         await broadcastRoom(ROOM_ID, JSON.stringify({ type: 'start-voting', nominees: nominees }));
+        for (const [slot, player] of Object.entries(room.slot)) {
+            if ((player.mic === 'on')
+                &&  (player.uid !== 'empty')
+                &&  ((player.so.length === 0) || (player.so[0].end <= Date.now()))
+            ) {
+                let user = clients[player.uid]
+                if (user !== undefined) {
+                    await user.send(JSON.stringify({ type: 'mute-mic' }));
+                }
+            }
+        }
         await host(ROOM_ID, { type: 'voting-round-ready', round: 0, candidate: nominees[0] });
     }
 })
@@ -502,7 +515,7 @@ const startVotingRound = onlyHost(async (ws, data, ROOM_ID, room) => {
                     }));
                 }
 
-            }, 5000)
+            }, 3000)
         }
 
 
@@ -1200,12 +1213,12 @@ const gameStop = onlyHost(async (ws, data, ROOM_ID, room) => {
     room.game.phase = 'lobby';
     room.game.stage = ""
     for (const [slot, player] of Object.entries(room.slot)) {
-        room.slot[slot].slot = 'none';
-        room.slot[slot].role = 'none';
-        room.slot[slot].status = 'unknown';
-        room.slot[slot].mic = 'off';
-        room.slot[slot].warn = false;
-
+        player.slot = 'none';
+        player.role = 'none';
+        player.status = 'unknown';
+        player.mic = 'off';
+        player.warn = false;
+        room.slot[slot] = player
 
         await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-player-status', uid: player.uid, status: 'unknown' }));
     }

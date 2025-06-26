@@ -98,6 +98,7 @@ app.get('/u/:mduid', home.userPublic )
 
 app.get('/rooms', roomList.page )
 app.get('/mafia', mafia.home )
+app.get('/ajax/m/:room', mafia.roomRow )
 app.get('/history', mafia.history )
 app.get('/m/:room', mafia.game )
 app.get('/p/:room', publicRoom.room)

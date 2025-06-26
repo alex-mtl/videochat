@@ -271,6 +271,7 @@ async function gamePlayerStatus(ws, data) {
             type: 'game-player-status',
             roomID: ws.roomID,
             status: data.status,
+            avatar: ws.avatar,
             slot: slotRes
         }));
     } else {
@@ -462,11 +463,13 @@ const shoot = onlyMafTeam(async (ws, data, ROOM_ID, room, PLAYER, TEAM) => {
 
     let curDay = room.game.days["D"+room.game.day]
 
+
+
     if (curDay.shooters.includes(playerSlot)) {
         //
         console.log('Player already shoot this night!', playerSlot, curRound)
         return
-    } else {
+    } else if (room.game.stage === "shooting-started") {
         curDay.shooters.push(playerSlot)
         curDay.victims[playerSlot] = data.slot
         curDay.shoot[playerSlot] = data.slot
@@ -887,6 +890,7 @@ async function createGame(sender, data) {
         room.gameHost = {uid: clientId, name: sender.userName, sessionID: room.chatSessionID, status: "unknown" }
         room.link = process.env.APP_URL+'m/'+room.name;
         room.size = 1;
+        room.createdAt = Date.now();
         room.type = 'mafia';
         room.game = {};
         room.game.settings = {
@@ -929,7 +933,7 @@ async function createGame(sender, data) {
         console.log('Room file written ',roomFile);
         // console.log('Session ID ', req.sessionID);
         await sender.send(JSON.stringify({ type: 'room-ready', room: room, info: '1:'+(room.name !== '')+'2:'+(room.host !== '') }));
-        await mafiaHome(JSON.stringify({ type: 'new-room', roomID: room.name, room: room }))
+        await mafiaHome(JSON.stringify({ type: 'new-room', roomID: room.name }))
 
     }
 

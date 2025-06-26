@@ -219,8 +219,8 @@ if (isFirefox()) {
 
         })
         .catch(error => {
-            console.error('Error accessing media devices:', error.message);
-            document.querySelector('settings-popup').classList.add('show');
+            console.log('Error accessing media devices:', error.message);
+            document.querySelector('div#mediaSourcePopup').classList.add('show');
         });
 
     // Optionally stop further execution by throwing an error or returning

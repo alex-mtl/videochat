@@ -62,6 +62,22 @@ module.exports.home = async (req, res) => {
         res.status(500).send('Internal Server Error');
     }
 };
+
+module.exports.roomRow = async (req, res) => {
+    roomFile = process.env.ROOMS_DIR+'/'+req.params.room+'.json';
+    if (!fs.existsSync(roomFile)) {
+        res.set('Content-Type', 'text/html');
+        res.status(404).end();
+    } else {
+        fs.readFile(roomFile, 'utf8', function (err, roomData) {
+            room = JSON.parse(roomData);
+            res.render('mafia/partials/room-row', {
+                r: room,
+            })
+        })
+    }
+
+};
 module.exports.history = (req, res) => {
     // console.log(req.session.user)
     getGameHistory()
@@ -133,7 +149,6 @@ function getActiveRooms() {
                             if(!room.hasOwnProperty('name')) {
                                 room.name = file.replace('.json','');
                             }
-                            console.log(135,room)
                             rooms.push(room);
                             resolveFile();
                         } catch (error) {
@@ -146,6 +161,7 @@ function getActiveRooms() {
 
             Promise.all(promises)
                 .then(() => {
+                    rooms.sort((a, b) => b.createdAt - a.createdAt);
                     resolve(rooms);
                 })
                 .catch(error => {

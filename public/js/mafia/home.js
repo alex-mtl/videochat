@@ -98,6 +98,8 @@ function startSignaling() {
             handleError(data, 'info');
         } else if (data.type === 'game-player-status') {
             handleGamePlayerStatus(data);
+        } else if (data.type === 'new-room') {
+            handleNewRoom(data);
         } else if (data.type === 'access-grant') {
             handleAccessGrant(data);
         }
@@ -125,7 +127,40 @@ function startSignaling() {
         } else {
             console.log(selector, "not found");
         }
+
+        if (data.avatar) {
+            const img = document.querySelector(`#active-tab tr#roomID-${data.roomID} div.player-slot[data-slot="${data.slot}"] img.avatar`);
+
+            if (img && img.src !== data.avatar) {
+                img.src = data.avatar;
+            }
+        }
+
     }
+
+    async function handleNewRoom(data) {
+        if (data.roomID) {
+            const response = await fetch(`/ajax/m/${data.roomID}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            } else if (response.status !== 404) {
+                const html = await response.text();
+
+                // Insert into DOM (example using a div with ID 'room-container')
+                const tbody = document.querySelector('div#active-tab table tbody');
+                if (tbody) {
+                    tbody.insertAdjacentHTML('afterbegin', html);
+                }
+            }
+
+
+        }
+    }
+
+
+
+
 
     function handleConnected(data) {
         console.log('Room created:', data.room);

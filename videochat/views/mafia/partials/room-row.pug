@@ -1,0 +1,35 @@
+tr(id=`roomID-${r.name}`, data-room-test=3)
+  td
+    .player-slots-container
+      .player-slot.first
+        if r.host.mduid && r.host.mduid !== 'null'
+          a.player-slot-link(href="/u/" + r.host.mduid)
+            .avatar-container
+              img.avatar(src=r.host.avatar || "/static/img/100x100.png", alt=`${r.host.name}`)
+              .role-badge.material-symbols-outlined.H
+        else
+          .avatar-container
+            img.avatar(src=r.host.avatar || "/static/img/100x100.png", alt=`${r.host.name}`)
+            .role-badge.material-symbols-outlined.H
+  td= r.name
+  td.player-slots-cell
+    .player-slots-container
+      - for (let i = 1; i < 11; i++)
+        .player-slot(class=i === 1 ? 'first' : '', data-slot=i)
+          if r.slot[i].mduid && r.slot[i].mduid !== 'null'
+            a.player-slot-link(href="/u/" + r.slot[i].mduid)
+              .avatar-container
+                img.avatar(src=r.slot[i].avatar || "/static/img/avatar/d450356dc7cb3609.png", alt=`${r.slot[i].name}` tooltip=`${r.slot[i].name}`)
+                .role-badge.material-symbols-outlined(data-status=r.slot[i].status)
+          else
+            .avatar-container
+              img.avatar(src=r.slot[i].avatar || "/static/img/avatar/d450356dc7cb3609.png", alt=`${r.slot[i].name}` tooltip=`${r.slot[i].name}`)
+              .role-badge.material-symbols-outlined(data-status=r.slot[i].status)
+  if r.game.settings.password
+    td
+      button(onclick="joinGameWithPassword(this)", type="button", class="btn btn-primary")
+        span.pwd.material-symbols-outlined
+        | &nbsp Join Room
+  else
+    td
+      button(onclick="joinGame(this)", type="button", class="btn btn-primary") Join Room

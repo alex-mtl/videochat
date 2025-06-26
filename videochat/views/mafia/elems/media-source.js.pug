@@ -8,6 +8,7 @@ script.
         try {
             const devices = await navigator.mediaDevices.enumerateDevices();
             const activeDevices = {video: [], audio: []};
+            console.log(devices)
 
             // >>> Check each device's availability
             for (const device of devices) {

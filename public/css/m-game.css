@@ -35,10 +35,13 @@ div.game.videos {
 }
 
 /* any span invisible by default! */
-.game span {
+.game .videobox > span {
     visibility: hidden;
 }
 
+.game .videobox > span.show {
+    visibility: visible;
+}
 video.muted {
     border: 0.25vw solid var(--g-red);
 }
@@ -604,6 +607,13 @@ video.active-speaker ~ span.slot-mic[data-mic="on"]:before,
     }
 }
 
+@keyframes white-blinker {
+    50% {
+        /*opacity: 20%;  !* Reduces opacity *!*/
+        color: white;  /* Forces text color to white at mid-animation */
+    }
+}
+
 div.videobox[data-uid='empty']:not(.shout-out) .slot-mic[data-mic="off"]:before,
 div.videobox:not(.vbox-H) span.slot-mic.night[data-mic="off"]:before {
     visibility: hidden;
@@ -874,16 +884,22 @@ div.select-slot button {
     /*visibility: visible;*/
 }
 
+div.videobox.self-view button[data-btn="select-slot"] span {
+    color: var(--g-success);
+    animation: white-blinker 3s linear infinite;
+}
+
 div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-H) div.select-slot button,
 div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-H) div.select-slot,
 div.videobox[data-slot]:not(.vbox-H) div.select-slot.show,
+div.videobox[data-slot]:not(.vbox-H) div.select-slot.show button span,
 div.videobox[data-slot]:not(.vbox-H) div.select-slot.show button
 {
     visibility: visible;
 }
 
 div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-H) video,
-div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-H) span,
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-H) > span,
 div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-H) input[type="range"],
 div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-H) button,
 div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-H) div.slot,
@@ -891,6 +907,12 @@ div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-H) span.
 div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-H) span.slot-mic[data-mic="off"]:before,
 div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-H) div.game-user {
     visibility: hidden;
+}
+
+
+div.game.videos[data-phase='shuffle'] div.videobox[data-slot]:not(.vbox-H) > span.show
+{
+    visibility: visible;
 }
 
 div.videobox span.game-info {

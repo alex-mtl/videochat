@@ -38,7 +38,7 @@ const constraints = {
         height: { ideal: 108, max: 108 },
         aspectRatio: { ideal: 16 / 9 },
         frameRate: { ideal: 20, max: 20 },
-        bitrate: 300000, // Ограничение на 500 kbps
+        bitrate: 120000, // Ограничение на 500 kbps
         // facingMode: "user"
     },
     audio: true
@@ -129,6 +129,83 @@ function slotInfo(slot, info) {
         alertToaster("Slot "+slot+" not found. "+info, 'error');
     }
 }
+
+const monitoringIntervals = new Map();
+
+async function monitorPeerLatency(pc, peerId) {
+    try {
+        const stats = await pc.getStats();
+        let maxLatency = 0;
+        let info = '';
+        // pc.lastTimestamp = 0;
+        // pc.lastBytesSent = 0;
+
+        stats.forEach(report => {
+            // Inbound video stats (latency)
+            if (report.type === 'inbound-rtp' && report.kind === 'video') {
+                const latency = (report.jitterBufferDelay / (report.jitterBufferEmittedCount || 1)) * 1000;
+                maxLatency = Math.max(maxLatency, latency);
+                info += ` ${latency.toFixed(2)}ms `;
+            }
+
+            // Outbound video stats (bitrate)
+            if (report.type === 'outbound-rtp' && report.kind === 'video') {
+                // Modern bitrate calculation (doesn't rely on lastPacketTimestamp)
+                if (report.bytesSent && report.timestamp) {
+                    const now = report.timestamp;
+                    const bytes = report.bytesSent;
+
+                    if (pc.lastTimestamp > 0 && pc.lastBytesSent > 0) {
+                        const timeDiff = (now - pc.lastTimestamp) / 1000; // seconds
+                        const bits = (bytes - pc.lastBytesSent) * 8; // bits
+                        const bitrate = bits / timeDiff / 1000; // kbps
+                        info += ` ${bitrate.toFixed(2)}kbps `;
+                        // console.log(info)
+                    }
+
+                    pc.lastTimestamp = now;
+                    pc.lastBytesSent = bytes;
+                }
+            }
+        });
+
+        slotInfo(pc.slot, info);
+        return maxLatency;
+
+    } catch (error) {
+        console.error('Error monitoring peer stats:', error);
+        return 0;
+    }
+}
+
+function startMonitoringPeer(pc, peerId) {
+    // Clear any existing interval for this peer
+    stopMonitoringPeer(peerId);
+
+    const intervalId = setInterval(async () => {
+        // Check if connection is still active
+        if (pc.connectionState === 'closed' || pc.signalingState === 'closed') {
+            stopMonitoringPeer(peerId);
+            return;
+        }
+
+        try {
+            await monitorPeerLatency(pc, peerId);
+        } catch (error) {
+            console.error(`Monitoring failed for peer ${peerId}:`, error);
+            stopMonitoringPeer(peerId);
+        }
+    }, 5000);
+
+    monitoringIntervals.set(peerId, intervalId);
+}
+
+function stopMonitoringPeer(peerId) {
+    if (monitoringIntervals.has(peerId)) {
+        clearInterval(monitoringIntervals.get(peerId));
+        monitoringIntervals.delete(peerId);
+    }
+}
 async function createPeerConnection(peerId, hostID, participant = true, avatar = null) {
     const peerConnection = new RTCPeerConnection(configuration);
     const dataChannel = peerConnection.createDataChannel("customData");
@@ -161,9 +238,13 @@ async function createPeerConnection(peerId, hostID, participant = true, avatar =
         // delete(peerConnections[peerId])
         removePeerConnection(peerId)
     }
-    resizedStream.getTracks().forEach(track => {
+
+    resizedStream.getTracks().forEach(async track => {
         if (participant) {
-            peerConnection.addTrack(track, resizedStream);
+            const videoSender = peerConnection.addTrack(track, resizedStream);
+            const videoParams = videoSender.getParameters();
+            videoParams.encodings[0].maxBitrate = 120000;
+            await videoSender.setParameters(videoParams);
         }
     });
 
@@ -245,6 +326,7 @@ async function createPeerConnection(peerId, hostID, participant = true, avatar =
             } else {
                 setTimeout(() => {
                     checkCodecInUse(peerConnection);
+                    startMonitoringPeer(peerConnection, peerId);
                 }, 3000);
                 if (slot.classList.contains('vbox-H')) {
                     bindHostVideo(peerId, event.streams[0], slot);
@@ -255,6 +337,7 @@ async function createPeerConnection(peerId, hostID, participant = true, avatar =
             }
         }
     };
+
     peerConnection.oniceconnectionstatechange = () => {
         if (peerConnection.slot) {
             slotInfo(peerConnection.slot, peerConnection.iceConnectionState)
@@ -1138,6 +1221,12 @@ async function handleGamePhase(data, mode = 'normal') {
             // roleSpan.setAttribute('data-role', 'CITIZEN')
 
             roleSpan.classList.add('role-show')
+
+            slot = document.querySelector('div.videobox[data-slot="' + data.slot + '"]');
+            if(slot.classList.contains('self-view')) {
+                slotNumber = slot.querySelector('button[data-btn="select-slot"]').addClassList('blink');
+            }
+
             // setTimeout(() => {
             //     roleSpan.classList.remove('role-show')
             // }, 3000);
@@ -1458,14 +1547,16 @@ function handleGameOrder(data) {
             // Update the data-slot attributes to reflect the slot swap
             divPlayer.setAttribute('data-slot', targetSlot);
             divPlayer.querySelector('div.slot').textContent = targetSlot;
-            divPlayer.querySelector('button.btn[data-btn="select-slot"]').textContent = targetSlot;
+            // divPlayer.querySelector('button.btn[data-btn="select-slot"]').textContent = targetSlot;
+            divPlayer.querySelector('button.btn[data-btn="select-slot"]').innerHTML = `<span>${targetSlot}</span>`;
             divPlayer.querySelector('button.btn[data-btn="select-slot"]').onclick = function() {
                 selectSlot(targetSlot);
             };
 
             targetDiv.setAttribute('data-slot', prevSlot);
             targetDiv.querySelector('div.slot').textContent = prevSlot;
-            targetDiv.querySelector('button.btn[data-btn="select-slot"]').textContent = prevSlot;
+            // targetDiv.querySelector('button.btn[data-btn="select-slot"]').textContent = prevSlot;
+            targetDiv.querySelector('button.btn[data-btn="select-slot"]').innerHTML = `<span>${prevSlot}</span>`;
             targetDiv.querySelector('button.btn[data-btn="select-slot"]').onclick = function() {
                 selectSlot(targetSlot);
             };
@@ -1512,6 +1603,21 @@ function handleGameRole(data) {
     if (!deck.classList.contains('locked')) {
         deck.classList.add('locked')
     }
+
+
+    let role = 'unknown'
+    if (data.role === 'B') {
+        role = 'mafia'
+    } else if (data.role === 'R') {
+        role = 'citizen'
+    } else if (data.role === 'D') {
+        role = 'don'
+    } else if (data.role === 'S') {
+        role = 'sheriff'
+    }
+    slotRole = document.querySelector('div.videobox.self-view span.slot-role')
+    slotRole.setAttribute('data-role', role)
+
     roleSpan = document.querySelector('div.game-deck span.game-role')
     roleSpan.classList.remove('role-show')
 
@@ -1599,6 +1705,11 @@ function handleGameReady(data) {
     vBoxBlink.forEach(vBox =>  {
         vBox.classList.remove('blink')
     });
+
+    nicknames = document.querySelectorAll('div.videobox:not(.vbox-H) span.game-user')
+    nicknames.forEach(nickname =>  {
+        nickname.classList.add('show')
+    })
 
     gameMessage('Sitdown')
     gameMessage('ready...',2)
