@@ -24,11 +24,11 @@ const configuration = {
         },
 
         // // ,
-        {
-            urls: "turn:mao-dao.com:3478?transport=tcp",
-            username: "maodao",
-            credential: "coturn",
-        }
+        // {
+        //     urls: "turn:mao-dao.com:3478?transport=tcp",
+        //     username: "maodao",
+        //     credential: "coturn",
+        // }
     ]
 };
 
@@ -223,7 +223,7 @@ async function createPeerConnection(peerId, hostID, participant = true, avatar =
         console.log("Received message:", event.data);
     };
 
-    peerSlot = document.querySelector('[data-uid="' + peerId+'"]')
+    peerSlot = document.querySelector('div.videobox[data-uid="' + peerId+'"]')
     if (peerSlot) {
         peerSlotN = peerSlot.getAttribute('data-slot')
         if (peerSlotN) {
@@ -288,7 +288,7 @@ async function createPeerConnection(peerId, hostID, participant = true, avatar =
 
     peerConnection.ontrack = event => {
         if (document.getElementById('video-' + peerId) === null) {
-            slot = document.querySelector('[data-uid="' + peerId+'"]')
+            slot = document.querySelector('div.videobox[data-uid="' + peerId+'"]')
             // console.log("Participant joined for slot:", slot)
             if ( slot === null) {
                 for (const [slotN, player] of Object.entries(roomEnv.slot)) {
@@ -313,8 +313,9 @@ async function createPeerConnection(peerId, hostID, participant = true, avatar =
                     // bindHostVideo(peerId, event.streams[0], document.getElementById('game-host'));
                     bindHostVideo(peerId, event.streams[0], document.querySelector('div.videobox[data-slot="H"]'));
                 } else {
-                    remoteVideoFrame = createRemoteVideo(peerId, event.streams[0], hostID);
-                    remoteVideosContainer.appendChild(remoteVideoFrame);
+                    // remoteVideoFrame = createRemoteVideo(peerId, event.streams[0], hostID);
+                    // remoteVideosContainer.appendChild(remoteVideoFrame);
+                    console.log(peerId, "Spectator sends video!?")
                     // console.log("Spectator: ", peerId)
                     // if (avatar) {
                     //     addAvatar(peerId, avatar)
@@ -1173,26 +1174,84 @@ function hideRoles() {
     })
 }
 
-
-function startCountdown(seconds) {
-    remainingSeconds = seconds - 1;
-    let span = document.querySelector('span.g-countdown')
-    span.style.visibility = 'visible';
-    span.textContent = remainingSeconds;
-    remainingSeconds--;
-
-    // Update the countdown every second
-    countdown = setInterval(() => {
-        if (remainingSeconds < 0) {
-            clearInterval(countdown);
-            sfx.notify.play()
-            return;
-        }
+let slotTimer = null;
+function startCountdown(seconds, slot = null) {
+    if (slot !== null) {
+        slotTimer = null;
+        startSlotTimer(slot, seconds)
+    } else {
+        remainingSeconds = seconds - 1;
+        let span = document.querySelector('span.g-countdown')
+        span.style.visibility = 'visible';
         span.textContent = remainingSeconds;
-        span.setAttribute('data-count', remainingSeconds)
         remainingSeconds--;
-    }, 1000);
 
+        // Update the countdown every second
+        countdown = setInterval(() => {
+            if (remainingSeconds < 0) {
+                clearInterval(countdown);
+                sfx.notify.play()
+                return;
+            }
+            span.textContent = remainingSeconds;
+            span.setAttribute('data-count', remainingSeconds)
+            remainingSeconds--;
+        }, 1000);
+
+    }
+
+}
+
+
+function startSlotTimer(slotElement, duration) {
+    const progressCircle = slotElement.querySelector('.timer-progress');
+    const timerText = slotElement.querySelector('.timer-text');
+    let timeLeft = duration;
+
+    // Инициализация (чтобы сразу показать полный круг)
+    progressCircle.style.strokeDashoffset = '0';
+    timerText.textContent = timeLeft;
+    sfx.tictac.play();
+    slotElement.classList.add('show');
+    const radius = 30;
+    const circumference = 2 * Math.PI * radius;
+
+    // Обновляем каждую секунду
+    slotTimer = setInterval(() => {
+        timeLeft--;
+        timerText.textContent = timeLeft;
+
+        // Рассчитываем прогресс (по часовой стрелке)
+        const progress = timeLeft / duration;
+        const offset = circumference * (1 - progress);
+
+        progressCircle.style.strokeDashoffset = -offset;
+        progressCircle.style.stroke = '#4CAF50';
+
+        // Меняем цвет при малом времени
+        if (timeLeft < 5) {
+            progressCircle.style.stroke = '#f44336';
+        }
+
+        // Завершение таймера
+        if (timeLeft <= 0) {
+            sfx.notify.play()
+            clearInterval(slotTimer);
+            slotTimer = null
+            progressCircle.style.strokeDashoffset = circumference;
+            timerText.textContent = "0";
+            slotElement.classList.remove('show');
+        }
+    }, 1000);
+}
+
+function stopSlotTimer() {
+    if (slotTimer) {
+        clearInterval(slotTimer);
+        slotTimer = null;
+    }
+    document.querySelectorAll('div.videobox span.slot-timer')
+        .forEach(span => span.classList.remove('show'));
 }
 function stopCountdown() {
     let span = document.querySelector('span.g-countdown')
@@ -1202,6 +1261,7 @@ function stopCountdown() {
         remainingSeconds = -1;
         clearInterval(countdown);
     }
+    stopSlotTimer();
 }
 
 async function handleGamePhase(data, mode = 'normal') {
@@ -2120,7 +2180,7 @@ function handleActiveSpeaker(data) {
 
         let eBar = document.querySelector('div.e-bar[data-slot="' + data.slot + '"]')
         eBar.classList.add('active-speaker')
-        startCountdown(data.duration)
+        startCountdown(data.duration, document.querySelector('div.videobox[data-slot="' + data.slot + '"] span.slot-timer'))
         if (selfID === roomEnv.gameHost.uid) {
             if (data.action !== undefined) {
                 if (data.action === 'voted') {

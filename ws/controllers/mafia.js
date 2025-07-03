@@ -130,7 +130,7 @@ function joinGame(ws, data) {
 
             }
             ;
-            if (emptySlot) {
+            if (emptySlot && (sessionID !== room.gameHost.sessionID)) {
                 let spectator = {
                     clientId,
                     name: ws.req.session?.user?.nickname || ws.req.session?.user?.username || 'unknown',
@@ -138,12 +138,17 @@ function joinGame(ws, data) {
                 }
                 room.spectators[clientId] = spectator
             }
-            // if (!pass) {
+
+            Object.keys(room.spectators).forEach(spectatorId => {
+                if (!room.users[spectatorId]) {
+                    delete room.spectators[spectatorId];
+                }
+            });
+            // if (!pass) {     еп-
             room.users[clientId] = {uid: clientId};
             room.size = room.users.length;
             // }
         }
-        console.log("WS order 117", clientId)
         clients[clientId] = ws;
         ws.uid = clientId;
         // console.log(ws.req.session)

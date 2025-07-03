@@ -1,0 +1,8 @@
+.player-slot(data-uid=spectator.clientId)
+  if spectator.mduid && spectator.mduid !== 'null'
+    a.player-slot-link(href="/u/" + spectator.mduid)
+      .avatar-container
+        img.avatar(src=spectator.avatar || "/static/img/avatar/d450356dc7cb3609.png", alt=`${spectator.name}` tooltip=`${spectator.name}`)
+  else
+    .avatar-container
+      img.avatar(src=spectator.avatar || "/static/img/avatar/d450356dc7cb3609.png", alt=`${spectator.name}` tooltip=`${spectator.name}`)

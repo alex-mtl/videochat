@@ -9,10 +9,10 @@ function startGame() {
 function stopGame() {
     muteAllSfx()
     ws.send(JSON.stringify({type: 'game-stop'}));
-    hostButtons([
-        {btn: 1, action: startGame, txt: 'Start', type: actionBtnTypes.SUCCESS},
-        {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
-    ])
+    // hostButtons([
+    //     {btn: 1, action: startGame, txt: 'Start', type: actionBtnTypes.SUCCESS},
+    //     {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
+    // ])
     mainButton('Start', startGame)
     gameMessage('')
     gameMessage('', 2)
@@ -41,10 +41,10 @@ function hostButtons(btns) {
     });
 }
 function handleShuffleRolesReady(data) {
-    hostButtons([
-        {btn: 1, action: startGame, txt: 'Start', type: actionBtnTypes.SUCCESS},
-        {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
-    ])
+    // hostButtons([
+    //     {btn: 1, action: startGame, txt: 'Start', type: actionBtnTypes.SUCCESS},
+    //     {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
+    // ])
     ws.send(JSON.stringify({type: 'shuffle-roles'}));
 }
 
@@ -75,19 +75,19 @@ function hideMainButton() {
 }
 function sitdownReady() {
     mainButton('Sitdown', startSitdown)
-    hostButtons([
-        {btn: 1, action: startSitdown, txt: 'Sitdown', type: actionBtnTypes.SUCCESS},
-        {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
-    ])
+    // hostButtons([
+    //     {btn: 1, action: startSitdown, txt: 'Sitdown', type: actionBtnTypes.SUCCESS},
+    //     {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
+    // ])
     ws.send(JSON.stringify({type: 'show-roles'}));
 }
 
 function hostRolesReady() {
     mainButton('Sitdown', startSitdown)
-    hostButtons([
-        {btn: 1, action: startSitdown, txt: 'Sitdown', type: actionBtnTypes.SUCCESS},
-        {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
-    ])
+    // hostButtons([
+    //     {btn: 1, action: startSitdown, txt: 'Sitdown', type: actionBtnTypes.SUCCESS},
+    //     {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
+    // ])
     ws.send(JSON.stringify({type: 'show-roles'}));
 }
 function donWatchSend() {
@@ -335,19 +335,19 @@ function detectGameState() {
         gStop = document.getElementById('game-stop')
         gStop.hidden = true;
 
-        hostButtons([
-            {btn: 1, action: startGame, txt: 'Start', type: actionBtnTypes.SUCCESS},
-            {btn: 3, action: nextSpeakerSend, txt: 'Next', type: actionBtnTypes.INFO},
-            {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
-        ])
+        // hostButtons([
+        //     {btn: 1, action: startGame, txt: 'Start', type: actionBtnTypes.SUCCESS},
+        //     {btn: 3, action: nextSpeakerSend, txt: 'Next', type: actionBtnTypes.INFO},
+        //     {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
+        // ])
     } else if (roomEnv.game.phase === 'shuffle') {
-        hostButtons([
-            {btn: 1, action: startSitdown, txt: 'Sitdown', type: actionBtnTypes.INFO},
-            {btn: 2, action: donWatchSend, txt: 'Don watch', type: actionBtnTypes.INFO},
-            {btn: 3, action: sheriffWatchSend, txt: 'Sheriff watch', type: actionBtnTypes.INFO},
-            {btn: 4, action: sheriffWatchSend, txt: 'Day start', type: actionBtnTypes.INFO},
-            {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
-        ])
+        // hostButtons([
+        //     {btn: 1, action: startSitdown, txt: 'Sitdown', type: actionBtnTypes.INFO},
+        //     {btn: 2, action: donWatchSend, txt: 'Don watch', type: actionBtnTypes.INFO},
+        //     {btn: 3, action: sheriffWatchSend, txt: 'Sheriff watch', type: actionBtnTypes.INFO},
+        //     {btn: 4, action: sheriffWatchSend, txt: 'Day start', type: actionBtnTypes.INFO},
+        //     {btn: 5, action: stopGame, txt: 'Stop', type: actionBtnTypes.FAILURE}
+        // ])
     }
 
 

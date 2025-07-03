@@ -42,12 +42,12 @@ div.game.videos {
 .game .videobox > span.show {
     visibility: visible;
 }
-video.muted {
-    border: 0.25vw solid var(--g-red);
-}
+/*video.muted {*/
+/*    border: 0.25vw solid var(--g-red);*/
+/*}*/
 
 video {
-    border: 0.25vw solid var(--g-green);
+    border: 0.25vw solid var(--g-grey);
     margin: 0.1vw;
     width: 100%;
     aspect-ratio: 16/9;
@@ -61,8 +61,8 @@ video.night-video {
 
 video.active-speaker {
     border: 0.25vw solid darkgreen;
-    border: none;
-    box-shadow: 0 0 1.25vw darkgreen;
+    /*border: none;*/
+    box-shadow: 0 0 1.25vw var(--g-green);
 }
 
 video.active-speaker.active-speaker-penalized {
@@ -93,9 +93,9 @@ video.active-speaker.active-speaker-penalized ~ span.slot-warn
     animation: blinker 1s linear infinite;
 }
 
-div.videobox[data-uid="empty"] video {
-    border-color: var(--g-grey);
-}
+/*div.videobox[data-uid="empty"] video {*/
+/*    border-color: var(--g-grey);*/
+/*}*/
 
 div.videobox:has(.slot-role[data-role="citizen"]) video,
 div.videobox:has(.slot-role[data-role="sheriff"]) video
@@ -347,17 +347,53 @@ div.videobox.self-view span.game-user {
     color: var(--g-green)
 }
 
-span.slot-status,
+
+div.videobox.vbox-H span.game-settings,
+div.videobox.vbox-H span.game-stop,
+div.videobox.vbox-H span.host-action
+{
+    position: absolute;
+    background-color: white;
+
+    opacity: 80%;
+    padding: 0;
+    font-size: 2.8vw;
+    height: 2.8vw;
+    width: 2.8vw;
+    border-radius: 0.5vw;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+}
+
 div.videobox.vbox-H span.game-settings {
+    bottom: 0.5vw;
+    right: 0.5vw;
+}
+
+div.videobox span.slot-status {
     position: absolute;
     bottom: 0.5vw;
     right: 0.5vw;
-    background-color: transparent; 
+    background-color: transparent;
     color: rgba(211, 211, 211, 0.5); /* Text color */
     padding: 0;
     font-size: 3vw;
     font-weight: bold; /* Bold font */
     visibility: hidden;
+}
+
+div.videobox.vbox-H span.game-stop {
+    bottom: 3.4vw;
+    right: 0.5vw;
+}
+
+div.videobox.vbox-H span.host-action {
+    bottom: 6.25vw;
+    right: 0.5vw;
 }
 
 div.game.videos[data-phase='lobby'] div.videobox:not(.vbox-H) span.slot-status {
@@ -383,16 +419,38 @@ div.game.videos[data-phase='lobby'] div.videobox:not(.vbox-H) span.slot-status {
     cursor: pointer;
 }
 
-[data-mode="host"][data-phase='lobby'] div.videobox.vbox-H span.game-settings {
+div.game[data-mode="host"] div.videobox.vbox-H:hover span.game-settings
+{
     visibility: visible;
     color: var(--g-green);
 }
 
-div.game.videos[data-phase='lobby'] div.videobox.vbox-H span.game-settings:before {
-    content: "settings";
+div.game[data-mode="host"]:not([data-phase='lobby']) div.videobox.vbox-H:hover span.host-action
+{
+    visibility: visible;
+    color: var(--g-green);
 }
 
-.self-view .game-settings {
+div.game[data-mode="host"]:not([data-phase='lobby']) div.videobox.vbox-H:hover span.game-stop
+{
+    visibility: visible;
+    color: var(--g-failure);
+}
+
+div.game div.videobox.vbox-H span.game-settings:before {
+    content: "settings";
+}
+div.game:not([data-phase='lobby']) div.videobox.vbox-H span.game-stop:before {
+    content: "dangerous";
+}
+div.game:not([data-phase='lobby']) div.videobox.vbox-H span.host-action:before {
+    content: "menu";
+}
+
+.self-view .host-action,
+.self-view .game-settings,
+.self-view .game-stop
+{
     cursor: pointer; /* Change mouse pointer to hand on hover */
 }
 
@@ -1144,6 +1202,7 @@ div.videobox span.video-lock {
     font-size: 8vw;
     font-weight: bold; /* Bold font */
     visibility: hidden;
+    z-index: 100;
 }
 
 [data-phase="sheriff-check"] div.videobox .video-lock[data-role="citizen"]:before,
@@ -1522,6 +1581,7 @@ div.videobox span.video-target {
     font-size: 8vw;
     font-weight: bold; /* Bold font */
     visibility: hidden;
+    z-index: 100;
 }
 
 [data-phase="shooting"] div.videobox:not(.vbox-H) .video-target {
@@ -2028,3 +2088,62 @@ div.videos.game[data-phase="day"]:not([data-mode="host"])  .slot-eye-role.active
     background-color: white;
 }
 
+/* slot timer */
+
+
+span.slot-timer {
+    position: absolute;
+    bottom: 0.6vw;
+    right: 0.6vw;
+    width: 3vw;
+    height: 3vw;
+
+}
+
+.circular-timer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.timer-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.timer-bg {
+    fill: none;
+    stroke: #eee;
+    stroke-width: 30; /* Половина радиуса (40 * 0.5) */
+}
+
+.timer-progress {
+    fill: none;
+    stroke: #4CAF50;
+    stroke-width: 20px; /* Половина радиуса */
+    /*stroke-linecap;*/
+    stroke-dasharray: 188.5; /* 2πr ≈ 251.2 (r=40) */
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1s linear;
+    transform: rotate(270deg);
+    transform-origin: 50% 50%;
+}
+
+.timer-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.4vw;
+    font-weight: bold;
+    font-family: Arial, sans-serif;
+    color: white;
+    width: 100%;
+    text-align: center;
+    text-shadow:
+            -1px -1px 0 #000,
+            1px -1px 0 #000,
+            -1px 1px 0 #000,
+            1px 1px 0 #000;
+}

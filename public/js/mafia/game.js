@@ -36,6 +36,11 @@ let sfx = {
         loop: false,
         volume: 0.1
     }),
+    tictac: new Howl({
+        src: '/static/sfx/tic-tac-3s.mp3',
+        loop: false,
+        volume: 0.1
+    }),
     warn: new Howl({
         src: '/static/sfx/warn.mp3',
         loop: false,
@@ -371,10 +376,10 @@ function selfSlotDetection(selfID) {
             }
         }
     } else {
-        participant = true
+        participant = true // host
     }
     if (!participant) {
-        localVideo.srcObject.getTracks()
+        // localVideo.srcObject.getTracks()
     }
     return participant
 }
@@ -386,8 +391,8 @@ function updateStatuses() {
     }
 }
 
-async function initializePeerConnectionsSequentially(ws, clientId, users) {
-    const uids = Object.keys(users).filter(uid => uid !== sessionID);
+async function initializePeerConnectionsSequentially(ws, clientId, uids) {
+
 
     for (const uid of uids) {
         try {
@@ -451,7 +456,7 @@ function startSignaling() {
             updateStatuses()
             participant = selfSlotDetection(clientId);
             hostID = data.room.gameHost.uid;
-            var script = document.createElement('script');
+
             if (sessionID !== hostID) {
 
                 gamePanel = document.querySelector('div.game-panel')
@@ -494,18 +499,22 @@ function startSignaling() {
                     playerPanel.remove();
                 }
 
-
-                // Set the source attribute to your player.js file
-                // script.src = '/static/js/mafia/host.js';
-                // document.head.appendChild(script);
-                // script.onload = () => {
                 detectGameState()
                 // handleGamePhase(roomEnv.game)
                 // };
 
             }
-            const peersPromises = [];
-            await initializePeerConnectionsSequentially(ws, clientId,data.room.users);
+            // const peersPromises = [];
+            // const users = data?.room?.users || {};
+            // const peerUids = Object.keys(users).filter(uid => uid !== sessionID);
+            const peerUids = [
+                ...Object.values(data.room.slot)
+                    .map(slotItem => slotItem.uid)
+                    .filter(uid => uid !== 'empty' && uid !== sessionID),
+                ...(data.room.host.uid !== sessionID ? [data.room.host.uid] : [])
+            ].filter(Boolean);  // This removes any undefined/null values
+
+            await initializePeerConnectionsSequentially(ws, clientId, peerUids);
 
 
 
@@ -803,3 +812,4 @@ async function checkRole(el) {
 
     el.setAttribute('data-checked-role', response.role)
 }
+

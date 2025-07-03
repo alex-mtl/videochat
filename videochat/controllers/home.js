@@ -11,7 +11,26 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const { determineWinStatus, getRoleLabel, getUserByMduid } = require('../utils/mafia.helpers')
 
+async function generateMDUID(key) {
+    // Fallback to empty string if email is null/undefined
+    const input = `MDUID-${key || ''}`;
 
+    // Encode the string as UTF-8
+    const encoder = new TextEncoder();
+    const data = encoder.encode(input);
+
+    // Generate SHA-1 hash
+    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+
+    // Convert buffer to byte array
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+
+    // Convert bytes to hex string
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+    // Take first 16 characters (equivalent to MySQL's substr(..., 1, 16))
+    return hashHex.substring(0, 16);
+}
 function checkTelegramLogin(data, botToken) {
     const secretKey = crypto.createHash('sha256').update(process.env.TG_TOKEN).digest();
     const checkString = Object.keys(data)
@@ -236,8 +255,10 @@ module.exports.tgAuth = async (req, res) => {
         let [rows] =  await db.query('SELECT * FROM users WHERE telegram_id = ?', [id]);
         if (rows.length === 0) {
             let nickname = username || `${first_name} ${last_name}`
-            const [result] = await db.query('INSERT INTO users (telegram_id, username, first_name, last_name, avatar_url) VALUES (?, ?, ?)',
-                [id, nickname, first_name, last_name, photo_url]);
+            let mduid = await generateMDUID(id)
+            console.log(mduid)
+            const [result] = await db.query('INSERT INTO users (telegram_id, username, first_name, last_name, avatar_url, mduid) VALUES (?, ?, ?, ?, ?, ?)',
+                [id, nickname, first_name, last_name, photo_url, mduid]);
             const [newUser] = await db.query('SELECT * FROM users WHERE id = ?', [result.insertId]);
             req.session.user = newUser[0];
         } else {
@@ -274,9 +295,10 @@ module.exports.googleAuth = async (req, res) => {
     //     const { id, first_name, last_name, username, photo_url, auth_date, hash } = req.query;
         let [rows] =  await db.query('SELECT * FROM users WHERE google_id = ?', [googleId]);
         if (rows.length === 0) {
+            let mduid = await generateMDUID(email)
             // let nickname = u_name || `${u_givenName} ${u_familyName}`
-            const [result] = await db.query('INSERT INTO users (google_id, email, email_confirmed, username, nickname, first_name, last_name, avatar_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [googleId, email, email_verified, username, nickname, u_givenName, u_familyName, u_picture]);
+            const [result] = await db.query('INSERT INTO users (google_id, email, email_confirmed, username, nickname, first_name, last_name, avatar_url, mduid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [googleId, email, email_verified, username, nickname, u_givenName, u_familyName, u_picture, mduid]);
             const [newUser] = await db.query('SELECT * FROM users WHERE id = ?', [result.insertId]);
             req.session.user = newUser[0];
         } else {
@@ -509,9 +531,10 @@ module.exports.registerPost = async (req, res) => {
         if (rows.length === 0) {
             let nickname = username = email.split('@')[0]
             let avatar_url = await avatar.generateAvatar()
+            let mduid = await generateMDUID(email)
             // console.log(avatar_url)
-            const [result] = await db.query('INSERT INTO users (nickname, username, email, password_hash, avatar_url) VALUES (?, ?, ?, ?, ?)',
-                [nickname, username, email, password_hash, avatar_url]);
+            const [result] = await db.query('INSERT INTO users (nickname, username, email, password_hash, avatar_url, mduid) VALUES (?, ?, ?, ?, ?, ?)',
+                [nickname, username, email, password_hash, avatar_url, mduid]);
             const [newUser] = await db.query('SELECT * FROM users WHERE id = ?', [result.insertId]);
             req.session.user = newUser[0];
             res.redirect('/user');

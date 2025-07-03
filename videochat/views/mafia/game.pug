@@ -49,7 +49,9 @@ html(lang="en")
           - var vbID = "video-"+slot+"-empty"
           include elems/videobox.pug
     div.guests-container
-      span.spectators
+      div.spectators
+        each spectator in room.spectators
+          include partials/spectator.pug
     include elems/card-deck.pug
     include elems/number-pad.pug
     #chat
