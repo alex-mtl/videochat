@@ -5,6 +5,7 @@ html(lang="en")
     meta(name="viewport", content="width=device-width, initial-scale=1.0")
     title Mafia Game : #{roomID} : Mao Dao Game Platform
     script(src=`/static/js/mafia/util.js?ver=${ver}`, defer)
+    script(src=`/static/js/mafia/ms-util.js?ver=${ver}`, defer)
     script(src=`/static/js/vc-utils.js?ver=${ver}`, defer)
     script(src=`/static/js/mafia/game.js?ver=${ver}`, defer)
     script(src="/static/js/mafia/host.js", defer)
@@ -21,6 +22,16 @@ html(lang="en")
     link(href="https://fonts.googleapis.com/icon?family=Material+Icons", rel="stylesheet")
 
   body.g-mafia
+    script(type="module").
+      import * as mediasoupClient from 'https://esm.sh/mediasoup-client@3.6.49';
+
+      document.addEventListener('DOMContentLoaded', () => {
+        window.mediasoup = {
+        client: mediasoupClient,
+        device: new mediasoupClient.Device()
+        };
+      });
+
     script let chatSessionID = "#{sessionID}"; let roomId = "#{roomID}";var websocketUrl = "#{wssURL}";
     - var title= "Mafia Game : "+room.name
     include elems/layout-header

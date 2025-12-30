@@ -29,7 +29,10 @@ const {
     onlyPlayer,
     onlyMafTeam,
     onlyDon,
-    onlySheriff, updateRoom
+    onlySheriff, updateRoom,
+    createProducerTransport, createProducer, connectProducerTransport,
+    createConsumerTransport, connectConsumerTransport, consume,
+    micState
 } = require("./common");
 const {nextSpeaker, playerLock, playerKill} = require("./host");
 
@@ -161,7 +164,7 @@ function joinGame(ws, data) {
         room = await cleanUsers(room);
 
         // Send the new client their ID
-        await ws.send(JSON.stringify({type: 'id', id: clientId, room: room}));
+        await ws.send(JSON.stringify({type: 'id', id: clientId, 'rtpCapabilities': ws.router.rtpCapabilities , room: room}));
         // console.log('wsid: ', ws.uid, clientId, 'room :', JSON.stringify(room));
 
         fs.writeFileSync(roomFile, JSON.stringify(room), 'utf-8');
@@ -305,6 +308,13 @@ async function gamePlayerMic(ws, data) {
         ;
     }
     if (valid) {
+        if (ws.audioProducer) {
+            if (data.mic === 'on') {
+                await ws.audioProducer.resume();
+            } else {
+                await ws.audioProducer.pause();
+            }
+        }
         await updateRoom(ws.roomID, room)
         await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-player-mic', uid: ws.uid, mic: data.mic }));
     } else {
@@ -1083,5 +1093,8 @@ module.exports = common.addExports(
     playerVote,
     gameOver,
     voteLockWinners,
+        createProducer,createProducerTransport,connectProducerTransport,
+        createConsumerTransport, connectConsumerTransport, consume,
+        micState,
     shoot,
 }));

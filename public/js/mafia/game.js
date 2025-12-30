@@ -115,6 +115,7 @@ function playTimes(sound, times) {
 let lastScrollTop = 0;
 const header = document.querySelector('.header');
 const scrollThreshold = 5;
+
 window.addEventListener('scroll', () => {
     const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
 
@@ -173,6 +174,7 @@ if (isFirefox()) {
                         console.log('Constraints successfully applied.');
                         // Assign the stream to the video element
                         resizedStream = localStream;
+                        console.log(177);
                         startSignaling();
 
                     })
@@ -213,6 +215,7 @@ if (isFirefox()) {
                         });
 
                         resizedStream = canvas.captureStream();
+                        console.log(218);
                         startSignaling();
                     });
 
@@ -244,7 +247,7 @@ if (isFirefox()) {
     navigator.mediaDevices.getUserMedia(constraints)
         .then(stream => {
             // Mute audio track initially
-            stream.getAudioTracks().forEach(track => track.enabled = false);
+            // stream.getAudioTracks().forEach(track => track.enabled = false);
 
             // Get the video track and attempt to set constraints on it
             const videoTrack = stream.getVideoTracks()[0];
@@ -261,6 +264,7 @@ if (isFirefox()) {
                         console.log('Constraints successfully applied.');
                         // Assign the stream to the video element
                         resizedStream = localStream;
+                        console.log(265);
                         startSignaling();
 
                     })
@@ -308,6 +312,7 @@ if (isFirefox()) {
                         });
 
                         resizedStream = canvas.captureStream();
+                        console.log(313);
                         startSignaling();
                     });
 
@@ -363,14 +368,7 @@ function selfSlotDetection(selfID) {
                 userName.textContent = player.name || selfID;
                 inputUserName = slot.querySelector('input.game-user');
                 inputUserName.value = player.name || 'unknown';
-                // userName.textContent = selfID
-                // userName.childNodes.forEach(node => {
-                //     // Check if the child node is a text node
-                //     if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim() === 'unknown') {
-                //         // Replace the text content with selfID
-                //         node.textContent = player.name || selfID;
-                //     }
-                // });
+
                 participant = true
                 break
             }
@@ -391,6 +389,66 @@ function updateStatuses() {
     }
 }
 
+async function initializeTransportsSequentially(ws, clientId, uids, participant) {
+console.log('participant:', participant)
+    // if (participant) {
+        try {
+            // Check if user is still active
+            const wsActiveState = await sendRequest(ws, {
+                type: 'check-ws-active',
+                uid: clientId
+            });
+
+            if (!wsActiveState?.status) {
+                handlePeerLeft(clientId);
+                console.log(`User ${clientId} is not available anymore`);
+                window.reload();
+                return
+            }
+            let peerConnection;
+            peerConnection = await createProducerTransport(clientId, hostID, participant);
+
+            if (peerConnection.slot) {
+                slotInfo(peerConnection.slot, 'Initialize producer transport');
+            }
+
+        } catch (error) {
+            console.error(`Failed to initialize connection with ${clientId}:`, error);
+            handlePeerLeft(clientId);
+        }
+    // }
+    const otherUids = uids.filter(uid => uid !== clientId);
+
+    for (const uid of otherUids) {
+        try {
+            // Check if user is still active
+            const wsActiveState = await sendRequest(ws, {
+                type: 'check-ws-active',
+                uid: uid
+            });
+
+            if (!wsActiveState?.status) {
+                handlePeerLeft(uid);
+                console.log(`User ${uid} is not available anymore`);
+                continue;
+            }
+            let peerConnection;
+
+            peerConnection = await createConsumerTransport(clientId, uid, hostID, participant);
+
+
+            if (peerConnection.slot) {
+                slotInfo(peerConnection.slot, 'Initialize transport');
+            }
+
+        } catch (error) {
+            console.error(`Failed to initialize connection with ${uid}:`, error);
+            handlePeerLeft(uid);
+        }
+    }
+
+    handleGamePhase(roomEnv.game, 'reload');
+}
 async function initializePeerConnectionsSequentially(ws, clientId, uids) {
 
 
@@ -456,6 +514,10 @@ function startSignaling() {
             updateStatuses()
             participant = selfSlotDetection(clientId);
             hostID = data.room.gameHost.uid;
+            if (data.rtpCapabilities ?? null) {
+                await window.mediasoup.device.load({ routerRtpCapabilities: data.rtpCapabilities });
+
+            }
 
             if (sessionID !== hostID) {
 
@@ -470,6 +532,7 @@ function startSignaling() {
                 }
             } else {
                 hostVideo = document.getElementById('hostVideo')
+                hostVideo.parentElement.setAttribute('data-uid',hostID)
                 if (!hostVideo.srcObject) {
                     hostVideo.srcObject = localVideo.srcObject;
                     hostVideo.classList.add('muted')
@@ -514,8 +577,8 @@ function startSignaling() {
                 ...(data.room.host.uid !== sessionID ? [data.room.host.uid] : [])
             ].filter(Boolean);  // This removes any undefined/null values
 
-            await initializePeerConnectionsSequentially(ws, clientId, peerUids);
-
+             // ->>>>  await initializePeerConnectionsSequentially(ws, clientId, peerUids);
+            await initializeTransportsSequentially(ws, clientId, peerUids, participant);
 
 
         } else if (data.type === 'participant-joined') {
@@ -524,12 +587,38 @@ function startSignaling() {
             // , data.avatar
             roomEnv = data.room;
             if (sessionID != clientId) {
-                if (clientId === data.room.gameHost.uid) {
-                    peerConnection = await createPeerConnection(clientId, clientId);
-                } else {
-                    peerConnection = await createPeerConnection(clientId);
-                }
+                if (window.mediasoup.device) {
 
+                    const peerObjects = [
+                        // Process slots - preserve index via Object.entries()
+                        ...Object.entries(data.room.slot)
+                            .filter(([idx, slotItem]) => slotItem.uid === clientId && slotItem.uid !== sessionID)
+                            .map(([idx, slotItem]) => ({
+                                ...slotItem,  // Keep all original slot properties
+                                idx: Number(idx)  // Add the original index
+                            })),
+
+                        // Process host (no index needed)
+                        ...(data.room.host.uid === clientId ? [{
+                            ...data.room.host,
+                            isHost: true,  // Flag to identify host
+                            slot: 'H'
+                        }] : [])
+                    ].filter(Boolean);
+
+// Result will contain full objects where uid matches clientId
+                    console.log("Matching objects:", peerObjects);
+                    if (peerObjects.length > 0) {
+                        peerConnection = await createConsumerTransport(sessionID, clientId, roomEnv.host.uid, peerObjects[0]);
+                    }
+
+                } else {
+                    if (clientId === data.room.gameHost.uid) {
+                        peerConnection = await createPeerConnection(clientId, clientId);
+                    } else {
+                        peerConnection = await createPeerConnection(clientId);
+                    }
+                }
             }
 
         } else if (data.type === 'request-response') {

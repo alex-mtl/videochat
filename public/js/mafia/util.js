@@ -2,33 +2,33 @@ const configuration = {
     // iceTransportPolicy: 'relay',
     iceCandidatePoolSize: 0,
     iceServers: [
-        {urls: 'stun:stun.l.google.com:19302'},
-        // {urls: 'stun:stun1.l.google.com:19302'},
-        // {urls: 'stun:stun2.l.google.com:19302'},
-        // {urls: 'stun:stun.sipnet.ru:3478'},
-        {urls: 'stun:mao-dao.com:3478'},
-        // {
-        //     urls: "turn:194.26.138.209:3478?transport=udp",
-        //     username: "turnuser",
-        //     credential: "turnpassword",
-        // },
-        {
-            urls: "turn:188.225.37.129:3478?transport=udp",
-            username: "turnuserjustice",
-            credential: "passjustice",
-        },
-        {
-            urls: "turn:188.225.37.129:3478?transport=tcp",
-            username: "turnuserjustice",
-            credential: "passjustice",
-        },
+        // {urls: 'stun:stun.l.google.com:19302'},
+                                // {urls: 'stun:stun1.l.google.com:19302'},
+                                // {urls: 'stun:stun2.l.google.com:19302'},
+                                // {urls: 'stun:stun.sipnet.ru:3478'},
+        // {urls: 'stun:mao-dao.com:3478'},
+                        // {
+                        //     urls: "turn:194.26.138.209:3478?transport=udp",
+                        //     username: "turnuser",
+                        //     credential: "turnpassword",
+                        // },
+                        // {
+                        //     urls: "turn:188.225.37.129:3478?transport=udp",
+                        //     username: "turnuserjustice",
+                        //     credential: "passjustice",
+                        // },
+                        // {
+                        //     urls: "turn:188.225.37.129:3478?transport=tcp",
+                        //     username: "turnuserjustice",
+                        //     credential: "passjustice",
+                        // },
 
-        // // ,
-        // {
-        //     urls: "turn:mao-dao.com:3478?transport=tcp",
-        //     username: "maodao",
-        //     credential: "coturn",
-        // }
+                        // // ,
+        {
+            urls: "turn:mao-dao.com:3478?transport=tcp",
+            username: "maodao",
+            credential: "coturn",
+        }
     ]
 };
 
@@ -446,19 +446,47 @@ function selfMic(micElem) {
         }
     }
 }
-function toggleAudio(elem, mute = 'toggle', mode = 'self' ) {
+async function toggleAudio(elem, mute = 'toggle', mode = 'self' ) {
     if (elem.parentElement.classList.contains('self-view')) {
-        const audioTracks =  elem.parentElement.querySelector('video').srcObject.getAudioTracks();
-        audioTracks.forEach(track => {
+        let muted;
+        if (window.mediasoup.device) {
+            // const audioTracks =  elem.parentElement.querySelector('video').srcObject.getAudioTracks();
+            // audioTracks.forEach(track => {
+            //     track.enabled = false;
+            // });
+            elem.parentElement.querySelector('video').muted = true
+            const audioProducerStatus = await sendRequest( ws,{
+                type: "mic-state",
+                uid: sessionID,
+            })
+
             if(mute === 'toggle') {
-                track.enabled = !track.enabled;
+                muted = !audioProducerStatus.muted
             } else if (mute === 'mute') {
-                track.enabled = false;
+                muted = true;
             } else if (mute === 'unmute') {
-                track.enabled = true;
+                muted = false;
             }
-            muted = (!track.enabled)
-        });
+            // selfPeer = peerConnections[sessionID]
+            // if (!muted) {
+            //     await selfPeer.audioProducer.pause();
+            // } else {
+            //     await selfPeer.audioProducer.resume();
+            // }
+
+        } else {
+            const audioTracks =  elem.parentElement.querySelector('video').srcObject.getAudioTracks();
+            audioTracks.forEach(track => {
+                if(mute === 'toggle') {
+                    track.enabled = !track.enabled;
+                } else if (mute === 'mute') {
+                    track.enabled = false;
+                } else if (mute === 'unmute') {
+                    track.enabled = true;
+                }
+                muted = (!track.enabled)
+            });
+        }
 
         if (muted) {
             micOn = 'off'
@@ -472,7 +500,8 @@ function toggleAudio(elem, mute = 'toggle', mode = 'self' ) {
         ws.send(JSON.stringify({type: 'game-player-mic', 'from': sessionID, mic: micOn, mode: mode}));
 
     } else {
-        elem.parentElement.querySelector('video').muted = !elem.parentElement.querySelector('video').muted;
+        videoElem = elem.parentElement.querySelector('video')
+        videoElem.muted = videoElem.muted ? false : true;
         muted = elem.parentElement.querySelector('video').classList.toggle('muted')
         if (muted) {
             elem.classList.add('muted')
@@ -541,16 +570,25 @@ async function peerRefresh(elem) {
     let uid = slot.getAttribute('data-uid')
     // showPopupAlert(slot.getAttribute('data-uid'))
 
-
+slotInfo(slot.getAttribute('data-slot'),'Peer ID: '+uid)
+    alertToaster('Peer ID: '+uid)
     if (peerConnections[uid]) {
         let pc = peerConnections[uid];
-        // console.log(pc);
-        console.log(ws, sessionID, uid, pc)
-        pc.isResetting = true
-        pc.close()
-        pc = null
+        if (pc.videoConsumer) {
+            alertToaster('Peer ID: '+uid+' has video consumer: '+pc.videoConsumer.id)
+            console.log(pc.videoConsumer)
+            await restartConsumer(uid,pc)
+            return
+        } else {
+            console.log(ws, sessionID, uid, pc)
+            pc.isResetting = true
+            pc.close()
+            pc = null
 
-        await ws.send(JSON.stringify({type: 'restart-peer-connection', 'peer': uid}));
+            await ws.send(JSON.stringify({type: 'restart-peer-connection', 'peer': uid}));
+        }
+        // console.log(pc);
+
     } else {
         console.log(`No peer connection found for UID: ${uid}`);
         if (slotN = slot.getAttribute('data-slot')) {
@@ -2162,6 +2200,7 @@ function handleActiveSpeaker(data) {
         if (speaker.classList.contains('self-view')) {
             game = document.querySelector('div.game.videos')
             game.classList.add('self-active-speaker')
+            toggleAudio(speaker, 'unmute', 'unmute-mic')
             game.setAttribute('data-action', data?.action || '')
             if (data?.action === 'voted') {
                 playerButton('Pass', passPlayerLockSend.bind(null, data.slot))

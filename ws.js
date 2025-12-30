@@ -1,4 +1,5 @@
 const express = require('express');
+const mediasoup = require('mediasoup');
 const https = require('https');
 const fs = require('fs');
 const cookieParser = require('cookie-parser');
@@ -23,6 +24,8 @@ app.use(session({
 // Load SSL certificate and private key
 // const privateKey = fs.readFileSync('video-key.pem', 'utf8');
 // const certificate = fs.readFileSync('video-cert.pem', 'utf8');
+console.log(process.env.SSL_KEY, process.env.SSL_CERT);
+
 const privateKey = fs.readFileSync(process.env.SSL_KEY, 'utf8');
 const certificate = fs.readFileSync(process.env.SSL_CERT, 'utf8');
 const credentials = { key: privateKey, cert: certificate };
@@ -59,6 +62,7 @@ wss.on('connection', (ws, req) => {
     console.log('Session ID:', req.sessionID); // Should log the correct session ID
     console.log('Session data:', req.session);
     ws.req = req
+    ws.router = app.locals.router;
     ws.on('message', message => {
         const data = JSON.parse(message);
         const handler = handle.getHandler(data.type);
@@ -76,7 +80,17 @@ wss.on('connection', (ws, req) => {
             console.error('Unknown message type:', data.type);
         }
     });
-    ws.on('close', () => {
+    ws.on('close', async () => {
+            // 1. Закрываем продюсеры (это вызовет 'producerclose' у других клиентов)
+        if (ws.videoProducer) {
+            await ws.videoProducer.close();
+            console.log(' ws.videoProducer.close()')
+        } else{
+            console.log('ws.videoProducer is null')
+        }
+
+        if (ws.audioProducer) await ws.audioProducer.close();
+;
         handle.removeClient(ws);
     });
 
@@ -88,5 +102,58 @@ server.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
 
+(async () => {
+    // 1. Create mediasoup worker
+    const worker = await mediasoup.createWorker({
+        logLevel: 'warn',  // 'debug'|'warn'|'error'
+        rtcMinPort: 40000, // UDP port range
+        rtcMaxPort: 49999
+    });
 
+    console.log(`Worker PID ${worker.pid} is running`);
+
+    // 2. Create router (per room/group)
+    const router = await worker.createRouter({
+        mediaCodecs: [
+            {
+                kind: 'audio',
+                mimeType: 'audio/opus',
+                clockRate: 48000,
+                channels: 2
+            },
+            {
+                kind: 'video',
+                mimeType: 'video/VP8',
+                clockRate: 90000
+            }
+        ]
+    });
+    app.locals.worker = worker;
+    app.locals.router = router;
+
+    // 3. Basic stats logging
+    setInterval(async () => {
+        try {
+            const stats = await worker.getResourceUsage();
+
+            // Linux/macOS
+            if (stats.ru_utime !== undefined) { // Linux-style output
+                // Calculate CPU percentage (user + system time)
+                const cpuPercent = (stats.ru_utime + stats.ru_stime) / 10000; // Convert to percentage
+
+                // Convert max RSS from KB to MB
+                const memoryMb = stats.ru_maxrss / 1024;
+
+                //console.log(`CPU: ${cpuPercent.toFixed(1)}% | RAM: ${memoryMb.toFixed(1)}MB`);
+            } else {
+                console.log(`Worker active (PID ${worker.pid})`);
+            }
+        } catch (err) {
+            console.error('Stats error:', err.message);
+        }
+    }, 10000);
+
+    // Handle termination
+    process.on('SIGTERM', () => worker.close());
+})();
 

@@ -47,6 +47,7 @@ div.game.videos {
 /*}*/
 
 video {
+
     border: 0.25vw solid var(--g-grey);
     margin: 0.1vw;
     width: 100%;
@@ -130,6 +131,7 @@ div.videobox {
     display: flex;
 }
 
+
 [data-phase="shooting"] div.videobox,
 /*div.videobox:not([data-player-status="alive"]):not([data-player-status="unknown"]) {*/
 div.videobox[data-uid="empty"]:not([data-player-status="alive"]):not([data-player-status="unknown"]) {
@@ -194,6 +196,10 @@ div.videobox span.refresh
     top: 0.7vw;
     color:var(--g-red);
     z-index: 10;
+}
+
+div.game[data-mode="host"]:not([data-phase="lobby"]) div.videobox span.refresh {
+    top: 3.7vw;
 }
 
 div.videobox span.toggle-video {

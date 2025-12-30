@@ -12,7 +12,7 @@ script.
 
             // >>> Check each device's availability
             for (const device of devices) {
-                try {
+                // try {
                     if (device.kind === 'videoinput') {
                         const stream = await navigator.mediaDevices.getUserMedia({
                             video: {deviceId: {exact: device.deviceId}}
@@ -26,9 +26,9 @@ script.
                         stream.getTracks().forEach(track => track.stop()); // >>> Cleanup
                         activeDevices.audio.push(device);
                     }
-                } catch (err) {
-                    console.log(`Skipping inactive device: ${device.label || device.kind}`);
-                }
+                // } catch (err) {
+                //     console.log(`Skipping inactive device: ${device.label || device.kind}`);
+                // }
             }
 
             // >>> Populate ONLY active devices

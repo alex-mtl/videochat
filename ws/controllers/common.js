@@ -1,6 +1,14 @@
 const fs = require('fs');
 const config = require("../../config");
-const {sessions, clients, rooms} = require("../data");
+const {
+    sessions,
+    clients,
+    rooms,
+    transports,
+    producers,
+    producerTransports,
+    consumerTransports,
+} = require("../data");
 
 async function sleep(millis) {
     return new Promise(resolve => setTimeout(resolve, millis));
@@ -331,6 +339,376 @@ const checkWsActive = async (ws, data) => {
     await ws.send(JSON.stringify(response));
 };
 
+const createProducerTransport = async (ws, data) => {
+    let room = await getRoom(ws.roomID);
+    if (room) {
+        const transport = await ws.router.createWebRtcTransport({
+            listenIps: [{ ip: '0.0.0.0', announcedIp: process.env.PUBLIC_IP }],
+            enableUdp: true,
+            enableTcp: true,
+            preferUdp: true,
+        });
+        let response = {
+            type: 'request-response',
+            requestId: data.requestId,
+            status: "producer-transport-created",
+            data: {
+                id: transport.id,
+                iceParameters: transport.iceParameters,
+                iceCandidates: transport.iceCandidates,
+                dtlsParameters: transport.dtlsParameters,
+            },
+        }
+        await ws.send(JSON.stringify(response));
+        producerTransports.set(ws.uid, transport);
+        ws.producerTransport = transport
+    } else {
+        await ws.send(JSON.stringify({
+            type: 'request-response',
+            requestId: data.requestId,
+            status: false,
+            error: "Room not found",
+        }));
+    }
+};
+
+const createConsumerTransport = async (ws, data) => {
+    let room = await getRoom(ws.roomID);
+    if (room) {
+        let transport
+        // Same transport creation as producer
+        if (ws.consumerTransport) {
+            transport = await ws.consumerTransport
+        } else {
+            transport = await ws.router.createWebRtcTransport({
+                listenIps: [{ ip: '0.0.0.0', announcedIp: process.env.PUBLIC_IP }],
+                enableUdp: true,
+                enableTcp: true,
+                preferUdp: true,
+                // Consumer-specific addition (optional):
+                enableSctp: false // SCTP not needed for consumers
+            });
+            consumerTransports.set(ws.uid, transport);
+            ws.consumerTransport = transport;
+        }
+
+
+        let response = {
+            type: 'request-response',
+            requestId: data.requestId,
+            status: "consumer-transport-created",
+            data: {
+                id: transport.id,
+                iceParameters: transport.iceParameters,
+                iceCandidates: transport.iceCandidates,
+                dtlsParameters: transport.dtlsParameters
+            }
+        };
+
+        await ws.send(JSON.stringify(response));
+    } else {
+        await ws.send(JSON.stringify({
+            type: 'request-response',
+            requestId: data.requestId,
+            status: false,
+            error: "Room not found"
+        }));
+    }
+};
+const createProducer = async (ws, data) => {
+    try {
+        const room = await getRoom(ws.roomID);
+        if (!room) {
+            throw new Error('Room not found');
+        }
+
+        const transport = producerTransports.get(ws.uid);
+        if (!transport) {
+            throw new Error('Transport not found');
+        }
+
+        // Create producer
+        const producer = await transport.produce({
+            kind: data.kind,
+            rtpParameters: data.rtpParameters
+        });
+
+        // Store by type (critical for later access)
+        if (data.kind === 'video') {
+            ws.videoProducer = producer;
+            console.log(`Video producer created for ${ws.uid}`);
+            // Выполняем отложенные запросы
+            if (ws.pendingConsumeRequests) {
+                const remainingRequests = [];
+                ws.pendingConsumeRequests.forEach(async ({pendingWS, args}) => {
+                    try {
+                        if (producer && args.kind === 'video') {
+                            await createConsumer(pendingWS, args, producer);
+                        } else {
+                            remainingRequests.push({pendingWS, args});
+                        }
+                    } catch (error) {
+                        console.error(`Failed to process pending consume for ${pendingWS.uid}:`, error);
+                        remainingRequests.push({pendingWS, args});
+                    }
+                });
+                ws.pendingConsumeRequests = remainingRequests;
+            }
+        } else {
+            ws.audioProducer = producer;
+            if(room.game.phase === 'lobby') {
+                ws.audioProducer.pause();
+            }
+
+            if (ws.pendingConsumeRequests) {
+                const remainingRequests = [];
+                ws.pendingConsumeRequests.forEach(async ({pendingWS, args}) => {
+                    try {
+                        if (producer && args.kind === 'audio') {
+                            await createConsumer(pendingWS, args, producer);
+                        } else {
+                            remainingRequests.push({pendingWS, args});
+                        }
+                    } catch (error) {
+                        console.error(`Failed to process pending consume for ${pendingWS.uid}:`, error);
+                        remainingRequests.push({pendingWS, args});
+                    }
+                });
+                ws.pendingConsumeRequests = remainingRequests;
+            }
+            console.log(`Audio producer created for ${ws.uid}`);
+        }
+
+        // Response
+        await ws.send(JSON.stringify({
+            type: 'request-response',
+            requestId: data.requestId,
+            status: "producer-created",
+            data: {
+                transportId: transport.id,
+                producerId: producer.id,
+                kind: data.kind
+            }
+        }));
+
+    } catch (error) {
+        console.error('Producer creation failed:', error.message);
+        await ws.send(JSON.stringify({
+            type: 'request-response',
+            requestId: data.requestId,
+            status: "error",
+            error: error.message
+        }));
+    }
+};
+
+const connectProducerTransport = async (ws, data) => {
+    let room = await getRoom(ws.roomID);
+    if (room) {
+        if (ws.producerTransport) {
+            const transport = ws.producerTransport
+            await transport.connect({ dtlsParameters: data.dtlsParameters });
+
+            let response = {
+                type: 'request-response',
+                requestId: data.requestId,
+                status: "transport-connected",
+                data: {
+                    transportId: transport.id,
+                    dtlsState: transport.dtlsState
+                },
+            }
+            await ws.send(JSON.stringify(response));
+        } else {
+            await ws.send(JSON.stringify({
+                type: 'request-response',
+                requestId: data.requestId,
+                status: false,
+                error: "You have no producer transport. Try to reload the page",
+            }));
+        }
+    } else {
+        await ws.send(JSON.stringify({
+            type: 'request-response',
+            requestId: data.requestId,
+            status: false,
+            error: "Room not found",
+        }));
+    }
+};
+
+const connectConsumerTransport = async (ws, data) => {
+    let room = await getRoom(ws.roomID);
+    if (room) {
+        if (ws.consumerTransport) {
+            const transport = ws.consumerTransport;
+
+            try {
+                await transport.connect({
+                    dtlsParameters: data.dtlsParameters
+                });
+
+                let response = {
+                    type: 'request-response',
+                    requestId: data.requestId,
+                    status: "transport-connected",
+                    data: {
+                        transportId: transport.id,
+                        dtlsState: transport.dtlsState
+                    },
+                };
+                await ws.send(JSON.stringify(response));
+
+            } catch (error) {
+                console.error("Consumer transport connect failed:", error);
+                await ws.send(JSON.stringify({
+                    type: 'request-response',
+                    requestId: data.requestId,
+                    status: false,
+                    error: `DTLS handshake failed: ${error.message}`
+                }));
+            }
+
+        } else {
+            await ws.send(JSON.stringify({
+                type: 'request-response',
+                requestId: data.requestId,
+                status: false,
+                error: "You have no consumer transport. Try to reload the page",
+            }));
+        }
+    } else {
+        await ws.send(JSON.stringify({
+            type: 'request-response',
+            requestId: data.requestId,
+            status: false,
+            error: "Room not found",
+        }));
+    }
+};
+
+// Первая часть - проверка доступности продюсера
+const consume = async (ws, data) => {
+    const room = await getRoom(ws.roomID);
+    if (!room) {
+        await ws.send(JSON.stringify({
+            type: 'request-response',
+            requestId: data.requestId,
+            status: false,
+            error: "Room not found",
+        }));
+        return;
+    }
+
+    const client = clients[data.producerId];
+    if (!client) {
+        throw new Error(`Client ${data.producerId} not found`);
+    }
+
+    const producer = data.kind === 'video'
+        ? client.videoProducer
+        : client.audioProducer;
+
+    if (!producer) {
+        console.log(`No ${data.kind} producer for client: ${data.producerId}`);
+
+        // Если продюсер еще не готов, сохраняем запрос для отложенного выполнения
+        if (!client.pendingConsumeRequests) {
+            client.pendingConsumeRequests = [];
+        }
+
+        // Сохраняем все данные для повторного вызова
+        client.pendingConsumeRequests.push({
+            pendingWS:ws,
+            args: data,
+            requestTime: Date.now()
+        });
+
+        // Можно добавить таймаут для таких запросов
+        return;
+    } else {
+        await createConsumer(ws, data, producer);
+    }
+};
+
+const micState = async (ws, data) => {
+    const room = await getRoom(ws.roomID);
+    if (!room) {
+        await ws.send(JSON.stringify({
+            type: 'request-response',
+            requestId: data.requestId,
+            status: false,
+            error: "Room not found",
+        }));
+        return;
+    }
+
+    if (ws.audioProducer) {
+        const state = ws.audioProducer.paused;
+        await ws.send(JSON.stringify({
+            type: 'request-response',
+            requestId: data.requestId,
+            status: true,
+            muted: state
+        }));
+    } else {
+        await ws.send(JSON.stringify({
+            type: 'request-response',
+            requestId: data.requestId,
+            status: false,
+            error: "You have no audio producer. Try to reload the page",
+        }));
+    }
+
+};
+
+// Вторая часть - создание потребителя
+const createConsumer = async (ws, data, producer) => {
+    // 2. Verify client can consume this producer
+    if (!ws.router.canConsume({
+        producerId: producer.id,
+        rtpCapabilities: data.rtpCapabilities
+    })) {
+        await ws.send(JSON.stringify({
+            type: 'request-response',
+            requestId: data.requestId,
+            status: false,
+            error: "Router says you can't consume this producer",
+        }));
+
+        console.log('--- CAN_CONSUME DEBUG ---');
+        console.log('Producer ID '+data.producerId+ ' :', producer.id);
+        console.log('Producer RTP Parameters:', producer.rtpParameters);
+        console.log('Consumer RTP Capabilities:', data.rtpCapabilities);
+        console.log('Router Supported RTP Capabilities:', ws.router.rtpCapabilities);
+        return;
+    }
+
+    // 3. Create consumer
+    const consumer = await ws.consumerTransport.consume({
+        producerId: producer.id,
+        rtpCapabilities: data.rtpCapabilities,
+        paused: false // Start immediately
+    });
+
+    // 4. Respond with consumer params
+    ws.send(JSON.stringify({
+        type: 'request-response',
+        requestId: data.requestId,
+        status: "consumer-created",
+        data: {
+            id: consumer.id,
+            producerId: producer.id,
+            kind: consumer.kind,
+            rtpParameters: consumer.rtpParameters
+        }
+    }));
+
+    // Track consumer
+    ws.consumers = ws.consumers || new Map();
+    ws.consumers.set(`${data.producerId}-${data.kind}`, consumer);
+};
+
 const getSlotUid = async (ws, data) => {
     let room = await getRoom(ws.roomID);
     let slotUID = false
@@ -395,6 +773,13 @@ module.exports = {
     checkWsActive,
     sleep,
     globalContext,
+    createProducerTransport,
+    createProducer,
+    connectProducerTransport,
+    consume,
+    createConsumerTransport,
+    connectConsumerTransport,
+    micState,
     addExports,
     cleanUsers
 }
