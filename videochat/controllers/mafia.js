@@ -192,7 +192,10 @@ async function getHistoryRooms() {
             JSON_OBJECT(
                     'name', JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.slot."${i + 1}".name')),
                     'mduid', JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.slot."${i + 1}".mduid')),
-                    'avatar', JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.slot."${i + 1}".avatar')),
+                    'avatar', COALESCE(
+                        NULLIF(JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.slot."${i + 1}".avatar')), 'null'),
+                        '/static/img/avatar/d450356dc7cb3609.png'
+                    ),
                     'role', JSON_UNQUOTE(JSON_EXTRACT(g.data, '$.slot."${i + 1}".role'))
             ) AS slot${i + 1},
         `
@@ -219,6 +222,7 @@ async function getHistoryRooms() {
         const playerGames = games.map((game, index) => {
             console.log(game.id, game.host_name, game.host_mduid, game.host_avatar) //
             const players = [ game.slot1, game.slot2, game.slot3, game.slot4, game.slot5, game.slot6, game.slot7, game.slot8, game.slot9, game.slot10 ];
+            console.log(game)
             return {
                 number: index + 1,
                 role: helpers.getRoleLabel(game.role),

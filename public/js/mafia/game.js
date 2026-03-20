@@ -524,6 +524,9 @@ function startSignaling() {
                 gamePanel = document.querySelector('div.game-panel')
                 gamePanel.setAttribute('data-mode', "player")
 
+                game = document.querySelector('div.game.videos')
+                game.setAttribute('data-autohost', data.room.game.settings.autohost)
+
                 let gameMode = document.querySelector('div.game.videos')
                 gameMode.setAttribute('data-mode', "player")
 
@@ -660,6 +663,8 @@ function startSignaling() {
             handleGamePlayerStatus(data);
         } else if (data.type === 'game-player-mic') {
             handleGamePlayerMic(data);
+        } else if (data.type === 'game-player-cam') {
+            handleGamePlayerCam(data);
         } else if (data.type === 'mute-mic') {
             muteMic(data);
         } else if (data.type === 'unmute-mic') {
@@ -704,6 +709,8 @@ function startSignaling() {
             handleActiveSpeaker(data);
         } else if (data.type === 'shout-out') {
             handleShoutOut(data);
+        } else if (data.type === 'pause') {
+            handleGamePause(data);
         } else if (data.type === 'player-comm') {
             handlePlayerComm(data);
         } else if (data.type === 'player-comm-witness') {

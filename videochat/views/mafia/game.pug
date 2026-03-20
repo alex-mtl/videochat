@@ -35,7 +35,7 @@ html(lang="en")
     script let chatSessionID = "#{sessionID}"; let roomId = "#{roomID}";var websocketUrl = "#{wssURL}";
     - var title= "Mafia Game : "+room.name
     include elems/layout-header
-    .game.videos
+    .game.videos(data-autohost=`${room.game.settings.autohost}`, data-pause=`${room.game.pause.state}`)
       #remoteVideos.videos.video-grid
         // each player, slot in room.slot
         each slot in [9, 10, 1, 2, 8]
@@ -43,7 +43,7 @@ html(lang="en")
           - var vbID = "video-"+slot+"-empty"
           include elems/videobox.pug
         //div.videobox#game-host
-        - const player = room.gameHost
+        - const player = room.host
         - var vbID = 'game-host'
         - var vID = 'hostVideo'
         - var muted = 'muted'

@@ -131,6 +131,15 @@ div.videobox {
     display: flex;
 }
 
+.game.videos[data-autohost="true"] div.videobox#game-host:not(.self-view) {
+    visibility: hidden;
+    display: none;
+}
+
+/*.game.videos[data-autohost="true"] div.videobox#game-host * {*/
+/*    visibility: hidden !important;*/
+/*}*/
+
 
 [data-phase="shooting"] div.videobox,
 /*div.videobox:not([data-player-status="alive"]):not([data-player-status="unknown"]) {*/
@@ -308,8 +317,8 @@ span.game-user {
     position: absolute;
     display: flex;
     max-width:18vw;
-    max-height: 3vw;
-    bottom: 0.2vw;
+    max-height: 2.5vw;
+    bottom: 0.32vw;
     left: 0.3vw;
     border-radius: 1vw;
     background-color: rgba(30, 30, 30, 0.5); 
@@ -576,9 +585,38 @@ span.slot-mic[data-mic="off"]:before {
     color: var(--g-red);
 }
 
-[data-phase="lobby"] span.slot-mic[data-mic="on"]:before {
+[data-phase="lobby"] span.slot-mic[data-mic="on"]:before,
+[data-phase="game-over"] span.slot-mic[data-mic="on"]:before
+{
     visibility: visible;
     content: "mic";
+    color: var(--g-green);
+}
+
+
+span.slot-cam {
+    position: absolute;
+    bottom: 0.7vw;
+    right: 6.7vw;
+    background-color: transparent;
+    color: rgba(211, 211, 211, 0.5); /* Text color */
+    padding: 0;
+    font-size: 3vw;
+    font-weight: bold; /* Bold font */
+    visibility: hidden;
+}
+
+span.slot-cam[data-cam="off"]:before {
+    visibility: visible;
+    content: "videocam";
+    color: var(--g-red);
+}
+
+[data-phase="lobby"] span.slot-cam[data-mic="on"]:before,
+[data-phase="game-over"] span.slot-cam[data-mic="on"]:before
+{
+    visibility: visible;
+    content: "videocam";
     color: var(--g-green);
 }
 
@@ -721,6 +759,14 @@ div.game-panel[data-mode='host'] .equalizer {
     border: 1px solid var(--g-grey);
 }
 
+.game.videos[data-autohost="true"] div.game-panel:not([data-mode='host']) {
+    grid-column: span 2;
+    border: 0.25vw solid var(--g-grey);
+    margin: 0.1vw;
+    border-radius: 1vw;
+    overflow: hidden;
+}
+
 div.game-panel:not([data-mode='host']) .equalizer {
     display: none;
 }
@@ -756,6 +802,57 @@ div.game.videos[data-phase='lobby'] .host-panel .e-container
     background-repeat:no-repeat;
     background-position: center center;
     background-size: 50% auto;
+}
+
+div.game.videos .player-panel .e-container span.pause:before {
+    content: "pause_circle";
+}
+
+div.game.videos .player-panel .e-container span.pause {
+    position: absolute;
+    visibility: hidden;
+}
+
+div.game.videos .player-panel .e-container span.pause:hover,
+div.game.videos .player-panel .e-container span.resume:hover
+{
+    color: var(--g-green)  !important;
+    cursor: pointer;
+}
+
+div.game.videos[data-pause='play'] .player-panel .e-container span.pause {
+    position: absolute;
+    top: 0.5vw;
+    right: 0.5vw;
+    background-color: transparent;
+    color: rgba(211, 211, 211, 0.5); /* Text color */
+    padding: 0;
+    font-size: 3vw;
+    font-weight: bold; /* Bold font */
+    visibility: visible;
+}
+
+
+div.game.videos .player-panel .e-container span.resume:before {
+    content: "play_circle";
+}
+
+div.game.videos .player-panel .e-container span.resume,
+div.game.videos .player-panel .e-container span.resume {
+    position: absolute;
+    visibility: hidden;
+}
+
+div.game.videos[data-pause='pause'] .player-panel .e-container span.resume {
+    position: absolute;
+    top: 0.5vw;
+    right: 0.5vw;
+    background-color: transparent;
+    color: rgba(211, 211, 211, 0.5); /* Text color */
+    padding: 0;
+    font-size: 3vw;
+    font-weight: bold; /* Bold font */
+    visibility: visible;
 }
 
 .e-bar {
@@ -1264,6 +1361,16 @@ div.videobox span.video-lock {
     visibility: visible;
 }
 span.g-countdown {
+    font-size: 6vw;
+    width: 100%;
+    text-align: center;
+    position: absolute;
+    top: 3vw;
+    font-weight: bold;
+    color: white;
+}
+
+span.g-pause {
     font-size: 6vw;
     width: 100%;
     text-align: center;

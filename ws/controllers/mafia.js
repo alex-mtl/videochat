@@ -5,6 +5,7 @@ const XRegExp = require('xregexp');
 const crypto = require('crypto');
 const data = require('../data');
 const config = require("../../config");
+const { timeoutManager } = require('../services/timeoutManager');
 
 global['clients'] = data.clients
 global['sessions'] = data.sessions
@@ -34,7 +35,7 @@ const {
     createConsumerTransport, connectConsumerTransport, consume,
     micState
 } = require("./common");
-const {nextSpeaker, playerLock, playerKill} = require("./host");
+const {nextSpeaker, playerLock, playerKill, warnAdd} = require("./host");
 
 function validateString(str) {
     // const re = XRegExp("^[\\pL\\-_0-9\\. ]+$");
@@ -103,6 +104,9 @@ function joinGame(ws, data) {
             }
 
             let emptySlot = true;
+            if (room.game.phase !== 'lobby') {
+                console.log('108', sessionID, room.slot)
+            }
             for (const [slot, player] of Object.entries(room.slot)) {
                 if (player.sessionID === sessionID) {
                     checkWS = clients[player.uid];
@@ -117,9 +121,12 @@ function joinGame(ws, data) {
                         break
                     }
                 }
+            }
+            for (const [slot, player] of Object.entries(room.slot)) {
                 if (room.game.phase === 'lobby') {
                     if ((player.uid === 'empty') && emptySlot) {
                         if (clientId !== room.gameHost.uid) {
+                            console.log('124:',room.game.phase, slot, player)
                             player.uid = clientId;
                             player.name = ws.req.session?.user?.nickname || ws.req.session?.user?.username || 'unknown'
                             player.avatar = ws.req.session?.user?.avatar_url || '/static/img/avatar/d450356dc7cb3609.png';
@@ -133,6 +140,9 @@ function joinGame(ws, data) {
 
             }
             ;
+            if (room.game.phase !== 'lobby') {
+                console.log('142', room.slot)
+            }
             if (emptySlot && (sessionID !== room.gameHost.sessionID)) {
                 let spectator = {
                     clientId,
@@ -212,6 +222,107 @@ const restartPeerConnection = async (ws, data) => {
     }
 };
 
+const gameResume = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
+    let pause = room.game.pause
+    if (PLAYER.status === 'alive' && (pause.state === 'pause')) {
+
+        let quorum = 0
+        if ((pause?.players || false) && pause.initTime > (Date.now()-10000)) {
+            for (const player of pause.players) {
+                if (player.uid === ws.uid) {
+                    player.pause = 'agree'
+                    quorum++
+                } else {
+                    if (player.pause === 'agree') {
+                        quorum++
+                    }
+                }
+            }
+            if(quorum >= pause.players.length/2) {
+                pause.state = 'pause'
+                pause.initTime = Date.now()
+            }
+            room.game.pause = pause
+            await updateRoom(ROOM_ID, room)
+            if (pause.state === 'pause') {
+                console.log('Broadcast!???')
+                await broadcastRoom(ROOM_ID, JSON.stringify({type: 'pause', pause: pause.state}));
+            } else {
+                console.log('What is going on?')
+                await broadcastRoom(ROOM_ID, JSON.stringify({type: 'pause', pause: pause.state}));
+            }
+        } else {
+            pause.players = []
+            pause.initTime = Date.now()
+            for (const [slot, player] of Object.entries(room.slot)) {
+                if (player.status === 'alive') {
+                    let user = clients[player.uid]
+                    if (user !== undefined) {
+                        let obj = {uid: player.uid, slot: slot, pause: 'none'}
+                        if (player.uid === ws.uid) {
+                            obj.pause = 'agree'
+                            await broadcastRoom(ROOM_ID, JSON.stringify({type: 'pause', pause: 'init'}));
+                        }
+                        pause.players.push(obj)
+                    }
+                }
+            }
+            room.game.pause = pause
+            console.log('pause init', pause)
+            await updateRoom(ROOM_ID, room)
+        }
+    }
+
+})
+
+const gamePause = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
+    let pause = room.game.pause
+    if (PLAYER.status === 'alive' && (pause.state === 'play')) {
+
+        let quorum = 0
+        if ((pause?.players || false) && pause.initTime > (Date.now()-10000)) {
+            for (const player of pause.players) {
+                if (player.uid === ws.uid) {
+                    player.pause = 'agree'
+                    quorum++
+                } else {
+                    if (player.pause === 'agree') {
+                        quorum++
+                    }
+                }
+            }
+            if(quorum >= pause.players.length/2) {
+                pause.state = 'pause'
+                pause.initTime = Date.now()
+            }
+            room.game.pause = pause
+            await updateRoom(ROOM_ID, room)
+            if (pause.state === 'pause') {
+                await broadcastRoom(ROOM_ID, JSON.stringify({type: 'pause', pause: pause.state}));
+            }
+            console.log('pause broadcast?', pause, (pause.state === 'pause'))
+        } else {
+            pause.players = []
+            pause.initTime = Date.now()
+            for (const [slot, player] of Object.entries(room.slot)) {
+                if (player.status === 'alive') {
+                    let user = clients[player.uid]
+                    if (user !== undefined) {
+                        let obj = {uid: player.uid, slot: slot, pause: 'none'}
+                        if (player.uid === ws.uid) {
+                            obj.pause = 'agree'
+                        }
+                        pause.players.push(obj)
+                    }
+                }
+            }
+            room.game.pause = pause
+            await updateRoom(ROOM_ID, room)
+            console.log('pause init', pause)
+        }
+    }
+
+})
 
 async function gamePlayerStatus(ws, data) {
     room = await getRoom(ws.roomID);
@@ -282,6 +393,11 @@ async function gamePlayerStatus(ws, data) {
             avatar: ws.avatar,
             slot: slotRes
         }));
+        readyToStart = await hostModule.checkPlayersReady(ws.roomID, room)
+        if (readyToStart) {
+            ws.tHost = true
+            await hostModule.gameStart(ws, data, ws.roomID, room)
+        }
     } else {
         await ws.send(JSON.stringify({ type: 'error', message: "Something went wrong. Can't change your status..." }));
     }
@@ -293,12 +409,13 @@ async function gamePlayerMic(ws, data) {
     valid = false
     if (ws.uid === room.gameHost.uid) {
         room.gameHost.mic = data.mic
+        room.host.mic = data.mic
         valid = true
     } else {
         for (const [slot, player] of Object.entries(room.slot)) {
             if (
                 (player.uid === ws.uid)
-                && ((room.game.phase === 'lobby') || (data.mode !== 'self'))
+                && ((['lobby', 'game-over'].includes(room.game.phase)) || (data.mode !== 'self'))
             ) {
                 player.mic = data.mic
                 valid = true
@@ -319,6 +436,42 @@ async function gamePlayerMic(ws, data) {
         await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-player-mic', uid: ws.uid, mic: data.mic }));
     } else {
         await ws.send(JSON.stringify({ type: 'error', message: "Can't change your microphone status..." }));
+    }
+}
+
+async function gamePlayerCam(ws, data) {
+    room = await getRoom(ws.roomID);
+    data.cam = (data.cam === 'on') ? 'on' : 'off'
+    valid = false
+    if (ws.uid === room.gameHost.uid) {
+        room.gameHost.cam = data.mic
+        room.host.cam = data.mic
+        valid = true
+    } else {
+        for (const [slot, player] of Object.entries(room.slot)) {
+            if (
+                (player.uid === ws.uid)
+                && ((['lobby', 'game-over'].includes(room.game.phase)) || (data.mode !== 'self'))
+            ) {
+                player.cam = data.cam
+                valid = true
+                break
+            }
+        }
+        ;
+    }
+    if (valid) {
+        if (ws.audioProducer) {
+            if (data.cam === 'on') {
+                await ws.videoProducer.resume();
+            } else {
+                await ws.videoProducer.pause();
+            }
+        }
+        await updateRoom(ws.roomID, room)
+        await broadcastRoom(ws.roomID,  JSON.stringify({ type: 'game-player-cam', uid: ws.uid, cam: data.cam }));
+    } else {
+        await ws.send(JSON.stringify({ type: 'error', message: "Can't change your camera status..." }));
     }
 }
 
@@ -523,6 +676,16 @@ const shoutOut = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
                 ) {
                     await slotSend(ROOM_ID, data.slot, {type: 'mute-mic', mode: 'shout-out'});
                 }
+                if(room.game.settings.autohost === true) {
+
+                    setTimeout(async () => {
+                            data.type = 'warn-add'
+                            data.slot = data.slot
+                            ws.tHost = true
+                            warnAdd(ws, data, ROOM_ID, room)
+                        }
+                        , 500 )
+                }
             }, 5000);
         } else {
             room = await getRoom(ROOM_ID)
@@ -554,7 +717,7 @@ const shoutOut = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
 })
 
 const passNextSpeaker = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
-    console.log("481",PLAYER.slot,room.game.speakers.at(-1), room.game.speakers)
+    console.log("573",PLAYER.slot,room.game.speakers.at(-1), room.game.speakers, data)
     if (
         // room.game.speakers.at(-1) == PLAYER.slot
         // && PLAYER.slot == data.slot
@@ -563,7 +726,11 @@ const passNextSpeaker = onlyPlayer(async (ws, data, ROOM_ID, room, PLAYER) => {
         console.log("483")
         data.type = "next-speaker"
         data.host = room.gameHost.uid;
-        nextSpeaker(ws, data)
+        if(data.timeoutID !== 'null') {
+            await timeoutManager.clear(data.timeoutID)
+        }
+        console.log('mafia 488 >> next speaker`')
+        await nextSpeaker(ws, data, ROOM_ID, room)
     }
 })
 
@@ -786,13 +953,13 @@ const getSheriffCheck = onlySheriff(async (ws, data, ROOM_ID, room, PLAYER, TEAM
         let response = {type: 'request-response', requestId: data.requestId, role: room.game.days["D"+room.game.day].sheriffCheck[data.slot]}
         await ws.send(JSON.stringify(response));
         await host(ROOM_ID, { type: 'sherif-made-check', slot: data.slot, role: room.game.days["D"+room.game.day].sheriffCheck[data.slot] })
-        setTimeout(async () => {
-            room = await getRoom(ROOM_ID);
-            if (room.game.phase === 'sheriff-check') {
-
-                await hostModule.startDay(ws, {type: 'start-day', host: room.gameHost.uid});
-            }
-        }, 3000)
+        // setTimeout(async () => {
+        //     room = await getRoom(ROOM_ID);
+        //     if (room.game.phase === 'sheriff-check') {
+        //
+        //         await hostModule.startDay(ws, {type: 'start-day', host: room.gameHost.uid});
+        //     }
+        // }, 3000)
     } else {
         let response = {type: 'request-response', requestId: data.requestId, role: sheriffChecks[data.slot] ?? 'none'}
         await ws.send(JSON.stringify(response));
@@ -816,13 +983,13 @@ const getDonCheck = onlyDon(async (ws, data, ROOM_ID, room, PLAYER, TEAM) => {
         let response = {type: 'request-response', requestId: data.requestId, role: room.game.days["D"+room.game.day].donCheck[data.slot]}
         await ws.send(JSON.stringify(response));
         await host(ROOM_ID, { type: 'don-made-check', slot: data.slot, role: room.game.days["D"+room.game.day].donCheck[data.slot] })
-        setTimeout(async () => {
-            room = await getRoom(ROOM_ID);
-            if (room.game.phase === 'don-check') {
-
-                await hostModule.startSheriffCheck(ws, {type: 'start-sheriff-check', host: room.gameHost.uid});
-            }
-        }, 3000)
+        // setTimeout(async () => {
+        //     room = await getRoom(ROOM_ID);
+        //     if (room.game.phase === 'don-check') {
+        //
+        //         await hostModule.startSheriffCheck(ws, {type: 'start-sheriff-check', host: room.gameHost.uid});
+        //     }
+        // }, 3000)
 
     } else {
         let response = {type: 'request-response', requestId: data.requestId, role: donChecks[data.slot] ?? 'none'}
@@ -900,9 +1067,16 @@ async function createGame(sender, data) {
             userName: room.host,
             mduid: sender.req.session?.user?.mduid || null,
             avatar: sender.req.session?.user?.avatar_url || '/static/img/avatar/d450356dc7cb3609.png',
-            sessionID: room.chatSessionID
+            sessionID: room.chatSessionID,
+            mic: "off",
+            status: "unknown"
         };
-        room.gameHost = {uid: clientId, name: sender.userName, sessionID: room.chatSessionID, status: "unknown" }
+        room.gameHost = {
+            uid: clientId,
+            name: sender.userName,
+            sessionID: room.chatSessionID,
+            status: "unknown"
+        }
         room.link = process.env.APP_URL+'m/'+room.name;
         room.size = 1;
         room.createdAt = Date.now();
@@ -913,8 +1087,9 @@ async function createGame(sender, data) {
             "registeredOnly": false,
             "skipRoleShuffle": true,
             "sandbox": false,
-            "autohost": false,
+            "autohost": true,
         }
+        room.game.pause = { state: "lobby" }
         room.spectators = {};
         room.users = {}
         room.users[clientId] = {uid: clientId};
@@ -1073,7 +1248,10 @@ module.exports = common.addExports(
     createGame,
     joinRoomGame,
     gamePlayerStatus,
+    gamePause,
+    gameResume,
     gamePlayerMic,
+    gamePlayerCam,
     gameReserveSlot,
     gameReserveRole,
     nominatePlayer,

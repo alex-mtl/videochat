@@ -1,4 +1,4 @@
-
+let wsConnRetry = 0;
 let instaRoom = '';
 
 startSignaling();
@@ -75,14 +75,25 @@ function requestJoinRoom(elem) {
     ws.send(JSON.stringify({type: 'join-room', roomID: roomID, 'request': roomRequest, chatSessionID}));
 }
 function startSignaling() {
+
+    wsConnRetry++;
+
     btn = document.getElementById('createRoom');
     btn.onclick = createRoom;
 
     ws = new WebSocket(websocketUrl);
 
     ws.onopen = () => {
+        wsConnRetry = 0;
         ws.send(JSON.stringify({type: 'connect', page: 'mafia-home'}));
     };
+
+    ws.onclose = (event) => {
+        if (wsConnRetry < 5) {
+            setTimeout(window.location.reload(), 1000); // Retry after 1 second
+        }
+
+    }
 
     ws.onmessage = event => {
         const data = JSON.parse(event.data);

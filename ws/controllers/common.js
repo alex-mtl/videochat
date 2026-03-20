@@ -159,9 +159,16 @@ function onlyHost(handler) {
         try {
             const ROOM_ID = ws.roomID;
             const room = await getRoom(ROOM_ID);
-            if ((ws.uid !== room.gameHost.uid) && (data?.host !== room.gameHost.uid)) {
-                console.log('Attempt to execute action when not a host!', ws.uid, ROOM_ID);
-                throw new Error('Not a host');
+            if (((room.game.settings.autohost === true) && (ws?.tHost !== true))
+                || (room.game.settings.autohost !== true)) {
+                if ((ws.uid !== room.gameHost.uid) && (data?.host !== room.gameHost.uid)) {
+                    console.log(((room.game.settings.autohost === true) && (ws?.tHost !== true)), room.game.settings.autohost, ws?.tHost, ws.uid, room.gameHost.uid);
+                    console.log('Attempt to execute action when not a host!', ws.uid, ROOM_ID);
+                    throw new Error('Not a host');
+                }
+            }
+            if(ws.tHost === true) {
+                ws.tHost = false
             }
             await handler(ws, data, ROOM_ID, room);
         } catch (error) {
@@ -436,6 +443,21 @@ const createProducer = async (ws, data) => {
         // Store by type (critical for later access)
         if (data.kind === 'video') {
             ws.videoProducer = producer;
+
+            if (ws.uid === room.host.uid) {
+                if (room.host.cam === 'off') {
+                    ws.videoProducer.pause();
+                }
+            } else {
+                const userSlot = Object.values(room.slot).find(slot => slot.uid === ws.uid);
+                console.log(userSlot)
+                if (userSlot && userSlot.cam === 'off') {
+                    ws.videoProducer.pause();
+                    console.log(`Video producer paused for ${ws.uid}`);
+                } else {
+                    console.log((userSlot.cam === 'off'));
+                }
+            }
             console.log(`Video producer created for ${ws.uid}`);
             // Выполняем отложенные запросы
             if (ws.pendingConsumeRequests) {
@@ -456,9 +478,19 @@ const createProducer = async (ws, data) => {
             }
         } else {
             ws.audioProducer = producer;
-            if(room.game.phase === 'lobby') {
-                ws.audioProducer.pause();
+
+            if (ws.uid === room.host.uid) {
+                if (room.host.mic === 'off') {
+                    ws.audioProducer.pause();
+                }
+            } else {
+                const userSlot = Object.values(room.slot).find(slot => slot.uid === ws.uid);
+
+                if (userSlot && userSlot.mic === 'off') {
+                    ws.audioProducer.pause();
+                }
             }
+
 
             if (ws.pendingConsumeRequests) {
                 const remainingRequests = [];
@@ -476,7 +508,7 @@ const createProducer = async (ws, data) => {
                 });
                 ws.pendingConsumeRequests = remainingRequests;
             }
-            console.log(`Audio producer created for ${ws.uid}`);
+            console.log(`Audio producer created for ${ws.uid}`, ws.uid, room.host.uid, room.host.mic);
         }
 
         // Response

@@ -439,13 +439,34 @@ function handlePeerLeft(peerId) {
 function selfMic(micElem) {
     let game = document.querySelector('div.game[data-phase]')
     let phase = game.getAttribute('data-phase')
-    if (phase === 'lobby') {
+    if (phase === 'lobby' || phase === 'game-over') {
         if (micElem.parentElement.classList.contains('self-view')) {
             toggler = micElem.parentElement.querySelector('span.toggle-audio')
             toggleAudio(toggler, 'toggle')
         }
     }
 }
+
+function selfCam(camElem) {
+    let game = document.querySelector('div.game[data-phase]')
+    let phase = game.getAttribute('data-phase')
+    if (phase === 'lobby' || phase === 'game-over') {
+        if (camElem.parentElement.classList.contains('self-view')) {
+            toggler = camElem.parentElement.querySelector('span.toggle-video')
+            toggleVideo(toggler, 'toggle')
+        }
+    }
+}
+
+
+function gamePause(btn) {
+    ws.send(JSON.stringify({type: 'game-pause', 'from': sessionID}));
+}
+
+function gameResume(btn) {
+    ws.send(JSON.stringify({type: 'game-resume', 'from': sessionID}));
+}
+
 async function toggleAudio(elem, mute = 'toggle', mode = 'self' ) {
     if (elem.parentElement.classList.contains('self-view')) {
         let muted;
@@ -526,7 +547,7 @@ function unmuteMic(data) {
 
 }
 
-function toggleVideo(elem) {
+function toggleVideo(elem, mute = 'toggle', mode = 'self') {
     video = elem.parentElement.querySelector('video');
     // txt = video.classList.contains('play') ? 'videocam' : 'videocam_off';
     stream = video.srcObject;
@@ -536,17 +557,24 @@ function toggleVideo(elem) {
         if (track.kind === 'video') {
             track.enabled = !track.enabled;
             muted = (!track.enabled)
+
         }
     });
+    let camOn = "off"
     if (muted) {
         elem.classList.add('muted')
+        camOn = 'off'
     } else {
         elem.classList.remove('muted')
+        camOn = 'on'
     }
     // elem.textContent = txt;
     // elem.setAttribute('alt', txt);
     // elem.setAttribute('tooltip', txt);
     elem.parentElement.querySelector('video').classList.toggle('play');
+    if (elem.parentElement.classList.contains('self-view')) {
+        ws.send(JSON.stringify({type: 'game-player-cam', 'from': sessionID, cam: camOn, mode: mode}));
+    }
 }
 
 function showSettings() {
@@ -1168,7 +1196,8 @@ function handleReset(data) {
 
 
 function handleGameStart(data) {
-
+    game = document.querySelector('div.game.videos')
+    game.setAttribute('data-autohost', data.autohost)
     sfx.shuffle.play()
     gameMessage('Pick a slot')
 
@@ -1401,7 +1430,7 @@ async function handleGamePhase(data, mode = 'normal') {
         if (mode === 'normal') {
             stopCountdown()
             muteAllSfx()
-            startCountdown(20)
+            startCountdown(data?.duration || 20)
         } else {
             resetDisableButtons()
         }
@@ -1788,6 +1817,10 @@ function handleGameOver(data) {
 
 function handleGameReady(data) {
     sfx.police.stop();
+
+    let game = document.querySelector('div.game.videos')
+    game.setAttribute('data-pause', "play")
+
     let vBoxes = document.querySelectorAll('div.videobox[data-slot="'+data.slot+'"]')
     vBoxes.forEach(vBox =>  {
         vBox.setAttribute('data-player-status', 'alive')
@@ -1822,6 +1855,14 @@ function handleGamePlayerMic(data) {
     // slotN = slotMic.parentElement.getAttribute('data-slot')
     if (slotMic) {
         slotMic.setAttribute('data-mic', data.mic)
+    }
+}
+
+function handleGamePlayerCam(data) {
+    slotCam = document.querySelector('div.videobox[data-uid="'+data.uid+'"] span.slot-cam')
+    // slotN = slotMic.parentElement.getAttribute('data-slot')
+    if (slotCam) {
+        slotCam.setAttribute('data-cam', data.cam)
     }
 }
 
@@ -2184,8 +2225,8 @@ function passPlayerLockSend(slot) {
     stopCountdown()
     playerButtonDisable()
 }
-function passNextSpeakerSend() {
-    ws.send(JSON.stringify({type: 'pass-next-speaker'}));
+function passNextSpeakerSend(timeoutID = 'null') {
+    ws.send(JSON.stringify({type: 'pass-next-speaker', timeoutID: timeoutID}));
     stopCountdown()
     playerButtonDisable()
 }
@@ -2207,7 +2248,8 @@ function handleActiveSpeaker(data) {
             } else if (data?.action === 'killed') {
                 playerButton('Pass', passPlayerKillSend.bind(null, data.slot))
             } else {
-                playerButton('Pass', passNextSpeakerSend)
+                console.log(data)
+                playerButton('Pass', passNextSpeakerSend.bind(null, data?.timeoutID || 'null'))
             }
             setTimeout(() => {
                 playerButtonDisable()
@@ -2245,6 +2287,17 @@ function handleShoutOut(data) {
             eBar.classList.remove('shout-out')
         }
     }, 5000)
+}
+
+function handleGamePause(data) {
+    game = document.querySelector('div.game.videos')
+    game.setAttribute('data-pause', data.pause)
+    sfx.notify.play()
+
+    let span = document.querySelector('span.g-pause')
+    span.style.visibility = 'visible';
+    span.textContent = 'PAUSE';
+
 }
 
 function handlePlayerComm(data) {
@@ -2388,6 +2441,7 @@ function handlePlayerStatus(data) {
 
 
 function playerButton(txt, fn) {
+    console.log('playerButton:', txt);
     gStart = document.getElementById('player-button')
     gStart.textContent = txt
     gStart.onclick = () => {
@@ -2400,6 +2454,7 @@ function playerButton(txt, fn) {
 function playerButtonDisable() {
     gStart = document.querySelector('button#player-button.active')
     if(gStart) {
+        console.log('playerButtonDisable call stack:', new Error().stack);
         gStart.classList.remove('active')
     }
 }
@@ -2427,11 +2482,14 @@ function handleVotingRound(data) {
 
                 slotCandidate.addEventListener('keydown', handleKeyDown);
 
-                setTimeout(() => {
-                    slotCandidate.classList.remove('active')
-                    slotCandidate.removeEventListener('keydown', handleKeyDown);
-                    playerButtonDisable()
-                }, 5000)
+                let autohost = game.getAttribute('data-autohost')
+                if (autohost === 'false') {
+                    setTimeout(() => {
+                        slotCandidate.classList.remove('active')
+                        slotCandidate.removeEventListener('keydown', handleKeyDown);
+                        playerButtonDisable()
+                    }, 5000)
+                }
             }
         }
 
@@ -2534,6 +2592,9 @@ function handlePlayerShoot(data) {
 }
 
 function handleVotingRoundResult(data) {
+    game = document.querySelector('div.game.videos')
+
+
     let candidate = document.querySelector('div.videobox[data-slot="' + data.candidate + '"]')
     // if (data.votes.length > 0) {
         // let likes = ''
@@ -2543,6 +2604,14 @@ function handleVotingRoundResult(data) {
         span = candidate.querySelector('span.slot-vote')
         span.classList.add('voted')
         span.classList.add('votes-'+data.votes.length)
+
+    let autohost = game.getAttribute('data-autohost')
+    if (autohost === 'true') {
+        let slotCandidate = candidate.querySelector('span.slot-candidate')
+        slotCandidate.classList.remove('active')
+        slotCandidate.removeEventListener('keydown', handleKeyDown);
+        playerButtonDisable()
+    }
 
     // fly(fromSlot, toSlot)
 }
